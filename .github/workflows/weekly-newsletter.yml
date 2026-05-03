@@ -1,0 +1,40 @@
+name: Weekly AI Newsletter
+
+# Runs every Monday at 08:00 UTC, and can also be triggered manually.
+on:
+  schedule:
+    - cron: '0 8 * * 1'   # Mon 08:00 UTC -- adjust to your timezone if you like
+  workflow_dispatch:        # adds a "Run workflow" button in the GitHub UI
+
+permissions:
+  contents: write           # allow the workflow to commit the generated newsletter
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate the newsletter
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python agent.py
+
+      - name: Commit the new newsletter
+        run: |
+          git config user.name  "ai-news-agent"
+          git config user.email "actions@users.noreply.github.com"
+          mkdir -p newsletters
+          mv newsletter_*.html newsletters/ 2>/dev/null || true
+          git add newsletters/
+          git diff --staged --quiet || git commit -m "Weekly newsletter: $(date -u +%Y-%m-%d)"
+          git push

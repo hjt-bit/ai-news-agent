@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Secrets - NEVER commit your API key
+.env
+*.key
+
+# Loose newsletters at the project root are ignored.
+# (The GitHub Action moves them into /newsletters/ where they ARE tracked.)
+/newsletter_*.html
+
+# OS files
+.DS_Store
+Thumbs.db
