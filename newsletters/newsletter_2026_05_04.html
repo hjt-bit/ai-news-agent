@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIGNAL // AI Intelligence Briefing - May 04, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Light editorial palette with deep-navy ink and cyan/violet accents */
+    --bg: #f4f6fb;            /* page background, very light cool gray */
+    --paper: #ffffff;         /* card/paper surface */
+    --panel: #f0f4fa;         /* tinted panel for TL;DR & CTA */
+    --line: #e3e8f1;          /* hairline divider */
+    --line-bright: #cfd6e4;   /* slightly stronger divider */
+    --ink: #0e1628;           /* primary text - deep navy */
+    --ink-2: #1f2a44;         /* secondary text */
+    --muted: #5b6679;         /* meta/muted */
+    --muted-2: #8a93a6;       /* very muted */
+    --cyan: #0891b2;          /* accent - deeper cyan that reads on light */
+    --cyan-bright: #06b6d4;   /* hover/glow */
+    --violet: #7c3aed;        /* secondary accent */
+    --violet-soft: #8b5cf6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    background-image:
+      radial-gradient(800px 400px at 50% -150px, rgba(8,145,178,0.10), transparent 60%),
+      radial-gradient(600px 350px at 95% 5%, rgba(124,58,237,0.07), transparent 65%);
+    color: var(--ink);
+    padding: 40px 16px;
+    line-height: 1.6;
+    font-size: 15px;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(14,22,40,0.04), 0 12px 40px rgba(14,22,40,0.06);
+  }
+  /* MASTHEAD */
+  .masthead {
+    padding: 36px 44px 28px;
+    border-bottom: 1px solid var(--line);
+    background:
+      linear-gradient(180deg, rgba(8,145,178,0.04), transparent 70%);
+  }
+  .masthead-top {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 2px; color: var(--muted);
+    text-transform: uppercase; margin-bottom: 28px;
+  }
+  .masthead-top .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--cyan); margin-right: 8px; vertical-align: middle;
+    box-shadow: 0 0 8px rgba(8,145,178,0.6);
+  }
+  .masthead h1 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700; font-size: 46px; line-height: 1; letter-spacing: -1.5px;
+    margin: 0 0 10px; color: var(--ink);
+  }
+  .masthead h1 .accent { color: var(--cyan); }
+  .masthead .tagline {
+    font-size: 14px; color: var(--ink-2); letter-spacing: 0.1px;
+  }
+  /* INLINE SUBSCRIBE STRIP UNDER THE MASTHEAD */
+  .subscribe-strip {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    justify-content: space-between;
+    padding: 14px 44px;
+    background: linear-gradient(90deg, rgba(8,145,178,0.07), rgba(124,58,237,0.05));
+    border-bottom: 1px solid var(--line);
+    font-size: 13px; color: var(--ink-2);
+  }
+  .subscribe-strip .copy { flex: 1; min-width: 200px; }
+  .subscribe-strip .copy strong { color: var(--ink); }
+  .subscribe-strip a.cta-mini {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: #ffffff; background: var(--cyan);
+    padding: 9px 16px; border-radius: 3px; text-decoration: none;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  .subscribe-strip a.cta-mini:hover { background: var(--cyan-bright); transform: translateY(-1px); }
+  .subscribe-strip a.cta-mini::after { content: "->"; }
+  /* INTRO / DECK */
+  .deck {
+    padding: 28px 44px;
+    border-bottom: 1px solid var(--line);
+    font-size: 15px; color: var(--ink-2); line-height: 1.65;
+  }
+  .deck .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 2px; color: var(--cyan);
+    text-transform: uppercase; margin-bottom: 10px; display: block;
+  }
+  /* SECTION HEADER */
+  .section { padding: 0; }
+  .section-header {
+    padding: 36px 44px 18px;
+    display: flex; align-items: center; gap: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .section-header .index {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--cyan); letter-spacing: 1.5px;
+  }
+  .section-header h2 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 600; font-size: 18px; letter-spacing: 0.3px;
+    text-transform: uppercase; color: var(--ink); margin: 0;
+  }
+  .section-header .rule {
+    flex: 1; height: 1px;
+    background: linear-gradient(90deg, var(--line-bright), transparent);
+  }
+  /* ARTICLES */
+  .article {
+    padding: 28px 44px;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+  }
+  .article:last-child { border-bottom: none; }
+  .article-meta {
+    display: flex; gap: 14px; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 1.8px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 12px;
+  }
+  .article-meta .pill {
+    display: inline-block; padding: 3px 8px;
+    border: 1px solid var(--cyan); border-radius: 2px;
+    color: var(--cyan); letter-spacing: 1.5px; background: rgba(8,145,178,0.06);
+  }
+  .article-headline {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 600; font-size: 23px; line-height: 1.25;
+    letter-spacing: -0.4px; margin: 0 0 12px;
+  }
+  .article-headline a {
+    color: var(--ink); text-decoration: none;
+    transition: color 0.2s ease;
+  }
+  .article-headline a:hover { color: var(--cyan); }
+  .tldr {
+    font-size: 14px; line-height: 1.6; color: var(--ink-2);
+    padding: 12px 14px; margin: 0 0 18px;
+    background: var(--panel);
+    border-left: 2px solid var(--cyan);
+    border-radius: 2px;
+  }
+  .points {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px 28px; margin: 0;
+  }
+  .point .label {
+    display: block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px; font-weight: 600; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--violet);
+    margin-bottom: 4px;
+  }
+  .point .value {
+    display: block; font-size: 13px; line-height: 1.5; color: var(--ink);
+  }
+  .read-more {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 18px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--cyan); text-decoration: none;
+    padding-bottom: 3px; border-bottom: 1px solid rgba(8,145,178,0.35);
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+  .read-more:hover { color: var(--cyan-bright); border-bottom-color: var(--cyan-bright); }
+  .read-more::after { content: "->"; }
+  /* CTA -- the bottom Sign Up block */
+  .cta {
+    margin: 0; padding: 44px 44px;
+    text-align: center;
+    background:
+      linear-gradient(135deg, rgba(8,145,178,0.08), rgba(124,58,237,0.08));
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .cta .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 2px; color: var(--cyan);
+    text-transform: uppercase; margin-bottom: 12px; display: block;
+  }
+  .cta h3 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700; font-size: 26px; color: var(--ink);
+    margin: 0 0 12px; letter-spacing: -0.5px;
+  }
+  .cta p {
+    font-size: 14px; color: var(--ink-2); margin: 0 auto 22px; line-height: 1.6;
+    max-width: 440px;
+  }
+  .cta a.button {
+    display: inline-block; padding: 14px 28px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+    color: #ffffff; background: var(--cyan);
+    text-decoration: none; border-radius: 3px;
+    box-shadow: 0 6px 18px rgba(8,145,178,0.25);
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .cta a.button:hover { transform: translateY(-1px); background: var(--cyan-bright); }
+  .cta .small {
+    margin-top: 14px; font-size: 12px; color: var(--muted);
+  }
+  /* FOOTER */
+  .colophon {
+    padding: 26px 44px 32px;
+    text-align: center;
+    background: var(--paper);
+  }
+  .colophon .sig {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 2px; color: var(--muted-2);
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  .colophon .text {
+    font-size: 11px; color: var(--muted); line-height: 1.6;
+  }
+  @media (max-width: 600px) {
+    body { padding: 16px 0; font-size: 14px; }
+    .wrap { border-radius: 0; }
+    .masthead { padding: 28px 22px 22px; }
+    .masthead h1 { font-size: 34px; }
+    .deck, .article, .cta, .colophon, .subscribe-strip { padding-left: 22px; padding-right: 22px; }
+    .section-header { padding: 28px 22px 14px; }
+    .points { grid-template-columns: 1fr; gap: 14px; }
+    .article-headline { font-size: 20px; }
+    .subscribe-strip { flex-direction: column; align-items: flex-start; gap: 10px; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="masthead">
+      <div class="masthead-top">
+        <span><span class="dot"></span>SIGNAL // VOL. 001</span>
+        <span>May 04, 2026</span>
+      </div>
+      <h1>SIGNAL<span class="accent">.</span></h1>
+      <div class="tagline">A weekly intelligence briefing on artificial intelligence.</div>
+    </header>
+
+    <div class="subscribe-strip">
+      <div class="copy"><strong>New here?</strong> Get SIGNAL in your inbox every Monday.</div>
+      <a class="cta-mini" href="https://tally.so/r/7R4V7R">Subscribe free</a>
+    </div>
+
+    <div class="deck">
+      <span class="label">// This Week</span>
+      The signals that matter, decoded for leaders building with AI — and the consumer shifts shaping how the rest of the world experiences it.
+    </div>
+
+    <section class="section">
+      <div class="section-header">
+        <span class="index">01 //</span>
+        <h2>Strategic Briefing</h2>
+        <span class="rule"></span>
+      </div>
+      
+    <article class="article">
+      <div class="article-meta">
+        <span class="pill">Strategic</span>
+        <span>MIT Tech Review</span>
+      </div>
+      <h3 class="article-headline"><a href="https://www.technologyreview.com/2026/05/01/1136779/cyber-insecurity-in-the-ai-era/">Rethinking Cybersecurity for the AI Age</a></h3>
+      <p class="tldr">AI expands attack surfaces, challenging traditional security methods.</p>
+      <div class="points">
+        <div class="point"><span class="label">Signal</span><span class="value">Cybersecurity faces new challenges with AI integration</span></div>
+        <div class="point"><span class="label">Why it matters</span><span class="value">Legacy security methods are becoming ineffective</span></div>
+        <div class="point"><span class="label">Business impact</span><span class="value">Increased vulnerability to cyber threats</span></div>
+        <div class="point"><span class="label">Leader action</span><span class="value">Reassess security strategies for AI integration</span></div>
+      </div>
+      <a class="read-more" href="https://www.technologyreview.com/2026/05/01/1136779/cyber-insecurity-in-the-ai-era/">Read the full story</a>
+    </article>
+    
+    <article class="article">
+      <div class="article-meta">
+        <span class="pill">Strategic</span>
+        <span>MIT Tech Review</span>
+      </div>
+      <h3 class="article-headline"><a href="https://www.technologyreview.com/2026/05/01/1136772/operationalizing-ai-for-scale-and-sovereignty/">Unlocking AI: Control Your Data for Growth</a></h3>
+      <p class="tldr">Companies are mastering data to enhance AI effectiveness.</p>
+      <div class="points">
+        <div class="point"><span class="label">Signal</span><span class="value">Companies focus on data ownership for AI</span></div>
+        <div class="point"><span class="label">Why it matters</span><span class="value">Balancing ownership ensures reliable AI insights</span></div>
+        <div class="point"><span class="label">Business impact</span><span class="value">Improved AI leads to better decision-making</span></div>
+        <div class="point"><span class="label">Leader action</span><span class="value">Embrace data ownership for AI success</span></div>
+      </div>
+      <a class="read-more" href="https://www.technologyreview.com/2026/05/01/1136772/operationalizing-ai-for-scale-and-sovereignty/">Read the full story</a>
+    </article>
+    
+    <article class="article">
+      <div class="article-meta">
+        <span class="pill">Strategic</span>
+        <span>AI News</span>
+      </div>
+      <h3 class="article-headline"><a href="https://www.artificialintelligence-news.com/news/agentic-ai-governance-enterprise-readiness-google/">Google Launches Agentic AI Governance Product</a></h3>
+      <p class="tldr">Google introduces agentic AI governance as a core feature.</p>
+      <div class="points">
+        <div class="point"><span class="label">Signal</span><span class="value">Google launched Gemini Enterprise Agent Platform</span></div>
+        <div class="point"><span class="label">Why it matters</span><span class="value">Sets new standard for AI governance in enterprises</span></div>
+        <div class="point"><span class="label">Business impact</span><span class="value">Improves compliance and risk management capabilities</span></div>
+        <div class="point"><span class="label">Leader action</span><span class="value">Evaluate your AI governance strategies now</span></div>
+      </div>
+      <a class="read-more" href="https://www.artificialintelligence-news.com/news/agentic-ai-governance-enterprise-readiness-google/">Read the full story</a>
+    </article>
+    
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <span class="index">02 //</span>
+        <h2>Consumer Signals</h2>
+        <span class="rule"></span>
+      </div>
+      
+    <article class="article">
+      <div class="article-meta">
+        <span class="pill">Consumer</span>
+        <span>TechCrunch AI</span>
+      </div>
+      <h3 class="article-headline"><a href="https://techcrunch.com/2026/05/03/in-harvard-study-ai-offered-more-accurate-diagnoses-than-emergency-room-doctors/">AI Outperforms Doctors in Emergency Diagnoses</a></h3>
+      <p class="tldr">AI shows promise in diagnosing emergencies better than doctors.</p>
+      <div class="points">
+        <div class="point"><span class="label">In plain English</span><span class="value">AI can diagnose emergencies more accurately</span></div>
+        <div class="point"><span class="label">Why you care</span><span class="value">Better diagnoses can save lives and improve care</span></div>
+        <div class="point" style="grid-column: 1 / -1;"><span class="label">What to do</span><span class="value">Stay informed about AI in healthcare</span></div>
+      </div>
+      <a class="read-more" href="https://techcrunch.com/2026/05/03/in-harvard-study-ai-offered-more-accurate-diagnoses-than-emergency-room-doctors/">Read the full story</a>
+    </article>
+    
+    <article class="article">
+      <div class="article-meta">
+        <span class="pill">Consumer</span>
+        <span>TechCrunch AI</span>
+      </div>
+      <h3 class="article-headline"><a href="https://techcrunch.com/2026/05/02/the-best-ai-powered-dictation-apps-of-2025/">Top AI Dictation Apps You Should Try</a></h3>
+      <p class="tldr">Discover the best AI dictation apps for everyday tasks.</p>
+      <div class="points">
+        <div class="point"><span class="label">In plain English</span><span class="value">Use your voice for notes and emails</span></div>
+        <div class="point"><span class="label">Why you care</span><span class="value">Save time and boost productivity effortlessly</span></div>
+        <div class="point" style="grid-column: 1 / -1;"><span class="label">What to do</span><span class="value">Explore the top-ranked apps now</span></div>
+      </div>
+      <a class="read-more" href="https://techcrunch.com/2026/05/02/the-best-ai-powered-dictation-apps-of-2025/">Read the full story</a>
+    </article>
+    
+    <article class="article">
+      <div class="article-meta">
+        <span class="pill">Consumer</span>
+        <span>TechCrunch AI</span>
+      </div>
+      <h3 class="article-headline"><a href="https://techcrunch.com/2026/04/30/googles-gemini-ai-assistant-is-hitting-the-road-in-millions-of-vehicles/">Google's AI Assistant Hits Millions of Cars</a></h3>
+      <p class="tldr">Google is bringing its AI assistant to many vehicles.</p>
+      <div class="points">
+        <div class="point"><span class="label">In plain English</span><span class="value">AI assistant now available in cars</span></div>
+        <div class="point"><span class="label">Why you care</span><span class="value">Enhances your driving experience with smart features</span></div>
+        <div class="point" style="grid-column: 1 / -1;"><span class="label">What to do</span><span class="value">Check if your car supports this feature</span></div>
+      </div>
+      <a class="read-more" href="https://techcrunch.com/2026/04/30/googles-gemini-ai-assistant-is-hitting-the-road-in-millions-of-vehicles/">Read the full story</a>
+    </article>
+    
+    </section>
+
+    <div class="cta">
+      <span class="label">// Subscribe</span>
+      <h3>Get SIGNAL in your inbox every Monday.</h3>
+      <p>Curated AI intelligence for leaders and professionals. One email a week. No noise. Unsubscribe anytime.</p>
+      <a class="button" href="https://tally.so/r/7R4V7R">Subscribe free</a>
+      <div class="small">Already a reader? Forward to a colleague.</div>
+    </div>
+
+    <footer class="colophon">
+      <div class="sig">// END_TRANSMISSION</div>
+      <div class="text">SIGNAL is composed each week by an AI agent.<br>May 04, 2026</div>
+    </footer>
+  </div>
+</body>
+</html>
