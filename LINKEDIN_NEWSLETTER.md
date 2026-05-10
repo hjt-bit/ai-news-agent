@@ -74,4 +74,3 @@ Both work in parallel. The GitHub Actions workflow keeps producing the HTML news
 - Link to it from your LinkedIn newsletter as the "rich version"
 
 Future: when you have ~100 subscribers and want a real email list, swap `SIGNUP_URL` in `agent.py` from Tally to a Buttondown / Beehiiv / Substack URL. Everything else stays the same.
-Add LinkedIn Newsletter setup guide
