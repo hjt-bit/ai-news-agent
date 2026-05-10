@@ -116,4 +116,3 @@ The agent will pause and show you the proposed lineup with commands like `swap B
 **The agent prints `Mode: EDITOR-IN-CHIEF` on GitHub Actions.** Open `agent.py` -> find the `INTERACTIVE_MODE` block near the top -> the auto-detection should already handle this (`sys.stdin.isatty()` returns False on Actions). If for some reason it doesn't, add `INTERACTIVE_MODE = False` as a hard override on a new line right after the block.
 
 **My banner looks different on mobile.** LinkedIn aggressively crops banners on phones. The `SIGNAL.` wordmark and main tagline are positioned in the safe zone. The waveform and Subscribe pill may get cropped on phones — that's expected.
-Add UPDATE_GUIDE.md for v2.3 deployment steps
