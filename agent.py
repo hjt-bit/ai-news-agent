@@ -1350,4 +1350,3 @@ def generate_newsletter():
 
 if __name__ == "__main__":
     generate_newsletter()
-v2.3: Editor-in-Chief mode + LinkedIn export + polished design
