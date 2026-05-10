@@ -34,7 +34,8 @@ jobs:
           git config user.name  "ai-news-agent"
           git config user.email "actions@users.noreply.github.com"
           mkdir -p newsletters
-          mv newsletter_.html linkedin_post_.md newsletters/ 2>/dev/null || true
+          mv newsletter_*.html newsletters/ 2>/dev/null || true
+          mv linkedin_post_*.md newsletters/ 2>/dev/null || true
           git add newsletters/
           git diff --staged --quiet || git commit -m "Weekly newsletter: $(date -u +%Y-%m-%d)"
           git push
