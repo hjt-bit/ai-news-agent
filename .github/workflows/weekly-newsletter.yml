@@ -1,9 +1,9 @@
 name: Weekly AI Newsletter
 
-# Runs every Monday at 08:00 UTC, and can also be triggered manually.
+# Runs every Monday at 04:00 UTC = 08:00 Dubai/GST, and can also be triggered manually.
 on:
   schedule:
-    - cron: '0 8 * * 1'   # Mon 08:00 UTC -- adjust to your timezone if you like
+    - cron: '0 4 * * 1'   # Mon 04:00 UTC = 08:00 Dubai (GST, UTC+4)
   workflow_dispatch:        # adds a "Run workflow" button in the GitHub UI
 
 permissions:
@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -29,12 +29,24 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python agent.py
 
-      - name: Commit the new newsletter
+      - name: Move outputs into /newsletters/
+        run: |
+          mkdir -p newsletters
+          mv newsletter_*.html newsletters/ 2>/dev/null || true
+          mv linkedin_post_*.md newsletters/ 2>/dev/null || true
+
+      - name: Rebuild homepage archive (index.html)
+        run: python build_index.py
+
+      - name: Disable Jekyll on GitHub Pages
+        # Ensures GitHub Pages serves our custom index.html as-is
+        # instead of auto-rendering README.md through the Jekyll theme.
+        run: touch .nojekyll
+
+      - name: Commit the new newsletter and refreshed homepage
         run: |
           git config user.name  "ai-news-agent"
           git config user.email "actions@users.noreply.github.com"
-          mkdir -p newsletters
-          mv newsletter_*.html newsletters/ 2>/dev/null || true
-          git add newsletters/
+          git add newsletters/ index.html .nojekyll
           git diff --staged --quiet || git commit -m "Weekly newsletter: $(date -u +%Y-%m-%d)"
           git push
