@@ -35,7 +35,14 @@ TOP_MIDDLE_EAST = 2    # quick bullets in the Middle East section
 LOOKBACK_DAYS = 7
 
 # Where to send readers when they click "Subscribe".
-SIGNUP_URL = "#"
+# Two channels are now offered side-by-side:
+#   1) LinkedIn Newsletter (primary distribution, native to LinkedIn)
+#   2) Beehiiv email edition  (owned email list, lands in inbox Monday morning)
+# Set BEEHIIV_URL once you've created the publication on https://www.beehiiv.com
+# Until then leave it as the placeholder; the HTML will gracefully fall back to
+# the LinkedIn-only Subscribe strip.
+SIGNUP_URL  = "https://www.linkedin.com/newsletters/signal-7459465103449468928/"
+BEEHIIV_URL = "https://signalweekly.beehiiv.com/subscribe"  # SIGNAL email subscribe page
 
 # Editor-in-Chief Mode: when True the agent pauses for your review/edits before publishing.
 # Auto-disabled when running non-interactively (e.g., GitHub Actions has no stdin -> no terminal).
@@ -754,6 +761,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     transition: transform 0.15s ease, background 0.15s ease;
   }}
   .cta a.button:hover {{ transform: translateY(-1px); background: var(--cyan); }}
+  .cta .cta-buttons {{
+    display: inline-flex; flex-wrap: wrap; justify-content: center;
+    gap: 10px; margin-top: 4px;
+  }}
+  .cta a.button.alt {{
+    background: #ffffff; color: var(--ink);
+    border: 1.5px solid var(--ink);
+  }}
+  .cta a.button.alt:hover {{ background: var(--ink); color: #ffffff; }}
+  .subscribe-strip a.cta-mini.alt {{
+    background: #ffffff; color: var(--ink);
+    border: 1.5px solid var(--ink);
+  }}
+  .subscribe-strip a.cta-mini.alt:hover {{ background: var(--ink); color: #ffffff; }}
   .cta .small {{ margin-top: 14px; font-size: 12px; color: var(--muted); }}
   /* FOOTER */
   .colophon {{
@@ -789,7 +810,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <div class="wrap">
     <header class="masthead">
       <div class="masthead-top">
-        <span><span class="dot"></span>SIGNAL // VOL. 001</span>
+        <span><span class="dot"></span>SIGNAL // ISSUE #{issue_number}</span>
         <span>{date}</span>
       </div>
       <h1>SIGNAL<span class="accent">.</span></h1>
@@ -798,8 +819,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </header>
 
     <div class="subscribe-strip">
-      <div class="copy"><strong>New here?</strong> Get SIGNAL in your inbox every Monday.</div>
-      <a class="cta-mini" href="{signup_url}">Subscribe free</a>
+      <div class="copy"><strong>New here?</strong> Get SIGNAL every Monday &mdash; on LinkedIn or by email.</div>
+      <a class="cta-mini" href="{signup_url}" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
+      {beehiiv_strip_btn}
     </div>
 
     {viral_block}
@@ -835,9 +857,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     <div class="cta">
       <span class="label">// Subscribe</span>
-      <h3>Get SIGNAL in your inbox every Monday.</h3>
-      <p>Curated AI intelligence for leaders and professionals. One email a week. No noise. Unsubscribe anytime.</p>
-      <a class="button" href="{signup_url}">Subscribe free</a>
+      <h3>Get SIGNAL every Monday.</h3>
+      <p>Curated AI intelligence for leaders and professionals. One brief a week. No noise. Unsubscribe anytime.</p>
+      <div class="cta-buttons">
+        <a class="button" href="{signup_url}" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
+        {beehiiv_main_btn}
+      </div>
       <div class="small">Already a reader? Forward to a colleague.</div>
     </div>
 
@@ -1149,106 +1174,145 @@ def editor_review_loop(viral, picks, all_articles):
 # =========================================================
 # 7. LINKEDIN EXPORT -- copy/paste-ready Markdown for LinkedIn Newsletter
 # =========================================================
-def export_linkedin_post(date_str, viral_pair, biz_pairs, eve_pairs, me_pairs, tip):
-    """Write a linkedin_post.md file you can paste into LinkedIn Newsletter editor.
+def _linkedin_take(art, data, audience):
+    """Generate ONE sharp editorial sentence (max 25 words) for a story on LinkedIn.
 
-    LinkedIn's article editor accepts: H1/H2/H3 headings, bold, italic, bullet lists,
-    numbered lists, blockquotes, and links. It does NOT accept HTML/CSS color blocks.
-    So we render a clean Markdown version with the same content & flow.
+    audience: 'leader' | 'everyday' | 'region'
+    Returns a string. Falls back to data['tldr'] on any failure.
     """
+    fallback = data.get("tldr", "") or art.get("title", "")
+    audience_brief = {
+        "leader":   "a senior business leader who needs the strategic so-what",
+        "everyday": "an everyday user wondering if this affects their daily tools",
+        "region":   "a Middle East executive scanning for regional implications",
+    }.get(audience, "a busy professional")
+    prompt = f"""You are writing ONE sentence for a premium AI newsletter on LinkedIn.
+
+Reader: {audience_brief}.
+Story headline: {data.get('headline', art.get('title',''))}
+Source: {art.get('source','')}
+Facts: {data.get('what_happened','')}
+Why it matters (raw notes): {data.get('why_it_matters','')}
+
+Write ONE sharp editorial sentence (max 25 words) that captures the FACT and ONE editorial TAKE (the so-what). No fluff. No hashtags. No emoji. No quotation marks. No "this article" or "the piece". Plain text only.
+
+Return only JSON: {{"line": "..."}}
+"""
+    try:
+        resp = client.chat.completions.create(
+            model=MODEL,
+            temperature=0.4,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+        )
+        out = json.loads(resp.choices[0].message.content)
+        line = (out.get("line") or "").strip()
+        return line if line else fallback
+    except Exception:
+        return fallback
+
+
+def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pairs, me_pairs, tip):
+    """Write a linkedin_post.md file -- SHORT, scannable LinkedIn version.
+
+    Goal: one mobile screen-scroll. Each story = one editorial sentence + link.
+    LinkedIn's editor accepts headings, bold, italic, lists, links.
+    """
+    SEP = "━" * 19  # heavy horizontal line for visual rhythm
     lines = []
-    lines.append(f"# SIGNAL // {date_str}")
+
+    # Quiet issue marker (no "SIGNAL —" prefix; the LinkedIn newsletter brand is
+    # already shown above the post by LinkedIn itself).
+    lines.append(f"**Issue #{issue_number}**")
+    lines.append("This week, in 60 seconds.")
     lines.append("")
-    lines.append("_An AI newsletter every Monday summarizing the top news in AI._")
-    lines.append("_Curated for leaders. Built by an autonomous agent. No noise._")
-    lines.append("")
-    lines.append("---")
+    lines.append(SEP)
     lines.append("")
 
+    # ---- Viral Lead ----
     if viral_pair:
         art, data = viral_pair
-        lines.append("## The Viral Lead")
-        lines.append(f"*The story everyone is talking about \u00b7 {art['source']}*")
+        take = _linkedin_take(art, data, "leader")
+        lines.append("\U0001F525 **THE STORY OF THE WEEK**")
         lines.append("")
-        lines.append(f"### [{data.get('headline', art['title'])}]({art['link']})")
+        lines.append(take)
         lines.append("")
-        lines.append(f"> **TL;DR:** {data.get('tldr', '')}")
+        lines.append(f"\u2192 Read the story: {art['link']}")
         lines.append("")
-        lines.append(f"- **What happened:** {data.get('what_happened', '')}")
-        lines.append(f"- **Why it matters:** {data.get('why_it_matters', '')}")
-        lines.append(f"- **Business impact:** {data.get('business_impact', '')}")
-        lines.append(f"- **Leader action:** {data.get('leader_action', '')}")
-        lines.append("")
-        lines.append(f"[Read the full story \u2192]({art['link']})")
-        lines.append("")
-        lines.append("---")
+        lines.append(SEP)
         lines.append("")
 
+    # ---- Strategic Briefing ----
     if biz_pairs:
-        lines.append("## Strategic Briefing")
-        lines.append("_For business leaders._")
+        lines.append("\U0001F4CA **STRATEGIC BRIEFING** \u2014 for business leaders")
         lines.append("")
         for art, data in biz_pairs:
-            lines.append(f"### [{data.get('headline', art['title'])}]({art['link']})")
-            lines.append(f"*{art['source']}*")
+            take = _linkedin_take(art, data, "leader")
+            lines.append(f"\u2022 {take} {art['link']}")
             lines.append("")
-            lines.append(f"> {data.get('tldr', '')}")
-            lines.append("")
-            lines.append(f"- **What happened:** {data.get('what_happened', '')}")
-            lines.append(f"- **Why it matters:** {data.get('why_it_matters', '')}")
-            lines.append(f"- **Business impact:** {data.get('business_impact', '')}")
-            lines.append(f"- **Leader action:** {data.get('leader_action', '')}")
-            lines.append("")
-            lines.append(f"[Read more \u2192]({art['link']})")
-            lines.append("")
-        lines.append("---")
+        lines.append(SEP)
         lines.append("")
 
+    # ---- Middle East ----
     if me_pairs:
-        lines.append("## From the Region \u00b7 Middle East")
+        lines.append("\U0001F30D **FROM THE REGION** \u2014 Middle East")
         lines.append("")
         for art, data in me_pairs:
-            lines.append(f"**[{data.get('headline', art['title'])}]({art['link']})** \u2014 {art['source']}")
-            lines.append(f"{data.get('tldr', '')}")
+            take = _linkedin_take(art, data, "region")
+            lines.append(f"\u2022 {take} {art['link']}")
             lines.append("")
-        lines.append("---")
+        lines.append(SEP)
         lines.append("")
 
+    # ---- Consumer Signals ----
     if eve_pairs:
-        lines.append("## Consumer Signals")
-        lines.append("_For everyday users._")
+        lines.append("\U0001F6D2 **CONSUMER SIGNALS** \u2014 for everyday users")
         lines.append("")
         for art, data in eve_pairs:
-            lines.append(f"### [{data.get('headline', art['title'])}]({art['link']})")
-            lines.append(f"*{art['source']}*")
+            take = _linkedin_take(art, data, "everyday")
+            lines.append(f"\u2022 {take} {art['link']}")
             lines.append("")
-            lines.append(f"> {data.get('tldr', '')}")
-            lines.append("")
-            lines.append(f"- **In plain English:** {data.get('in_plain_english', '')}")
-            lines.append(f"- **Why you care:** {data.get('why_you_care', '')}")
-            lines.append(f"- **What to do:** {data.get('what_to_do', '')}")
-            lines.append("")
-        lines.append("---")
+        lines.append(SEP)
         lines.append("")
 
+    # ---- Tip of the Week ----
     if tip and tip.get("title"):
-        lines.append("## Tip of the Week")
-        lines.append(f"### {tip.get('title', '')}")
+        lines.append("\U0001F4A1 **TIP OF THE WEEK**")
+        lines.append(f"**{tip.get('title','')}**")
         lines.append("")
         lines.append(tip.get("what", ""))
         lines.append("")
-        lines.append(f"**Try this:** {tip.get('try_this', '')}")
+        lines.append(f"**Try it:** {tip.get('try_this','')}")
+        if tip.get("link_url"):
+            label = tip.get("link_label") or "Learn more"
+            lines.append("")
+            lines.append(f"\u2192 {label}: {tip['link_url']}")
         lines.append("")
-        if tip.get("link_url") and tip.get("link_label"):
-            lines.append(f"[{tip['link_label']} \u2192]({tip['link_url']})")
-        lines.append("")
-        lines.append("---")
+        lines.append(SEP)
         lines.append("")
 
-    lines.append("### Subscribe to SIGNAL")
-    lines.append("Hit **Subscribe** at the top of this newsletter to get SIGNAL every Monday. One email. No noise.")
+    # ---- Visual edition link ----
+    repo_pages = "https://hjt-bit.github.io/ai-news-agent/newsletters"
+    html_name = f"newsletter_{datetime.now().strftime('%Y_%m_%d')}.html"
+    visual_url = f"{repo_pages}/{html_name}"
+    lines.append("\U0001F4D6 **Want the full visual edition?**")
+    lines.append("SIGNAL in its styled form, with deeper analysis on each story:")
+    lines.append(f"\u2192 {visual_url}")
     lines.append("")
-    lines.append("_SIGNAL is composed each week by an AI agent._")
+    lines.append(SEP)
+    lines.append("")
+
+    # ---- Closing ----
+    lines.append("If this brief was useful, hit **Subscribe** at the top.")
+    # Predict the next issue number for the "see you next week" line.
+    next_issue = f"{int(issue_number) + 1:03d}"
+    lines.append(f"Issue #{next_issue} lands next Monday at 08:00 GST.")
+    if BEEHIIV_URL:
+        lines.append(f"Prefer email? Subscribe at {BEEHIIV_URL}")
+    lines.append("")
+    lines.append("— SIGNAL is composed each week by an autonomous AI agent. Reviewed and published by Hasan.")
+    lines.append("")
+    lines.append("_Represents my own views and not that of my employer._")
 
     fname = f"linkedin_post_{datetime.now().strftime('%Y_%m_%d')}.md"
     with open(fname, "w", encoding="utf-8") as f:
@@ -1320,14 +1384,39 @@ def generate_newsletter():
     tip = generate_tip_of_week()
     tip_html = render_tip_block(tip)
 
+    # Compute issue number based on weeks since Issue #001 launched.
+    # Issue #001 = Monday, May 11, 2026. Each Monday after that increments by 1.
+    ISSUE_001_DATE = datetime(2026, 5, 11)
+    delta_days = (datetime.now() - ISSUE_001_DATE).days
+    issue_number = max(1, (delta_days // 7) + 1)
+    issue_number_str = f"{issue_number:03d}"
+
+    # Build optional Beehiiv buttons. Empty strings -> the HTML simply omits them,
+    # leaving the original LinkedIn-only experience.
+    if BEEHIIV_URL:
+        beehiiv_strip_btn = (
+            f'<a class="cta-mini alt" href="{BEEHIIV_URL}" '
+            f'target="_blank" rel="noopener">Subscribe by email</a>'
+        )
+        beehiiv_main_btn = (
+            f'<a class="button alt" href="{BEEHIIV_URL}" '
+            f'target="_blank" rel="noopener">Subscribe by email</a>'
+        )
+    else:
+        beehiiv_strip_btn = ""
+        beehiiv_main_btn = ""
+
     html = HTML_TEMPLATE.format(
         date=today,
+        issue_number=issue_number_str,
         business_cards=biz_html,
         everyday_cards=eve_html,
         middle_east_block=me_html,
         viral_block=viral_html,
         tip_block=tip_html,
         signup_url=SIGNUP_URL,
+        beehiiv_strip_btn=beehiiv_strip_btn,
+        beehiiv_main_btn=beehiiv_main_btn,
     )
 
     fname = f"newsletter_{datetime.now().strftime('%Y_%m_%d')}.html"
@@ -1345,7 +1434,7 @@ def generate_newsletter():
             viral_pair = (viral, viral_data)
         biz_pairs = [(art, analyze_article(art, "business")) for art in picks["business"]]
         eve_pairs = [(art, analyze_article(art, "everyday")) for art in picks["everyday"]]
-        export_linkedin_post(today, viral_pair, biz_pairs, eve_pairs, me_items, tip)
+        export_linkedin_post(today, issue_number_str, viral_pair, biz_pairs, eve_pairs, me_items, tip)
 
 
 if __name__ == "__main__":
