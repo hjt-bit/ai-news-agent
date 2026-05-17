@@ -1523,10 +1523,12 @@ def generate_newsletter():
     tip_html = render_tip_block(tip)
 
     # Compute issue number based on weeks since Issue #001 launched.
-    # Issue #001 = Monday, May 11, 2026. Each Monday after that increments by 1.
-    ISSUE_001_DATE = datetime(2026, 5, 11)
+    # Issue #001 = Sunday, May 10, 2026 (publish day). Each subsequent issue +1.
+    # Use a 4-day grace shift so a Sun-Wed publish maps cleanly to its issue number,
+    # matching build_index.py logic exactly.
+    ISSUE_001_DATE = datetime(2026, 5, 10)
     delta_days = (datetime.now() - ISSUE_001_DATE).days
-    issue_number = max(1, (delta_days // 7) + 1)
+    issue_number = max(1, ((delta_days + 3) // 7) + 1)
     issue_number_str = f"{issue_number:03d}"
 
     # Build optional Beehiiv buttons. Empty strings -> the HTML simply omits them,

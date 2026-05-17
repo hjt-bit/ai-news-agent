@@ -30,7 +30,18 @@ ROOT = Path(__file__).resolve().parent
 NEWSLETTERS_DIR = ROOT / "newsletters"
 OUTPUT_PATH = ROOT / "index.html"
 
-LAUNCH_DATE = datetime(2026, 5, 11, tzinfo=timezone.utc)  # Issue #001 publish
+# Issue #001 was published Sunday May 10, 2026.
+# Subsequent issues land each Sunday/Monday window (8:00 GST Monday auto-run).
+LAUNCH_DATE = datetime(2026, 5, 10, tzinfo=timezone.utc)
+
+# Files dated before launch are pre-launch dev/tests and should NOT show on the public archive.
+# These are kept in /newsletters/ for posterity but hidden from the listing.
+HIDE_FROM_ARCHIVE = {
+    "newsletter_2026_05_03.html",  # pre-launch test
+    "newsletter_2026_05_04.html",  # pre-launch test
+    "newsletter_2026_05_11.html",  # auto-rerun of Issue #001 -- canonical is May 10
+}
+
 LINKEDIN_URL = "https://www.linkedin.com/newsletters/signal-7459465103449468928/"
 BEEHIIV_URL = "https://signalweekly.beehiiv.com/subscribe"
 GITHUB_PAGES_BASE = "https://hjt-bit.github.io/ai-news-agent"
@@ -48,12 +59,19 @@ TAG_STRIP_RE = re.compile(r"<[^>]+>")
 def issue_number_for(date: datetime) -> int:
     """Compute issue number from launch date.
 
-    Issue #001 = May 11, 2026. Each subsequent Monday = +1.
+    Issue #001 = May 10, 2026 (Sunday).
+    Each subsequent issue lands ~7 days later. We use a 4-day grace window
+    so that an issue published anywhere in the Sunday-Wednesday range
+    of week N still maps to issue N. This handles cases where the
+    Monday auto-run is supplemented by manual test runs mid-week.
     """
     if date < LAUNCH_DATE:
-        return 1
+        return 0  # pre-launch -- caller should suppress these
     delta_days = (date - LAUNCH_DATE).days
-    return (delta_days // 7) + 1
+    # Round to nearest week: days 0-3 = issue 1, 4-10 = issue 2, 11-17 = issue 3, ...
+    # Using +3 shifts the bucket so dates close to the *next* Monday count
+    # toward the upcoming issue rather than the previous one.
+    return ((delta_days + 3) // 7) + 1
 
 
 def extract_viral_headline(html: str) -> str | None:
@@ -99,12 +117,16 @@ def extract_subtitle(html: str) -> str | None:
 
 
 def scan_newsletters() -> list[dict]:
-    """Return list of issue records, newest first."""
+    """Return list of issue records, newest first, with pre-launch tests filtered out."""
     if not NEWSLETTERS_DIR.exists():
         return []
     issues = []
+    seen_issue_numbers = set()
+    candidates = []
     for path in NEWSLETTERS_DIR.iterdir():
         if not path.is_file() or path.suffix.lower() != ".html":
+            continue
+        if path.name in HIDE_FROM_ARCHIVE:
             continue
         m = DATE_FROM_FILENAME.match(path.name)
         if not m:
@@ -114,18 +136,30 @@ def scan_newsletters() -> list[dict]:
             date = datetime(year, month, day, tzinfo=timezone.utc)
         except Exception:
             continue
+        # Hide anything before launch date even if not in HIDE_FROM_ARCHIVE
+        if date < LAUNCH_DATE:
+            continue
         try:
             html = path.read_text(encoding="utf-8", errors="replace")
         except Exception:
             html = ""
         headline = extract_viral_headline(html)
-        issues.append({
+        candidates.append({
             "filename": path.name,
             "date": date,
             "issue_number": issue_number_for(date),
             "headline": headline,
         })
-    issues.sort(key=lambda x: x["date"], reverse=True)
+    # Newest first
+    candidates.sort(key=lambda x: x["date"], reverse=True)
+    # Dedupe: if multiple files map to the same issue number, keep the latest one only.
+    # This handles the case where a manual mid-week test run produces a duplicate of
+    # the upcoming Monday's issue (or a re-run on the same Monday).
+    for c in candidates:
+        if c["issue_number"] in seen_issue_numbers:
+            continue
+        seen_issue_numbers.add(c["issue_number"])
+        issues.append(c)
     return issues
 
 
