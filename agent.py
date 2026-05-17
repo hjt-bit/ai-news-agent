@@ -204,6 +204,13 @@ def select_articles(articles, viral_article=None):
 
 Pick stories for THREE tracks. Do not repeat any article across tracks.
 
+CRITICAL DUPLICATE-DETECTION RULE:
+Treat two articles as the SAME story if they are about the same news event, product launch, partnership, funding round, or company announcement -- EVEN IF they come from different sources or have different headlines.
+Examples of duplicates to collapse:
+- "OpenAI launches X feature" (OpenAI blog) + "OpenAI's new X feature now available" (TechCrunch) = ONE story, pick one.
+- "Company A raises $50M" (Reuters) + "Series A for Company A" (TechCrunch) = ONE story, pick one.
+When you find duplicates, pick the most authoritative or original source (usually the company's own blog) and drop the rest. Do NOT include both. The same event must NEVER appear twice in the newsletter, even within the same track.
+
 TRACK 1 -- "Strategic Briefing" for BUSINESS LEADERS ({TOP_BUSINESS} stories):
 - Pick stories with DIRECT commercial, operational, or strategic implications.
 - Every story must answer "What's in it for me as a leader?"
@@ -244,18 +251,149 @@ Articles:
     if not me and me_candidates:
         me = me_candidates[:TOP_MIDDLE_EAST]
 
-    # Dedupe across tracks (defensive)
+    # Dedupe across tracks -- THREE layers:
+    # (1) URL-level: never include the same link twice.
+    # (2) High-confidence lexical: catch obvious overlapping titles.
+    # (3) Semantic LLM pass: catch same-event/different-source duplicates that
+    #     lexical matching misses (e.g., "OpenAI launches X" + "ChatGPT gets X").
     used_links = set()
-    def dedupe(items):
+    if viral_article is not None:
+        used_links.add(viral_article["link"])
+
+    # Layer 1+2: URL + obvious lexical overlap (high threshold to avoid false positives)
+    import re
+    STOPWORDS = {
+        "with", "from", "that", "this", "have", "been", "into", "your",
+        "about", "after", "will", "more", "than", "their", "them", "they",
+        "there", "these", "those", "news", "says", "said", "announce",
+        "announced", "announces", "launch", "launches", "launched",
+        "introduce", "introduces", "introduced", "unveils", "unveiled",
+        "plans", "planning", "reveal", "reveals", "revealed",
+        "new", "now", "only", "first", "latest", "could", "would", "should",
+        "based", "using", "used", "feature", "features", "company",
+        "companies", "report", "reports", "reported",
+        "helps", "help", "like", "want", "need", "make", "made",
+        "available", "users", "user", "people", "team", "work",
+        "data", "million", "billion", "market", "product", "service",
+        "platform", "system", "customer", "business",
+    }
+    def _signature(a):
+        text = (a.get("title", "") + " " + a.get("summary", "")).lower()
+        tokens = re.findall(r"[A-Za-z0-9]+", text)
+        return frozenset(t for t in tokens if len(t) >= 4 and t not in STOPWORDS)
+
+    used_signatures = []
+    if viral_article is not None:
+        used_signatures.append(_signature(viral_article))
+
+    HIGH_LEXICAL_THRESHOLD = 0.55  # only catches near-identical headlines
+
+    def _lexical_dup(sig):
+        if not sig:
+            return False
+        for prev in used_signatures:
+            if not prev:
+                continue
+            inter = len(sig & prev)
+            union = len(sig | prev)
+            if union and inter / union >= HIGH_LEXICAL_THRESHOLD:
+                return True
+        return False
+
+    def _basic_dedupe(items, label=""):
         out = []
         for a in items:
-            if a["link"] not in used_links:
-                used_links.add(a["link"])
-                out.append(a)
+            link = a["link"]
+            if link in used_links:
+                print(f"  [dedupe-url] dropped {label}: {a['title'][:60]}")
+                continue
+            sig = _signature(a)
+            if _lexical_dup(sig):
+                print(f"  [dedupe-lex] dropped {label}: {a['title'][:60]}")
+                continue
+            used_links.add(link)
+            used_signatures.append(sig)
+            out.append(a)
         return out
-    biz = dedupe(biz)
-    eve = dedupe(eve)
-    me  = dedupe(me)
+
+    biz = _basic_dedupe(biz, "business")
+    me  = _basic_dedupe(me,  "middle_east")
+    eve = _basic_dedupe(eve, "everyday")
+
+    # Layer 3: SEMANTIC dedup pass via LLM.
+    # Asks the LLM "are any two of these about the same news event?"
+    # and drops the lower-priority duplicate.
+    all_picks = []
+    for track, items in (("business", biz), ("middle_east", me), ("everyday", eve)):
+        for a in items:
+            all_picks.append({"track": track, "article": a})
+
+    if len(all_picks) >= 2:
+        listing = "\n".join(
+            f"[{i}] ({p['track']}) {p['article']['title']} -- {p['article']['summary'][:200]}"
+            for i, p in enumerate(all_picks)
+        )
+        dedup_prompt = f"""You are a duplicate-detection assistant for SIGNAL, a weekly AI newsletter.
+
+Below are stories selected for this week's issue. Identify any pairs (or groups) that cover the SAME news event, product launch, partnership, funding round, feature release, or company announcement -- even if they have different headlines or come from different sources.
+
+DO flag as duplicates:
+- "OpenAI launches finance feature" + "ChatGPT now manages your money" (same product launch)
+- "Company X raises $50M" + "Series B for Company X" (same funding round)
+- "Apple unveils M5 chip" + "M5: Apple's new processor" (same announcement)
+
+DO NOT flag as duplicates:
+- Two unrelated stories that happen to mention the same company.
+- Two stories about the same broader theme (e.g., "AI in finance") but covering different events.
+
+Return JSON exactly in this shape:
+{{"duplicate_groups": [[index_a, index_b, ...], ...]}}
+
+If there are no duplicates, return {{"duplicate_groups": []}}.
+For each group, list the indices of stories that are about the same event.
+
+Stories:
+{listing}
+"""
+        try:
+            resp = client.chat.completions.create(
+                model=MODEL,
+                temperature=0.0,
+                messages=[{"role": "user", "content": dedup_prompt}],
+                response_format={"type": "json_object"},
+            )
+            dup_result = json.loads(resp.choices[0].message.content)
+            groups = dup_result.get("duplicate_groups", []) or []
+            # Within each group, keep index 0 (first) and mark the rest for removal.
+            track_priority = {"business": 0, "middle_east": 1, "everyday": 2}
+            indices_to_drop = set()
+            for group in groups:
+                if not isinstance(group, list) or len(group) < 2:
+                    continue
+                # Keep the highest-priority track; drop the others.
+                group = [g for g in group if isinstance(g, int) and 0 <= g < len(all_picks)]
+                if len(group) < 2:
+                    continue
+                group_sorted = sorted(
+                    group,
+                    key=lambda idx: track_priority.get(all_picks[idx]["track"], 99),
+                )
+                keep = group_sorted[0]
+                for drop in group_sorted[1:]:
+                    print(f"  [dedupe-llm] dropped {all_picks[drop]['track']}: "
+                          f"{all_picks[drop]['article']['title'][:60]} "
+                          f"(same event as: {all_picks[keep]['article']['title'][:50]})")
+                    indices_to_drop.add(drop)
+            if indices_to_drop:
+                kept_links_by_track = {"business": set(), "middle_east": set(), "everyday": set()}
+                for i, p in enumerate(all_picks):
+                    if i not in indices_to_drop:
+                        kept_links_by_track[p["track"]].add(p["article"]["link"])
+                biz = [a for a in biz if a["link"] in kept_links_by_track["business"]]
+                me  = [a for a in me  if a["link"] in kept_links_by_track["middle_east"]]
+                eve = [a for a in eve if a["link"] in kept_links_by_track["everyday"]]
+        except Exception as e:
+            print(f"  ! Semantic dedupe pass failed (non-fatal): {e}")
 
     return {"business": biz, "everyday": eve, "middle_east": me}
 
