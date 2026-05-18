@@ -5,7 +5,7 @@ This week, in 60 seconds.
 
 🔥 **THE STORY OF THE WEEK**
 
-Musk and Altman's courtroom clash underscores how public credibility directly influences leadership effectiveness and corporate trust in today's competitive landscape.
+The clash between Musk and Altman over credibility highlights how trustworthiness is crucial for effective leadership and maintaining stakeholder confidence.
 
 → Read the story: https://www.technologyreview.com/2026/05/15/1137357/musk-v-altman-week-3/
 
@@ -15,36 +15,36 @@ Musk and Altman's courtroom clash underscores how public credibility directly in
 
 • Databricks' integration of GPT-5.5 enhances enterprise workflows, driving significant improvements in efficiency and accuracy that can transform business operations. https://openai.com/index/databricks
 
-• OpenAI's DeployCo empowers enterprises to seamlessly integrate advanced AI technologies, enhancing decision-making and operational efficiency in a competitive landscape. https://openai.com/index/openai-launches-the-deployment-company
+• a16z's $25 million investment in Saudi fintech Stitch marks a pivotal entry into the GCC, signaling growing confidence in the region's digital economy. http://wamda.com/2026/05/a16z-backs-saudi-fintech-stitch-gcc-deal
 
-• a16z's $25 million Series A investment in Stitch marks a pivotal entry into the GCC fintech landscape, signaling growing confidence in the region's economic potential. http://wamda.com/2026/05/a16z-backs-saudi-fintech-stitch-gcc-deal
+• Aumet's $12 million Series A funding will enhance AI-driven procurement solutions, positioning healthcare providers for greater efficiency and cost savings. http://wamda.com/2026/05/aumet-closes-12-million-series-a-led-emkan-capital
 
 ━━━━━━━━━━━━━━━━━━━
 
 🌍 **FROM THE REGION** — Middle East
 
-• Aumet's $12M funding for AI healthcare expansion signals a growing investment trend in regional health tech, potentially transforming patient care across the Middle East. http://wamda.com/2026/05/aumet-closes-12-million-series-a-led-emkan-capital
+• Lyrie.ai's $2M funding round underscores the growing emphasis on cybersecurity innovation in the Middle East, highlighting investment opportunities in a critical sector. http://wamda.com/2026/05/lyrieai-exits-stealth-2-million-pre-seed-round
 
-• Byit’s launch of AI solutions in UAE real estate signals a pivotal shift towards tech-driven property management, enhancing efficiency and competitiveness in the region. http://wamda.com/2026/05/egypt-born-proptech-byit-expands-uae
+• Egrobots' launch of an AI harvesting robot in Egypt signals a significant step towards agricultural innovation in the region, potentially boosting productivity and sustainability. http://wamda.com/2026/05/egrobots-unveils-ai-powered-harvesting-robot-built-entirely-egyptian-engineers
 
 ━━━━━━━━━━━━━━━━━━━
 
 🛒 **CONSUMER SIGNALS** — for everyday users
 
-• Malta's partnership with OpenAI for ChatGPT Plus signals a growing integration of advanced AI tools into everyday applications, potentially enhancing user experiences across various platforms. https://openai.com/index/malta-chatgpt-plus-partnership
+• OpenAI's new personal finance assistant integrates seamlessly into daily tools, empowering users to manage their finances more efficiently and effectively. https://openai.com/index/personal-finance-chatgpt
 
-• New AI features for Mac users enhance productivity and streamline daily tasks, making advanced technology more accessible for everyday applications. https://techcrunch.com/2026/05/15/osaurus-brings-both-local-and-cloud-ai-models-to-your-mac/
+• Codex's availability on mobile transforms everyday tasks, making advanced AI tools more accessible for users seeking efficiency in their daily workflows. https://techcrunch.com/2026/05/14/openai-says-codex-is-coming-to-your-phone/
 
 ━━━━━━━━━━━━━━━━━━━
 
 💡 **TIP OF THE WEEK**
-**Transform Your Notes with NotebookLM**
+**Explore ChatGPT Memory Features**
 
-Explore NotebookLM's Audio Overview feature, which lets you generate concise audio summaries from your written notes. This is particularly useful for quickly revisiting key information while on the go, making your note-taking more versatile and dynamic.
+Delve into ChatGPT's memory features to enhance your interactions. This functionality allows the model to retain context across sessions, making your conversations more personalized and effective over time.
 
-**Try it:** 1. Open your notes in NotebookLM. 2. Use the Audio Overview feature to convert them into an audio summary for easy listening.
+**Try it:** Enable memory in your ChatGPT settings and start a conversation about your current projects. Observe how it incorporates past information in follow-up discussions.
 
-→ Try Audio Overviews Now: https://notebooklm.google.com
+→ Enable ChatGPT Memory: https://openai.com/chatgpt/projects
 
 ━━━━━━━━━━━━━━━━━━━
 
