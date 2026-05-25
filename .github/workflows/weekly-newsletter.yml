@@ -3,7 +3,7 @@ name: Weekly AI Newsletter
 # Runs every Monday at 04:00 UTC = 08:00 Dubai/GST, and can also be triggered manually.
 on:
   schedule:
-    - cron: '0 4 * * 1'   # Mon 04:00 UTC = 08:00 Dubai (GST, UTC+4)
+    - cron: '0 3 * * 1'   # Mon 03:00 UTC = 07:00 Dubai (GST, UTC+4) — 1h buffer before 08:00 share time   # Mon 04:00 UTC = 08:00 Dubai (GST, UTC+4)
   workflow_dispatch:        # adds a "Run workflow" button in the GitHub UI
 
 permissions:
