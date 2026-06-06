@@ -64,7 +64,7 @@ EXPORT_LINKEDIN = True
 #   FORCED_LEAD = "Meta AI agents"       → forces the Meta AI agents story
 #   FORCED_LEAD = "OpenAI GPT-5"         → forces any GPT-5 story
 #   FORCED_LEAD = None                   → auto-detect (default behavior)
-FORCED_LEAD = None  # ← Change this to override the viral lead for a specific week
+FORCED_LEAD = "Meta AI agents" # ← Change this to override the viral lead for a specific week
 
 # Trusted sources (RSS feeds).
 SOURCES = {
