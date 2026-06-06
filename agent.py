@@ -1,3 +1,92 @@
+
+
+Share
+ok for later, can you prepare the forced lead code so I can update it for the viral lead to show meta's ai agent story first 
+Max
+Let me prepare the FORCED_LEAD feature for you. I'll read the relevant section of agent.py and write the code change.
+
+
+Max
+FORCED_LEAD Feature — Ready to Use
+The code is done and validated. Here's how it works:
+How to use it
+Open agent.py on GitHub and find line 67 (near the top, before the SOURCES dict):
+Python
+FORCED_LEAD = None  # ← Change this to override the viral lead for a specific week
+To force the Meta AI Agents story:
+Change it to:
+Python
+FORCED_LEAD = "Meta AI agents"
+After the issue is generated, reset it back:
+Python
+FORCED_LEAD = None
+How it works under the hood
+When FORCED_LEAD is set, the agent searches all fetched articles (from all 22 sources) for the best match
+It scores each article by how many keywords from your phrase appear in the title + summary
+The highest-scoring article becomes the viral lead
+If no article matches (e.g., you misspell it or the topic isn't in this week's news), it prints a warning and falls back to auto-detect
+Your workflow for this week (Meta AI Agents story):
+Go to: https://github.com/hjt-bit/ai-news-agent/edit/main/agent.py
+Find line 67: FORCED_LEAD = None
+Change to: FORCED_LEAD = "Meta AI agents"
+Commit
+Either wait for Sunday 5PM cron, or trigger manually
+After the issue generates → go back and change it to FORCED_LEAD = None and commit (so next week is auto-detect again )
+Example values you can use in the future:
+What you want to feature
+Set FORCED_LEAD to
+Meta AI agents story
+"Meta AI agents"
+Any OpenAI story
+"OpenAI"
+A specific product launch
+"Google Gemini" or "Claude Sonnet"
+A funding round
+"Series funding Saudi"
+Auto-detect (default)
+None
+The more specific your phrase, the better the match. 2-3 keywords is the sweet spot.
+The updated agent.py is attached. Push it to GitHub whenever you're ready.
+agent.py
+Code · 67.87 KB
+View all files in this task
+How was this result?
+line 67 is the following:   "VentureBeat AI": "https://venturebeat.com/category/ai/feed/",
+Max
+The line numbers differ between my local copy and what's on GitHub.
+That's because you may have pushed an earlier version of agent.py before this latest update. The FORCED_LEAD feature is in the file I attached — but if your GitHub version doesn't have it yet, you need to update agent.py on GitHub with the new version.
+Here's how to find and add it:
+Option A — If you haven't pushed the latest agent.py yet:
+Go to: https://github.com/hjt-bit/ai-news-agent/edit/main/agent.py
+Select all (Ctrl+A ) → Delete
+Open the agent.py file I attached in the previous message → Copy all → Paste
+Commit changes
+The FORCED_LEAD line will then be near the top, right after EXPORT_LINKEDIN = True.
+Option B — If you want to add just the FORCED_LEAD feature manually:
+Find this line in your GitHub file:
+Python
+EXPORT_LINKEDIN = True
+And add this block directly below it:
+Python
+# ── Forced Viral Lead ──────────────────────────────────────────────────────────
+# Set this to a keyword/phrase to force the agent to feature a specific story as
+# the viral lead. The agent will search all fetched articles for the best match.
+# Set to None (or empty string) to let the agent auto-detect the viral story.
+# Examples:
+#   FORCED_LEAD = "Meta AI agents"       → forces the Meta AI agents story
+#   FORCED_LEAD = "OpenAI GPT-5"         → forces any GPT-5 story
+#   FORCED_LEAD = None                   → auto-detect (default behavior)
+FORCED_LEAD = "Meta AI agents"
+Then also find the function def detect_viral_story(articles): and add the forced lead logic at the top of that function. But honestly, Option A (full file replace) is much easier and less error-prone.
+Would you like me to paste the full agent.py content here so you can copy it directly into the GitHub editor?
+Task completed
+How was this result?
+Suggested follow-ups
+
+
+Meta Ads Manager
+
+agent.py
 """
 SIGNAL -- AI Weekly Intelligence Briefing Agent (v2)
 ----------------------------------------------------
@@ -55,6 +144,16 @@ else:
 
 # Also export a LinkedIn-formatted version of the newsletter on each run.
 EXPORT_LINKEDIN = True
+
+# ── Forced Viral Lead ──────────────────────────────────────────────────────────
+# Set this to a keyword/phrase to force the agent to feature a specific story as
+# the viral lead. The agent will search all fetched articles for the best match.
+# Set to None (or empty string) to let the agent auto-detect the viral story.
+# Examples:
+#   FORCED_LEAD = "Meta AI agents"       → forces the Meta AI agents story
+#   FORCED_LEAD = "OpenAI GPT-5"         → forces any GPT-5 story
+#   FORCED_LEAD = None                   → auto-detect (default behavior)
+FORCED_LEAD = None  # ← Change this to override the viral lead for a specific week
 
 # Trusted sources (RSS feeds).
 SOURCES = {
@@ -152,9 +251,28 @@ def detect_viral_story(articles):
     Find the most-discussed topic across sources.
     Strategy: count keyword frequency across DISTINCT sources, then pick the
     article whose title best matches the top-trending keyword cluster.
+    If FORCED_LEAD is set, search for the best-matching article instead.
     """
     if not articles:
         return None, []
+
+    # ── Forced lead override ──────────────────────────────────────────────────
+    if FORCED_LEAD:
+        print(f"Forced lead active: searching for '{FORCED_LEAD}'...")
+        forced_keywords = set(_tokens(FORCED_LEAD))
+        if forced_keywords:
+            def forced_score(art):
+                title_tokens = set(_tokens(art["title"]))
+                summary_tokens = set(_tokens(art["summary"]))
+                all_tokens = title_tokens | summary_tokens
+                return sum(1 for kw in forced_keywords if kw in all_tokens)
+
+            candidates = sorted(articles, key=forced_score, reverse=True)
+            if forced_score(candidates[0]) > 0:
+                print(f"  Forced viral lead: {candidates[0]['title'][:80]}")
+                return candidates[0], list(forced_keywords)
+            else:
+                print(f"  ! No article matched '{FORCED_LEAD}' — falling back to auto-detect.")
 
     print("Detecting viral lead story (most-discussed topic of the week)...")
 
@@ -1606,3 +1724,4 @@ def generate_newsletter():
 
 if __name__ == "__main__":
     generate_newsletter()
+Building an AI News Aggregator for Weekly Newsletters - Manus
