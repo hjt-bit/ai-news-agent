@@ -58,23 +58,39 @@ EXPORT_LINKEDIN = True
 
 # Trusted sources (RSS feeds).
 SOURCES = {
-    # --- Industry / Technical ---
-    "MIT Tech Review": "https://www.technologyreview.com/feed/",
-    "OpenAI Blog": "https://openai.com/blog/rss.xml",
+    # --- Industry / Technical (Tier 1 — most credible) ---
+    "MIT Tech Review": "https://www.technologyreview.com/topic/artificial-intelligence/feed/",
+    "OpenAI Blog": "https://openai.com/news/rss.xml",
+    "Google AI Blog": "https://blog.google/technology/ai/rss/",
+    "Hugging Face Blog": "https://huggingface.co/blog/feed.xml",
     "AI News": "https://www.artificialintelligence-news.com/feed/",
     "VentureBeat AI": "https://venturebeat.com/category/ai/feed/",
+    "MarkTechPost": "https://www.marktechpost.com/feed/",
     # --- Everyday-user friendly ---
-    "The Verge AI": "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml",
+    "The Verge AI": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
     "TechCrunch AI": "https://techcrunch.com/category/artificial-intelligence/feed/",
     "Wired AI": "https://www.wired.com/feed/tag/ai/latest/rss",
+    "Ars Technica": "https://feeds.arstechnica.com/arstechnica/index",
+    "The Decoder": "https://the-decoder.com/feed/",
+    # --- Newsletters & curated briefings ---
+    "Ben's Bites": "https://www.bensbites.com/feed",
+    "TLDR AI": "https://tldr.tech/api/rss/ai",
+    "Last Week in AI": "https://lastweekin.ai/feed",
+    "Ahead of AI (Raschka)": "https://magazine.sebastianraschka.com/feed",
+    # --- Podcasts & thought leadership ---
+    "All-In Podcast": "https://rss.libsyn.com/shows/254861/destinations/1928300.xml",
+    "Latent Space": "https://api.substack.com/feed/podcast/1084089.rss",
+    "Dwarkesh Podcast": "https://api.substack.com/feed/podcast/69345.rss",
+    # --- European / Global startups ---
+    "Sifted": "https://sifted.eu/feed",
     # --- Middle East focus ---
-    "The National (Tech)": "https://www.thenationalnews.com/business/technology/rss.xml",
+    "TahawulTech": "https://www.tahawultech.com/feed/",
     "Wamda": "https://www.wamda.com/feed",
     "Arab News (Business)": "https://www.arabnews.com/rss.xml",
 }
 
 # Sources we treat as "Middle East" for the regional section
-MIDDLE_EAST_SOURCES = {"The National (Tech)", "Wamda", "Arab News (Business)"}
+MIDDLE_EAST_SOURCES = {"TahawulTech", "Wamda", "Arab News (Business)"}
 
 # Keywords that flag any article (from any source) as Middle East-relevant
 ME_KEYWORDS = [
@@ -461,6 +477,14 @@ Summary: {article['summary']}
 # =========================================================
 # 4b. TIP OF THE WEEK -- one practical AI tip per issue
 # =========================================================
+# Tips already used in previous issues -- add each week's tip here to prevent repeats.
+# The agent prompt references this list to avoid suggesting the same feature twice.
+PREVIOUS_TIPS = [
+    "ChatGPT Projects",
+    "ChatGPT Memory",
+    "Claude Artifacts",
+]
+
 def generate_tip_of_week():
     """Ask the LLM for one NOVEL, non-obvious AI tip + a real resource link to explore."""
     print("\nGenerating Tip of the Week...")
@@ -484,6 +508,9 @@ FORBIDDEN -- do NOT suggest these (too obvious, everyone already does them):
 - "Use ChatGPT to brainstorm"
 - Any vague "prompt better" advice
 - Anything that requires API keys or coding
+
+ALREADY USED IN PREVIOUS ISSUES (do NOT repeat any of these):
+{chr(10).join('- ' + t for t in PREVIOUS_TIPS)}
 
 Date context: {today}. Pick something seasonally fresh.
 
