@@ -58,7 +58,7 @@ EXPORT_LINKEDIN = True
 # ── Forced Viral Lead ──────────────────────────────────────────────────────────
 # Set this to a keyword/phrase to force the agent to feature a specific story as
 # the viral lead. Set to None to let the agent auto-detect.
-FORCED_LEAD = None
+ORCED_LEAD = "Meta business agents"
 
 # =========================================================
 # SOURCES -- RSS feeds organized by tier
