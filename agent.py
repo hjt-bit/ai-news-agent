@@ -58,7 +58,7 @@ EXPORT_LINKEDIN = True
 # ── Forced Viral Lead ──────────────────────────────────────────────────────────
 # Set this to a keyword/phrase to force the agent to feature a specific story as
 # the viral lead. Set to None to let the agent auto-detect.
-FORCED_LEAD = "Meta business agents"
+FORCED_LEAD = None
 
 # =========================================================
 # SOURCES -- RSS feeds organized by tier
@@ -110,10 +110,19 @@ PODCAST_YOUTUBE_CHANNELS = {
 
 # Keywords that flag any article (from any source) as Middle East-relevant
 ME_KEYWORDS = [
-    "uae", "saudi", "qatar", "kuwait", "bahrain", "oman", "egypt", "jordan",
-    "lebanon", "iraq", "iran", "israel", "turkey", "morocco", "tunisia",
-    "dubai", "abu dhabi", "riyadh", "doha", "beirut", "cairo", "amman",
-    "middle east", "gulf", "gcc", "mena", "g42", "tahweel", "core42",
+    # Countries
+    "uae", "saudi", "saudi arabia", "qatar", "kuwait", "bahrain", "oman", "egypt", "jordan",
+    "lebanon", "iraq", "iran", "israel", "turkey", "morocco", "tunisia", "emirates",
+    # Cities
+    "dubai", "abu dhabi", "riyadh", "doha", "beirut", "cairo", "amman", "jeddah", "manama",
+    # Regional terms
+    "middle east", "gulf", "gcc", "mena", "levant", "arab", "arabian",
+    # Regional companies, funds & ecosystem players (so funding/M&A stories route correctly)
+    "g42", "tahweel", "core42", "mnt-halan", "mnt halan", "halan", "careem", "tabby",
+    "tamara", "stc", "aramco", "adnoc", "mubadala", "pif", "public investment fund",
+    "e&", "etisalat", "du", "anghami", "swvl", "kitopi", "fenix", "valu", "paymob",
+    "instabug", "wamda", "rain", "lean technologies", "foodics", "unifonic", "trukker",
+    "hub71", "dtec", "difc", "adgm", "neom", "tonomus", "sandbox",
 ]
 
 # =========================================================
@@ -124,6 +133,8 @@ PREVIOUS_TIPS = [
     "ChatGPT Memory",
     "Claude Artifacts",
     "Granola AI Brainstorming",
+    "Claude Computer Use",
+    "NotebookLM Audio Overviews",
 ]
 
 # =========================================================
@@ -179,37 +190,114 @@ def fetch_podcast_topics():
     """
     Extract AI-relevant topics from recent podcast episodes via YouTube transcripts.
     Returns a list of topic strings that serve as 'importance signals' for scoring.
+    Also writes a per-podcast verification report (podcast_review.md) so the
+    operator can confirm each week that podcast narratives were actually read.
     """
     print(f"\n{'='*60}")
     print(f"STEP 2: EXTRACTING PODCAST TOPICS")
     print(f"{'='*60}")
 
     podcast_topics = []
+    podcast_report = []  # structured per-podcast status for the verification report
 
     for podcast_name, channel_id in PODCAST_YOUTUBE_CHANNELS.items():
         print(f"\n  Processing: {podcast_name}")
+        status = {
+            "podcast": podcast_name,
+            "episodes": [],
+            "transcript_fetched": False,
+            "transcript_chars": 0,
+            "topics": [],
+            "error": None,
+        }
         try:
-            topics = _extract_youtube_topics(podcast_name, channel_id)
+            topics, meta = _extract_youtube_topics(podcast_name, channel_id)
+            status["episodes"] = meta.get("episodes", [])
+            status["transcript_fetched"] = meta.get("transcript_fetched", False)
+            status["transcript_chars"] = meta.get("transcript_chars", 0)
+            status["topics"] = topics
             if topics:
                 podcast_topics.extend(topics)
                 print(f"    → Extracted {len(topics)} topic signals")
+                print(f"    → Transcript fetched: {status['transcript_fetched']} ({status['transcript_chars']} chars)")
             else:
                 print(f"    → No recent AI topics found")
         except Exception as e:
+            status["error"] = str(e)
             print(f"    ✗ Failed: {e}")
+        podcast_report.append(status)
 
     print(f"\n  Total podcast topic signals: {len(podcast_topics)}")
     if podcast_topics:
         print(f"  Topics: {', '.join(podcast_topics[:10])}{'...' if len(podcast_topics) > 10 else ''}")
 
+    # Write the verification report so the operator can audit podcast ingestion each week
+    try:
+        _write_podcast_report(podcast_report)
+    except Exception as e:
+        print(f"  (Could not write podcast report: {e})")
+
     return podcast_topics
+
+
+def _write_podcast_report(podcast_report):
+    """Write podcast_review.md — a human-readable weekly audit of podcast ingestion."""
+    today = datetime.now().strftime("%B %d, %Y")
+    lines = [
+        f"# SIGNAL — Podcast Review Log",
+        f"",
+        f"_Generated {today}. This file confirms which podcasts the agent read this week,",
+        f"whether full transcripts were successfully fetched, and what topic signals were extracted._",
+        f"",
+        f"| Podcast | Episodes Found | Transcript Read | Transcript Length | Topics Extracted |",
+        f"|---|---|---|---|---|",
+    ]
+    for s in podcast_report:
+        ep_count = len(s.get("episodes", []))
+        tx = "✅ Yes" if s.get("transcript_fetched") else "❌ No (titles/descriptions only)"
+        tx_len = f"{s.get('transcript_chars', 0):,} chars" if s.get("transcript_chars") else "—"
+        topic_count = len(s.get("topics", []))
+        err = f" ⚠️ {s['error']}" if s.get("error") else ""
+        lines.append(f"| {s['podcast']} | {ep_count} | {tx}{err} | {tx_len} | {topic_count} |")
+
+    lines.append("")
+    lines.append("## Detail by Podcast")
+    for s in podcast_report:
+        lines.append("")
+        lines.append(f"### {s['podcast']}")
+        if s.get("error"):
+            lines.append(f"- ⚠️ Error: {s['error']}")
+        episodes = s.get("episodes", [])
+        if episodes:
+            lines.append(f"- Recent episodes detected:")
+            for ep in episodes:
+                lines.append(f"  - {ep}")
+        else:
+            lines.append("- No recent episodes detected in the lookback window.")
+        lines.append(f"- Transcript fetched: {'Yes' if s.get('transcript_fetched') else 'No'}"
+                     f" ({s.get('transcript_chars', 0):,} chars)")
+        topics = s.get("topics", [])
+        if topics:
+            lines.append(f"- Topic signals fed into story scoring:")
+            for t in topics:
+                lines.append(f"  - {t}")
+        else:
+            lines.append("- No topic signals extracted.")
+
+    with open("podcast_review.md", "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+    print("  ✓ Wrote podcast_review.md (weekly verification report)")
 
 
 def _extract_youtube_topics(podcast_name, channel_id):
     """
     Fetch recent video titles and descriptions from a YouTube channel's RSS feed,
     then use LLM to extract AI-relevant topic keywords.
+    Returns a tuple: (topics_list, meta_dict) where meta_dict carries episode
+    titles, transcript status, and transcript length for the verification report.
     """
+    meta = {"episodes": [], "transcript_fetched": False, "transcript_chars": 0}
+
     # YouTube channel RSS feed (no API key needed)
     yt_rss_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
 
@@ -217,11 +305,11 @@ def _extract_youtube_topics(podcast_name, channel_id):
         feed = feedparser.parse(yt_rss_url)
     except Exception as e:
         print(f"    Could not parse YouTube RSS: {e}")
-        return []
+        return [], meta
 
     if not feed.entries:
         print(f"    No entries in YouTube RSS feed")
-        return []
+        return [], meta
 
     # Get episodes from the last 7 days
     cutoff = datetime.now() - timedelta(days=LOOKBACK_DAYS)
@@ -247,8 +335,11 @@ def _extract_youtube_topics(podcast_name, channel_id):
                 "description": description[:1000],
             })
 
+    # Record episode titles in meta for the verification report
+    meta["episodes"] = [ep["title"] for ep in recent_episodes]
+
     if not recent_episodes:
-        return []
+        return [], meta
 
     # Also try to get transcript for the most recent episode
     transcript_text = ""
@@ -257,6 +348,9 @@ def _extract_youtube_topics(podcast_name, channel_id):
         video_id = _extract_video_id(latest_link)
         if video_id:
             transcript_text = _fetch_youtube_transcript(video_id)
+    if transcript_text:
+        meta["transcript_fetched"] = True
+        meta["transcript_chars"] = len(transcript_text)
 
     # Use LLM to extract AI-relevant topics from episode titles + descriptions + transcript
     episodes_text = "\n".join(
@@ -295,10 +389,10 @@ Rules:
             response_format={"type": "json_object"},
         )
         result = json.loads(resp.choices[0].message.content)
-        return result.get("topics", [])
+        return result.get("topics", []), meta
     except Exception as e:
         print(f"    LLM topic extraction failed: {e}")
-        return []
+        return [], meta
 
 
 def _extract_video_id(url):
@@ -772,10 +866,16 @@ def select_articles(articles, viral_article=None):
     print(f"  Max per source: {MAX_PER_SOURCE}")
 
     # Use LLM for selection but with explicit diversity instructions
+    top_pool = pool[:50]  # Send top 50 scored articles
     listing = "\n".join(
         f"[{i}] {a['title']} ({a['source']}) [score={a.get('_score', 0)}] - {a['summary'][:120]}"
-        for i, a in enumerate(pool[:50])  # Send top 50 scored articles
+        for i, a in enumerate(top_pool)
     )
+
+    # Pre-flag which of the listed articles are Middle East-relevant (for the prompt hint)
+    me_links = {a['link'] for a in me_candidates}
+    me_indices = [i for i, a in enumerate(top_pool) if a['link'] in me_links]
+    me_indices = me_indices if me_indices else "(none detected this week)"
 
     prompt = f"""You are the editor of SIGNAL, a weekly AI intelligence briefing.
 
@@ -797,8 +897,12 @@ TRACK 2 -- "Consumer Signals" for EVERYDAY USERS ({TOP_EVERYDAY} stories):
 - Must be accessible to non-technical readers.
 
 TRACK 3 -- "From the Region" for MIDDLE EAST coverage ({TOP_MIDDLE_EAST} stories):
-- AI developments tied to UAE, Saudi Arabia, Qatar, Egypt, broader MENA.
+- AI / tech-business developments tied to UAE, Saudi Arabia, Qatar, Egypt, or the broader GCC/MENA region.
+- This includes regional funding rounds, valuations, M&A, launches, hires, and partnerships (e.g., an Egyptian or Gulf fintech raising capital qualifies here).
+- IMPORTANT: If a story is Middle East-related, place it in THIS track, NOT in Strategic Briefing — even if it has business implications. The region track takes priority for regional stories.
 - If fewer than {TOP_MIDDLE_EAST} qualify, return fewer.
+
+The following article indices have been pre-flagged as Middle East-relevant — strongly prefer routing these to Track 3: {me_indices}
 
 Return JSON exactly:
 {{"business": [indices], "everyday": [indices], "middle_east": [indices]}}
@@ -986,15 +1090,18 @@ def analyze_article(article, audience="business"):
         schema_hint = """{
   "headline": "punchy 6-10 word headline (no period)",
   "tldr": "ONE crisp sentence summary, max 22 words",
-  "what_happened": "max 14 words, no period",
-  "why_it_matters": "max 14 words, no period",
-  "business_impact": "max 14 words, no period, focus on cost/revenue/competition/risk",
-  "leader_action": "max 14 words, action verb first, no period -- MUST name a specific tool, team, budget, or timeline"
+  "what_happened": "18-26 words: include the specific WHO, WHAT, and a concrete NUMBER, name, or date if available, no period",
+  "why_it_matters": "max 16 words, no period",
+  "business_impact": "max 16 words, no period, focus on cost/revenue/competition/risk",
+  "leader_action": "max 16 words, action verb first, no period -- MUST be SPECIFIC and UNIQUE to THIS story"
 }"""
         rules = ("Audience: senior business leaders. No jargon. No acronyms unless universally known. "
                  "Every field must be concrete and answer 'so what for my business?' "
-                 "The leader_action field MUST be specific and actionable — name a tool to evaluate, "
-                 "a team to brief, a budget to allocate, or a deadline to set. "
+                 "The what_happened field MUST include specifics (a company name, dollar figure, product name, "
+                 "or date) drawn from the article — never a vague summary like 'launched a new initiative'. "
+                 "The leader_action field MUST be specific, varied, and tailored to THIS exact story — name the "
+                 "actual tool/product to pilot, the precise metric to measure, or a concrete first step. "
+                 "NEVER reuse the generic template 'Brief your [X] team' — vary the verb and the action across stories. "
                  "NEVER use generic phrases like 'Evaluate AI tools' or 'Consider implications'.")
     elif audience == "middle_east":
         schema_hint = """{
@@ -1027,6 +1134,9 @@ Be brutally concise. Each field is a phrase, NOT a sentence with sub-clauses.
 Article: {article['title']}
 Source: {article['source']}
 Summary: {article['summary']}
+Published: {article.get('published', 'recent')}
+
+Use the specific facts in the summary above. If the summary contains numbers, names, or dates, you MUST incorporate them.
 """
     try:
         resp = client.chat.completions.create(
