@@ -60,6 +60,11 @@ EXPORT_LINKEDIN = True
 # the viral lead. Set to None to let the agent auto-detect.
 FORCED_LEAD = None
 
+# Set this to an integer to force a specific issue number (e.g. 6 to label the
+# output "Issue #006" regardless of the run date). Set to None to auto-compute
+# the issue number from the date. Remember to reset to None after a one-off run.
+FORCED_ISSUE = 6   # one-off: label this run as Issue #006; reset to None after
+
 # =========================================================
 # SOURCES -- RSS feeds organized by tier
 # =========================================================
@@ -2138,10 +2143,14 @@ def generate_newsletter():
     # 10) Tip of the Week (already generated above for QA)
     tip_html = render_tip_block(tip)
 
-    # Compute issue number
-    ISSUE_001_DATE = datetime(2026, 5, 10)
-    delta_days = (datetime.now() - ISSUE_001_DATE).days
-    issue_number = max(1, ((delta_days + 3) // 7) + 1)
+    # Compute issue number (date-based) unless an explicit override is set.
+    if FORCED_ISSUE is not None:
+        issue_number = int(FORCED_ISSUE)
+        print(f"  Issue number FORCED to #{issue_number:03d}")
+    else:
+        ISSUE_001_DATE = datetime(2026, 5, 10)
+        delta_days = (datetime.now() - ISSUE_001_DATE).days
+        issue_number = max(1, ((delta_days + 3) // 7) + 1)
     issue_number_str = f"{issue_number:03d}"
 
     # Build Beehiiv buttons
