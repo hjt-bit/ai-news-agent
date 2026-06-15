@@ -237,7 +237,7 @@ def fetch_podcast_topics():
     except Exception as e:
         print(f"  (Could not write podcast report: {e})")
 
-    return podcast_topics
+    return podcast_topics, podcast_report
 
 
 def _write_podcast_report(podcast_report):
@@ -1080,6 +1080,297 @@ def _fallback_selection(pool, me_candidates):
 
 
 # =========================================================
+# 5c. ENTITY-CLUSTER DEDUP (prevents same topic across sections)
+# =========================================================
+# Generic words that should NEVER count as a distinguishing entity
+_ENTITY_STOPWORDS = {
+    "The", "And", "For", "With", "How", "Why", "What", "New", "Now", "Its",
+    "Are", "Has", "Can", "May", "Will", "Just", "Get", "Got", "Use", "All",
+    "AI", "Ai", "Tech", "Data", "Model", "Models", "App", "Apps", "Inc",
+    "Launches", "Launch", "Update", "Report", "Says", "Adds", "Plans",
+    "Global", "Week", "This", "That", "From", "After", "Over", "Into",
+}
+
+
+def _primary_entities(article):
+    """
+    Extract the set of *significant* named entities (companies/products) from an
+    article's title + first part of summary. These are what we use to detect when
+    two differently-worded stories are actually about the same subject.
+    """
+    text = f"{article['title']} {article.get('summary', '')[:120]}"
+    # Multi-word proper nouns (e.g., "Anthropic Fable", "Meta AI")
+    multi = set(re.findall(r'[A-Z][a-z]+(?:\s+[A-Z][a-z0-9]+)+', text))
+    # Single proper nouns (e.g., "Anthropic", "Fable", "OpenAI")
+    singles = set(
+        w for w in re.findall(r'\b[A-Z][a-zA-Z0-9]{2,}\b', text)
+        if w not in _ENTITY_STOPWORDS
+    )
+    # Break multi-word entities into their component significant tokens too,
+    # so "Anthropic Fable" and "Fable 5" both share the token "Fable".
+    tokens = set()
+    for phrase in multi:
+        for part in phrase.split():
+            if part not in _ENTITY_STOPWORDS and len(part) > 2:
+                tokens.add(part)
+    return {e.lower() for e in (multi | singles | tokens)}
+
+
+def enforce_entity_dedup(viral_article, picks):
+    """
+    Prevent the SAME entity/subject (e.g., 'Anthropic Fable') from appearing in
+    more than one place across the whole issue, even when the specific angle or
+    event differs. The viral lead always wins; conflicting section stories are
+    dropped and (where possible) the section is left for QA to backfill.
+
+    Returns the cleaned picks dict and a list of human-readable drop notes.
+    """
+    notes = []
+    claimed = set()  # entities already 'owned' by an earlier (higher-priority) story
+
+    # Priority order: viral lead first, then business, region, consumer.
+    if viral_article:
+        claimed |= _primary_entities(viral_article)
+
+    def _filter(items, label):
+        nonlocal claimed
+        kept = []
+        for art in items:
+            ents = _primary_entities(art)
+            # Significant overlap = same subject as something already used
+            overlap = ents & claimed
+            # Require the overlap to include a 'strong' entity (len>3) to avoid
+            # dropping on generic collisions.
+            strong_overlap = {e for e in overlap if len(e) > 3}
+            if strong_overlap:
+                notes.append(
+                    f"[entity-dedup] dropped {label} '{art['title'][:55]}' "
+                    f"(duplicate subject: {', '.join(sorted(strong_overlap))})"
+                )
+                continue
+            kept.append(art)
+            claimed |= ents
+        return kept
+
+    picks["business"] = _filter(picks.get("business", []), "business")
+    picks["middle_east"] = _filter(picks.get("middle_east", []), "middle_east")
+    picks["everyday"] = _filter(picks.get("everyday", []), "consumer")
+
+    if notes:
+        print(f"\n  Entity-cluster dedup removed {len(notes)} duplicate-subject stor(ies):")
+        for n in notes:
+            print(f"    {n}")
+    else:
+        print("\n  Entity-cluster dedup: no cross-section subject duplicates found. \u2713")
+
+    return picks, notes
+
+
+def backfill_picks(picks, viral_article, scored_articles, notes):
+    """
+    After dedup removes stories, refill empty slots from the next-best scored
+    articles that (a) are unused, (b) don't reuse a claimed entity, and
+    (c) respect source diversity.
+    """
+    if not notes:
+        return picks  # nothing was removed, nothing to backfill
+
+    used_links = set()
+    if viral_article:
+        used_links.add(viral_article["link"])
+    claimed = set(_primary_entities(viral_article)) if viral_article else set()
+    source_count = Counter()
+    if viral_article:
+        source_count[viral_article["source"]] += 1
+    for track in ("business", "middle_east", "everyday"):
+        for a in picks.get(track, []):
+            used_links.add(a["link"])
+            claimed |= _primary_entities(a)
+            source_count[a["source"]] += 1
+
+    targets = {"business": TOP_BUSINESS, "middle_east": TOP_MIDDLE_EAST, "everyday": TOP_EVERYDAY}
+    for track, target in targets.items():
+        need = target - len(picks.get(track, []))
+        if need <= 0:
+            continue
+        for art in scored_articles:
+            if need <= 0:
+                break
+            if art["link"] in used_links:
+                continue
+            if source_count[art["source"]] >= MAX_PER_SOURCE:
+                continue
+            ents = _primary_entities(art)
+            if {e for e in (ents & claimed) if len(e) > 3}:
+                continue  # would reintroduce a duplicate subject
+            # For the region track, only backfill genuinely regional stories
+            if track == "middle_east":
+                is_me = (art["source"] in MIDDLE_EAST_SOURCES or any(
+                    kw in f"{art['title']} {art.get('summary', '')}".lower() for kw in ME_KEYWORDS))
+                if not is_me:
+                    continue
+            picks[track].append(art)
+            used_links.add(art["link"])
+            claimed |= ents
+            source_count[art["source"]] += 1
+            need -= 1
+            print(f"    [backfill] {track}: {art['source']}: {art['title'][:50]}")
+    return picks
+
+
+# =========================================================
+# 5d. AUTOMATED QA SELF-CHECK (runs before every publish)
+# =========================================================
+def run_qa_checks(viral_article, picks, tip, podcast_report):
+    """
+    Automated pre-publish QA. Validates the assembled issue against a checklist
+    and writes qa_report.md. Returns (passed, checks) where `checks` is a list of
+    (status, message) tuples. status is 'PASS', 'WARN', or 'FAIL'.
+    """
+    print(f"\n{'='*60}")
+    print(f"STEP 6: QA SELF-CHECK (pre-publish validation)")
+    print(f"{'='*60}")
+
+    checks = []
+    biz = picks.get("business", [])
+    me = picks.get("middle_east", [])
+    eve = picks.get("everyday", [])
+    all_stories = ([viral_article] if viral_article else []) + biz + me + eve
+
+    # 1) Viral lead exists
+    if viral_article:
+        checks.append(("PASS", f"Viral lead present: {viral_article['title'][:55]}"))
+    else:
+        checks.append(("FAIL", "No viral lead selected"))
+
+    # 2) Sections populated
+    if biz:
+        checks.append(("PASS", f"Strategic Briefing has {len(biz)} stor(ies)"))
+    else:
+        checks.append(("FAIL", "Strategic Briefing is empty"))
+    if me:
+        checks.append(("PASS", f"From the Region has {len(me)} stor(ies)"))
+    else:
+        checks.append(("WARN", "From the Region is empty (no regional stories this week)"))
+    if eve:
+        checks.append(("PASS", f"Consumer Signals has {len(eve)} stor(ies)"))
+    else:
+        checks.append(("FAIL", "Consumer Signals is empty"))
+
+    # 3) No duplicate links
+    links = [a["link"] for a in all_stories]
+    if len(links) == len(set(links)):
+        checks.append(("PASS", "No duplicate article links across the issue"))
+    else:
+        checks.append(("FAIL", "Duplicate article link found across sections"))
+
+    # 4) No duplicate SUBJECT/entity across sections (the Fable problem)
+    seen_entities = {}
+    dup_subject = []
+    section_map = ([("viral", viral_article)] if viral_article else []) + \
+                  [("business", a) for a in biz] + \
+                  [("region", a) for a in me] + \
+                  [("consumer", a) for a in eve]
+    for label, art in section_map:
+        for ent in {e for e in _primary_entities(art) if len(e) > 3}:
+            if ent in seen_entities and seen_entities[ent] != label:
+                dup_subject.append((ent, seen_entities[ent], label, art["title"][:45]))
+            seen_entities.setdefault(ent, label)
+    if not dup_subject:
+        checks.append(("PASS", "No repeated subject/entity across sections"))
+    else:
+        for ent, sec1, sec2, title in dup_subject:
+            checks.append(("FAIL", f"Subject '{ent}' appears in both {sec1} and {sec2} ('{title}')"))
+
+    # 5) Source diversity (no source over MAX_PER_SOURCE, viral counted)
+    src_counts = Counter(a["source"] for a in all_stories)
+    overused = {s: c for s, c in src_counts.items() if c > MAX_PER_SOURCE}
+    if not overused:
+        checks.append(("PASS", f"Source diversity OK (max {MAX_PER_SOURCE}/source)"))
+    else:
+        checks.append(("WARN", f"Source(s) over limit: {overused}"))
+
+    # 6) Regional stories correctly placed (none sitting in business track)
+    misplaced = []
+    for a in biz:
+        is_me = (a["source"] in MIDDLE_EAST_SOURCES or any(
+            kw in f"{a['title']} {a.get('summary', '')}".lower() for kw in ME_KEYWORDS))
+        if is_me:
+            misplaced.append(a["title"][:45])
+    if not misplaced:
+        checks.append(("PASS", "No regional stories misfiled in Strategic Briefing"))
+    else:
+        checks.append(("WARN", f"Possible regional stor(ies) in business track: {misplaced}"))
+
+    # 7) Tip not a repeat of a previously used tip
+    tip_name = (tip or {}).get("title", "") if isinstance(tip, dict) else str(tip)
+    tip_repeat = any(prev.lower() in tip_name.lower() or tip_name.lower() in prev.lower()
+                     for prev in PREVIOUS_TIPS if tip_name)
+    if tip_name and not tip_repeat:
+        checks.append(("PASS", f"Tip of the Week is fresh: {tip_name}"))
+    elif tip_repeat:
+        checks.append(("WARN", f"Tip '{tip_name}' may repeat a previous tip"))
+    else:
+        checks.append(("WARN", "Could not verify Tip of the Week name"))
+
+    # 8) Podcast ingestion happened (transparency tie-in)
+    if podcast_report:
+        any_tx = any(s.get("transcript_fetched") for s in podcast_report)
+        any_ep = any(s.get("episodes") for s in podcast_report)
+        if any_tx:
+            checks.append(("PASS", "At least one podcast transcript was read this week"))
+        elif any_ep:
+            checks.append(("WARN", "Podcasts seen but no transcript read (titles/descriptions only)"))
+        else:
+            checks.append(("WARN", "No podcast episodes were ingested this week"))
+
+    # Tally
+    fails = [m for s, m in checks if s == "FAIL"]
+    warns = [m for s, m in checks if s == "WARN"]
+    passed = len(fails) == 0
+
+    icon = {"PASS": "\u2713", "WARN": "\u26a0", "FAIL": "\u2717"}
+    for status, msg in checks:
+        print(f"  {icon[status]} [{status}] {msg}")
+    print(f"  {'-'*56}")
+    print(f"  Result: {'PASS' if passed else 'FAIL'} "
+          f"({len(fails)} fail, {len(warns)} warn, "
+          f"{len(checks)-len(fails)-len(warns)} pass)")
+
+    _write_qa_report(checks, passed)
+    return passed, checks
+
+
+def _write_qa_report(checks, passed):
+    """Write qa_report.md — a human-readable pre-publish QA audit."""
+    now = datetime.now().strftime("%B %d, %Y %H:%M")
+    icon = {"PASS": "\u2705", "WARN": "\u26a0\ufe0f", "FAIL": "\u274c"}
+    overall = "\u2705 PASS" if passed else "\u274c FAIL \u2014 review before sending"
+    lines = [
+        "# SIGNAL \u2014 Pre-Publish QA Report",
+        "",
+        f"**Generated:** {now}  ",
+        f"**Overall result:** {overall}",
+        "",
+        "| Status | Check |",
+        "|---|---|",
+    ]
+    for status, msg in checks:
+        lines.append(f"| {icon[status]} {status} | {msg} |")
+    lines += [
+        "",
+        "---",
+        "",
+        "This report is generated automatically by the SIGNAL agent on every run. "
+        "FAIL items should be fixed before publishing; WARN items are advisory.",
+        "",
+    ]
+    with open("qa_report.md", "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    print("  \u2713 Wrote qa_report.md (pre-publish QA audit)")
+
+
+# =========================================================
 # 6. ANALYST (structured cards per story)
 # =========================================================
 def analyze_article(article, audience="business"):
@@ -1752,7 +2043,7 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
 # =========================================================
 def generate_newsletter():
     print("=" * 60)
-    print("  SIGNAL Agent v3 — Starting...")
+    print("  SIGNAL Agent v5 — Starting...")
     print("=" * 60)
     print(f"  Mode: {'EDITOR-IN-CHIEF (interactive)' if INTERACTIVE_MODE else 'AUTONOMOUS'}")
     print(f"  Model: {MODEL}")
@@ -1768,7 +2059,7 @@ def generate_newsletter():
         return
 
     # 2) Extract podcast topics (importance signals)
-    podcast_topics = fetch_podcast_topics()
+    podcast_topics, podcast_report = fetch_podcast_topics()
 
     # 3) Score all articles with weighted relevance
     scored_articles = score_articles_v2(articles, podcast_topics)
@@ -1778,6 +2069,13 @@ def generate_newsletter():
 
     # 5) Pick stories for the three tracks (with source diversity)
     picks = select_articles(scored_articles, viral_article=viral)
+
+    # 5c) Entity-cluster dedup — stop the same subject appearing in two sections
+    #     (e.g. the Issue #006 'Anthropic Fable' viral-lead + consumer-signal bug)
+    picks, dedup_notes = enforce_entity_dedup(viral, picks)
+
+    # 5d) Backfill any slots emptied by dedup with the next-best unique stories
+    picks = backfill_picks(picks, viral, scored_articles, dedup_notes)
 
     # 5b) EDITOR-IN-CHIEF MODE
     if INTERACTIVE_MODE:
@@ -1793,6 +2091,15 @@ def generate_newsletter():
             return
 
     today = datetime.now().strftime("%B %d, %Y")
+
+    # 5e) Tip of the Week (generated early so QA can verify it isn't a repeat)
+    tip = generate_tip_of_week()
+
+    # 5f) Automated pre-publish QA self-check (writes qa_report.md)
+    qa_passed, qa_checks = run_qa_checks(viral, picks, tip, podcast_report)
+    if not qa_passed:
+        print("\n  ⚠ QA reported FAIL item(s) — see qa_report.md. "
+              "Continuing to render so the operator can review before publishing.")
 
     # 6) Analyze viral story
     viral_html = ""
@@ -1828,8 +2135,7 @@ def generate_newsletter():
         for art in picks["everyday"]
     )
 
-    # 10) Tip of the Week
-    tip = generate_tip_of_week()
+    # 10) Tip of the Week (already generated above for QA)
     tip_html = render_tip_block(tip)
 
     # Compute issue number
