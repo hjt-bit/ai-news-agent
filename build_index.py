@@ -76,16 +76,43 @@ def issue_number_for(date: datetime) -> int:
 
 def extract_viral_headline(html: str) -> str | None:
     """Try to pull the lead/viral story headline from the HTML."""
-    # Look for the first article headline block specifically
-    article_h2 = re.search(
-        r'<h2[^>]*class="[^"]*article-headline[^"]*"[^>]*>(.*?)</h2>',
+    candidate = None
+
+    # PRIMARY (current template): the viral lead is rendered as
+    #   <div class="card viral"> ... <div class="card-title">HEADLINE</div> ...
+    viral_card = re.search(
+        r'<div[^>]*class="[^"]*\bviral\b[^"]*"[^>]*>(.*?)</div>\s*</div>',
         html, re.IGNORECASE | re.DOTALL,
     )
-    candidate = None
-    if article_h2:
-        candidate = article_h2.group(1)
-    else:
-        # Fallback: any h2 inside a `.viral` block
+    if viral_card:
+        inner = viral_card.group(1)
+        card_title = re.search(
+            r'<div[^>]*class="[^"]*card-title[^"]*"[^>]*>(.*?)</div>',
+            inner, re.IGNORECASE | re.DOTALL,
+        )
+        if card_title:
+            candidate = card_title.group(1)
+
+    # Looser primary fallback: first .card-title that follows a `viral` class
+    if candidate is None:
+        loose = re.search(
+            r'class="[^"]*\bviral\b[^"]*".*?<div[^>]*class="[^"]*card-title[^"]*"[^>]*>(.*?)</div>',
+            html, re.IGNORECASE | re.DOTALL,
+        )
+        if loose:
+            candidate = loose.group(1)
+
+    # LEGACY template fallback: <h2 class="article-headline">
+    if candidate is None:
+        article_h2 = re.search(
+            r'<h2[^>]*class="[^"]*article-headline[^"]*"[^>]*>(.*?)</h2>',
+            html, re.IGNORECASE | re.DOTALL,
+        )
+        if article_h2:
+            candidate = article_h2.group(1)
+
+    # LEGACY template fallback: any h2 inside a `.viral` <section>
+    if candidate is None:
         viral_block = re.search(
             r'<section[^>]*class="[^"]*viral[^"]*"[^>]*>(.*?)</section>',
             html, re.IGNORECASE | re.DOTALL,
@@ -95,6 +122,7 @@ def extract_viral_headline(html: str) -> str | None:
             inner_h2 = re.search(r"<h2[^>]*>(.*?)</h2>", inner, re.IGNORECASE | re.DOTALL)
             if inner_h2:
                 candidate = inner_h2.group(1)
+
     if candidate is None:
         return None
     # Strip inner anchors & tags
