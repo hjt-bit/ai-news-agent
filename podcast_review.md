@@ -1,6 +1,6 @@
 # SIGNAL — Podcast Review Log
 
-_Generated June 14, 2026. This file confirms which podcasts the agent read this week,
+_Generated June 15, 2026. This file confirms which podcasts the agent read this week,
 whether full transcripts were successfully fetched, and what topic signals were extracted._
 
 | Podcast | Episodes Found | Transcript Read | Transcript Length | Topics Extracted |
@@ -26,10 +26,10 @@ whether full transcripts were successfully fetched, and what topic signals were 
   - AI safety solutions
   - critical minerals for AI
   - copper supply bottleneck
-  - AI's impact on economy
-  - privacy concerns in AI
   - AI and capitalism
-  - AI technology in elections
+  - privacy concerns in AI
+  - AI's impact on economy
+  - AI technology and elections
 
 ### Latent Space
 - No recent episodes detected in the lookback window.
