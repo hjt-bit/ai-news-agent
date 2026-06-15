@@ -25,11 +25,11 @@ whether full transcripts were successfully fetched, and what topic signals were 
   - nationalizing AI
   - AI safety solutions
   - critical minerals for AI
-  - copper supply bottleneck
-  - AI and capitalism
-  - privacy concerns in AI
+  - copper bottleneck in AI
   - AI's impact on economy
-  - AI technology and elections
+  - privacy concerns in AI
+  - AI and capitalism
+  - AI technology trends
 
 ### Latent Space
 - No recent episodes detected in the lookback window.
