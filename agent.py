@@ -45,6 +45,9 @@ MAX_PER_SOURCE = 2
 SIGNUP_URL  = "https://www.linkedin.com/newsletters/signal-7459465103449468928/"
 BEEHIIV_URL = "https://signalweekly.beehiiv.com/subscribe"
 
+# GitHub Pages archive base (used to build the canonical link to each issue).
+PAGES_BASE_URL = "https://hjt-bit.github.io/ai-news-agent"
+
 # Editor-in-Chief Mode
 _env_interactive = os.environ.get("SIGNAL_INTERACTIVE")
 if _env_interactive is not None:
@@ -113,6 +116,63 @@ PODCAST_YOUTUBE_CHANNELS = {
     "Dwarkesh Podcast": "UC2LQFGfUtSjMGq-ZBMhIA9g",
 }
 
+# Domains that are NOT credible standalone news articles (podcast/audio/video hosts,
+# raw feeds, social). A story's "Read full story" link must NEVER point here — readers
+# expect a real news article they can verify. Podcasts feed the agent as topic SIGNALS
+# only; they must not be the cited source link. This guards the issue even if a future
+# feed sneaks a non-article URL into the pool.
+NON_ARTICLE_LINK_DOMAINS = (
+    "libsyn.com", "simplecast.com", "buzzsprout.com", "podbean.com",
+    "captivate.fm", "transistor.fm", "anchor.fm", "megaphone.fm",
+    "acast.com", "redcircle.com", "fireside.fm", "soundcloud.com",
+    "spotify.com", "podcasts.apple.com", "apple.co", "pca.st",
+    "youtube.com", "youtu.be", "twitter.com", "x.com", "t.co",
+    "facebook.com", "linkedin.com", "reddit.com",
+    "substack.com/feed/podcast", "api.substack.com/feed/podcast",
+)
+
+
+def is_valid_article_link(url, source=None):
+    """Return True only if `url` looks like a credible standalone news article.
+
+    Rejects podcast/audio hosts, social links, bare domains, and feeds. Used to
+    keep non-article URLs out of the newsletter's source links.
+    """
+    if not url or not isinstance(url, str):
+        return False
+    u = url.strip().lower()
+    if not (u.startswith("http://") or u.startswith("https://")):
+        return False
+    try:
+        from urllib.parse import urlparse
+        p = urlparse(u)
+    except Exception:
+        return False
+    host = (p.netloc or "").split("@")[-1].split(":")[0]
+    if not host:
+        return False
+    path = (p.path or "").strip("/")
+    full_lower = u  # for path-bearing patterns like substack podcast feeds
+
+    # Block known non-article hosts — matched by HOST (exact or subdomain),
+    # not raw substring, so e.g. 'marktechpos t.co m' is never falsely blocked.
+    for bad in NON_ARTICLE_LINK_DOMAINS:
+        if "/" in bad:
+            # Path-bearing pattern (e.g. substack podcast feed): match anywhere in URL.
+            if bad in full_lower:
+                return False
+            continue
+        # Domain pattern: match the host exactly or as a subdomain suffix.
+        if host == bad or host.endswith("." + bad):
+            return False
+    # Block obvious feed endpoints.
+    if u.rstrip("/").endswith(("/feed", "/rss", ".xml", ".rss")):
+        return False
+    # Require a path beyond the bare domain (real articles have a slug/path).
+    if len(path) < 3:  # e.g. just "/" or "/ai"
+        return False
+    return True
+
 # Keywords that flag any article (from any source) as Middle East-relevant
 ME_KEYWORDS = [
     # Countries
@@ -129,6 +189,36 @@ ME_KEYWORDS = [
     "instabug", "wamda", "rain", "lean technologies", "foodics", "unifonic", "trukker",
     "hub71", "dtec", "difc", "adgm", "neom", "tonomus", "sandbox",
 ]
+
+# Generic tokens that are too weak to qualify a story as regional ON THEIR OWN
+# (they cause false positives, e.g. "sandbox" in a dev context, "du" inside words).
+# These only count toward regional relevance when a stronger keyword is also present.
+_WEAK_ME_TOKENS = {"arab", "arabian", "sandbox", "du", "e&", "rain", "valu", "halan"}
+
+
+def is_regional_story(article):
+    """Strict test for whether a story genuinely belongs in 'From the Region'.
+
+    A story qualifies only if:
+      (a) it comes from a dedicated MENA news source, OR
+      (b) a STRONG Middle East keyword appears as a whole word in the title/summary.
+    Weak/ambiguous tokens alone do not qualify, which prevents non-regional
+    stories (e.g. a US SpaceX IPO) from being stretched to fill the section.
+    """
+    if not article:
+        return False
+    if article.get("source") in MIDDLE_EAST_SOURCES:
+        return True
+    text = f"{article.get('title', '')} {article.get('summary', '')}".lower()
+    for kw in ME_KEYWORDS:
+        if kw in _WEAK_ME_TOKENS:
+            continue
+        # Whole-word / phrase match using boundaries so 'uae' won't match inside
+        # another word and short tokens don't over-trigger.
+        pattern = r"(?<![a-z0-9])" + re.escape(kw) + r"(?![a-z0-9])"
+        if re.search(pattern, text):
+            return True
+    return False
 
 # =========================================================
 # PREVIOUS TIPS (to avoid repetition)
@@ -154,7 +244,14 @@ def fetch_recent_news(days=LOOKBACK_DAYS):
     cutoff = datetime.now() - timedelta(days=days)
     source_counts = {}
 
+    skipped_podcast = 0
+    skipped_badlink = 0
     for source, url in SOURCES.items():
+        # Podcasts are SIGNAL sources only (transcripts) — never selectable as a cited
+        # article, because their links are audio episodes, not verifiable news articles.
+        if source in PODCAST_SOURCES:
+            source_counts[source] = "signal-only (podcast)"
+            continue
         try:
             feed = feedparser.parse(url)
             count = 0
@@ -162,9 +259,14 @@ def fetch_recent_news(days=LOOKBACK_DAYS):
                 try:
                     pub = datetime.fromtimestamp(mktime(entry.published_parsed))
                     if pub > cutoff:
+                        link = entry.link
+                        # Guard: only ingest entries that point to a real news article.
+                        if not is_valid_article_link(link, source):
+                            skipped_badlink += 1
+                            continue
                         recent.append({
                             "title": entry.title,
-                            "link": entry.link,
+                            "link": link,
                             "source": source,
                             "summary": entry.get("summary", "")[:600],
                             "published": pub,
@@ -185,6 +287,8 @@ def fetch_recent_news(days=LOOKBACK_DAYS):
         print(status)
     print(f"  {'─'*50}")
     print(f"  TOTAL: {len(recent)} articles from {sum(1 for c in source_counts.values() if isinstance(c, int) and c > 0)} sources")
+    if skipped_badlink:
+        print(f"  (skipped {skipped_badlink} entr(ies) with non-article links e.g. podcast/audio/social)")
 
     return recent
 
@@ -856,12 +960,8 @@ def select_articles(articles, viral_article=None):
     # Pre-filter: exclude the viral article
     pool = [a for a in articles if a is not viral_article]
 
-    # Pre-bucket Middle East candidates
-    me_candidates = [
-        a for a in pool
-        if a["source"] in MIDDLE_EAST_SOURCES
-        or any(kw in f"{a['title']} {a.get('summary', '')}".lower() for kw in ME_KEYWORDS)
-    ]
+    # Pre-bucket Middle East candidates (STRICT: genuinely regional only)
+    me_candidates = [a for a in pool if is_regional_story(a)]
 
     print(f"\n{'='*60}")
     print(f"STEP 4: SELECTING STORIES (source diversity enforced)")
@@ -934,9 +1034,13 @@ Articles:
     # (in case the LLM ignored the instruction)
     biz, eve, me = _enforce_source_diversity(biz, eve, me, pool, me_candidates, viral_article)
 
-    # Guarantee Middle East content
+    # Use genuine regional candidates if the LLM returned none — but NEVER pad with
+    # non-regional stories. If there are no real regional stories, the section is left
+    # empty (the renderer shows a graceful 'no regional stories this week' message).
     if not me and me_candidates:
         me = me_candidates[:TOP_MIDDLE_EAST]
+    # Final safety: drop anything that isn't genuinely regional.
+    me = [a for a in me if is_regional_story(a)]
 
     # Dedupe across tracks
     used_links = set()
@@ -1210,9 +1314,7 @@ def backfill_picks(picks, viral_article, scored_articles, notes):
                 continue  # would reintroduce a duplicate subject
             # For the region track, only backfill genuinely regional stories
             if track == "middle_east":
-                is_me = (art["source"] in MIDDLE_EAST_SOURCES or any(
-                    kw in f"{art['title']} {art.get('summary', '')}".lower() for kw in ME_KEYWORDS))
-                if not is_me:
+                if not is_regional_story(art):
                     continue
             picks[track].append(art)
             used_links.add(art["link"])
@@ -1298,14 +1400,18 @@ def run_qa_checks(viral_article, picks, tip, podcast_report):
     # 6) Regional stories correctly placed (none sitting in business track)
     misplaced = []
     for a in biz:
-        is_me = (a["source"] in MIDDLE_EAST_SOURCES or any(
-            kw in f"{a['title']} {a.get('summary', '')}".lower() for kw in ME_KEYWORDS))
-        if is_me:
+        if is_regional_story(a):
             misplaced.append(a["title"][:45])
+    # Also flag any NON-regional story that slipped into the region track.
+    nonregional_in_me = [a["title"][:45] for a in me if not is_regional_story(a)]
     if not misplaced:
         checks.append(("PASS", "No regional stories misfiled in Strategic Briefing"))
     else:
         checks.append(("WARN", f"Possible regional stor(ies) in business track: {misplaced}"))
+    if nonregional_in_me:
+        checks.append(("FAIL", f"Non-regional stor(ies) in 'From the Region': {nonregional_in_me}"))
+    else:
+        checks.append(("PASS", "All 'From the Region' stories are genuinely regional"))
 
     # 7) Tip not a repeat of a previously used tip
     tip_name = (tip or {}).get("title", "") if isinstance(tip, dict) else str(tip)
@@ -1328,6 +1434,19 @@ def run_qa_checks(viral_article, picks, tip, podcast_report):
             checks.append(("WARN", "Podcasts seen but no transcript read (titles/descriptions only)"))
         else:
             checks.append(("WARN", "No podcast episodes were ingested this week"))
+
+    # 9) Every cited source link must be a credible NEWS ARTICLE (no podcast/audio/social).
+    #    This is the credibility guard: readers must reach a verifiable article.
+    bad_links = []
+    for label, art in section_map:
+        link = art.get("link", "")
+        if not is_valid_article_link(link):
+            bad_links.append((label, art.get("title", "")[:45], link))
+    if not bad_links:
+        checks.append(("PASS", "All source links are credible news articles (no podcast/audio links)"))
+    else:
+        for label, title, link in bad_links:
+            checks.append(("FAIL", f"Non-article link in {label} ('{title}'): {link}"))
 
     # Tally
     fails = [m for s, m in checks if s == "FAIL"]
@@ -1943,6 +2062,10 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
     lines.append("")
     lines.append("_Your weekly AI intelligence briefing — the stories that matter, in five minutes flat._")
     lines.append("")
+    # Canonical link to THIS issue, surfaced at the very top (above the fold).
+    issue_url = f"{PAGES_BASE_URL}/newsletters/newsletter_{datetime.now().strftime('%Y_%m_%d')}.html"
+    lines.append(f"📩 Read Issue #{issue_number} in full: {issue_url}")
+    lines.append("")
     lines.append("---")
     lines.append("")
 
@@ -2029,8 +2152,12 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
     # Footer
     next_issue = f"{int(issue_number) + 1:03d}"
     lines.append(f"Issue #{next_issue} lands next Monday at 08:00 GST.")
+    lines.append("")
+    lines.append(f"📂 Full archive: {PAGES_BASE_URL}/")
+    if SIGNUP_URL:
+        lines.append(f"🔔 Subscribe on LinkedIn: {SIGNUP_URL}")
     if BEEHIIV_URL:
-        lines.append(f"Prefer email? Subscribe at {BEEHIIV_URL}")
+        lines.append(f"✉️ Prefer email? Subscribe at {BEEHIIV_URL}")
     lines.append("")
     lines.append("— SIGNAL is composed each week by an autonomous AI agent. Reviewed and published by Hasan.")
     lines.append("")
@@ -2048,7 +2175,7 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
 # =========================================================
 def generate_newsletter():
     print("=" * 60)
-    print("  SIGNAL Agent v5 — Starting...")
+    print("  SIGNAL Agent v6 — Starting...")
     print("=" * 60)
     print(f"  Mode: {'EDITOR-IN-CHIEF (interactive)' if INTERACTIVE_MODE else 'AUTONOMOUS'}")
     print(f"  Model: {MODEL}")
