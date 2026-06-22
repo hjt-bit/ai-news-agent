@@ -11,16 +11,16 @@ _Your weekly AI intelligence briefing — the stories that matter, in five minut
 
 ## 01 // THE VIRAL LEAD
 
-### US Bans Anthropic's Fable 5 Release
+### OpenAI Codex Introduces Record & Replay Feature
 
-**TL;DR:** The US government halted Anthropic's Fable 5 due to national security concerns over security vulnerabilities
+**TL;DR:** OpenAI's Codex can now automate tasks by learning from user workflows on macOS.
 
-- **What happened:** The US forced Anthropic to pull Fable 5 and Mythos 5 on June 19, 2026, after security concerns arose
-- **Why it matters:** Highlights risks in AI model security and regulatory scrutiny
-- **Business impact:** Potential delays in product launches could affect revenue streams
-- **Leader action:** Assess your AI models for similar security vulnerabilities
+- **What happened:** OpenAI launched the Record & Replay feature for Codex on macOS, enabling task automation from user demonstrations
+- **Why it matters:** This feature enhances productivity by automating repetitive tasks
+- **Business impact:** Potentially reduces labor costs and increases efficiency
+- **Leader action:** Pilot Codex's Record & Replay with a key workflow in your team
 
-[Read full story → TechCrunch AI](https://techcrunch.com/podcast/the-us-banned-anthropics-fable-5-release-but-the-numbers-dont-seem-to-care/)
+[Read full story → The Decoder](https://the-decoder.com/openais-codex-can-now-watch-you-work-once-and-repeat-the-task-forever/)
 
 ---
 
@@ -28,34 +28,34 @@ _Your weekly AI intelligence briefing — the stories that matter, in five minut
 
 ### SAP and Google Cloud Launch New Commerce Architecture
 
-**TL;DR:** SAP and Google Cloud introduce agentic commerce architecture for automated marketing and retail operations.
+**TL;DR:** SAP and Google Cloud are automating marketing and retail with agentic commerce architecture.
 
 - **What happened:** SAP and Google Cloud are deploying agentic commerce architecture to automate marketing and retail operations at enterprise scale
 - **Why it matters:** AI is crucial for customer retention by 2026
-- **Business impact:** Enhances customer experience and operational efficiency
-- **Leader action:** Pilot agentic commerce architecture in your marketing team
+- **Business impact:** Improves customer experience and operational efficiency
+- **Leader action:** Pilot agentic commerce architecture to enhance marketing automation
 
 [Read full story → AI News](https://www.artificialintelligence-news.com/news/sap-and-google-cloud-deploy-agentic-commerce-architecture/)
 
-### Samsung Deploys ChatGPT Enterprise Globally
+### US Bans Anthropic's Fable 5 Release
 
-**TL;DR:** Samsung Electronics rolls out ChatGPT Enterprise and Codex to employees worldwide.
+**TL;DR:** The US government halted Anthropic's Fable 5 due to national security concerns over security vulnerabilities
 
-- **What happened:** Samsung Electronics launched ChatGPT Enterprise and Codex for employees globally on June 21, 2026
-- **Why it matters:** Enhances employee productivity and innovation through advanced AI tools
-- **Business impact:** Potentially reduces operational costs and boosts competitive edge
-- **Leader action:** Pilot ChatGPT Enterprise in your team for productivity gains
+- **What happened:** The US government forced Anthropic to pull Fable 5 and Mythos 5 on June 19, 2026
+- **Why it matters:** Highlights vulnerabilities in AI models and regulatory scrutiny
+- **Business impact:** Increased risk of regulatory penalties and reputational damage
+- **Leader action:** Assess AI model security measures to prevent vulnerabilities
 
-[Read full story → OpenAI Blog](https://openai.com/index/samsung-electronics-chatgpt-codex-deployment)
+[Read full story → TechCrunch AI](https://techcrunch.com/podcast/the-us-banned-anthropics-fable-5-release-but-the-numbers-dont-seem-to-care/)
 
-### Amazon Employees Face Termination Over Political Speech
+### Amazon Faces Backlash Over Employee Terminations
 
 **TL;DR:** Amazon employees allege retaliation for supporting data center limits at Seattle City Council hearings
 
-- **What happened:** Three Amazon software engineers testified on June 10th, claiming retaliation for political speech against data center limits
-- **Why it matters:** Highlights risks of employee retaliation for political expression
-- **Business impact:** Potential legal challenges and reputational damage for Amazon
-- **Leader action:** Review company policies on political speech and employee protections
+- **What happened:** Three Amazon software engineers testified on June 10th about data center limits and now face termination for their stance
+- **Why it matters:** Employee support for regulations can impact company reputation
+- **Business impact:** Potential legal risks and damage to employee morale
+- **Leader action:** Review company policies on political speech and employee protection
 
 [Read full story → The Verge AI](https://www.theverge.com/ai-artificial-intelligence/952180/amazon-seattle-data-center-moratorium-aecj-disciplinary-action)
 
@@ -66,14 +66,14 @@ _Your weekly AI intelligence briefing — the stories that matter, in five minut
 I'm now sending the full SIGNAL — including the sections below — by email. Here's what email subscribers are reading this week:
 
 **From the Region**
-→ Sovra secures over $2M pre-seed funding
-→ CNTXT AI secures $60M for AI infrastructure
+→ Sovra secures $2M pre-seed funding
+→ CNTXT AI Secures $60M for AI Infrastructure
 **Consumer Signals**
-→ Cisco AI Launches FAPO for Better Prompt Optimization
+→ ChatGPT gets smarter with scheduled tasks
 → Exciting AI Features Coming to iOS 27
-→ Sam Altman on AI scaling and skepticism
+→ Cisco AI Launches FAPO for Better Prompt Optimization
 **Tip of the Week**
-→ Explore ChatGPT Custom Instructions
+→ Unlocking ChatGPT's Custom GPTs
 
 🔓 Read all of it free, every Monday at 08:00 GST → https://signalweekly.beehiiv.com/?modal=signup
 

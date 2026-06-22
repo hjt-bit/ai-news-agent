@@ -21,15 +21,15 @@ whether full transcripts were successfully fetched, and what topic signals were 
 - Transcript fetched: No (0 chars)
 - Topic signals fed into story scoring:
   - Anthropic Fable ban
-  - Claude AI analysis
-  - OpenAI device tease
+  - OpenAI device announcement
   - AI job market concerns
+  - Claude AI psychoanalysis
   - SpaceX IPO impact
+  - Cursor acquisition
   - AI and new oligarchs
-  - AI technology implications
-  - AI-driven startups
-  - AI in financial services
-  - AI and learned helplessness
+  - AI technology in startups
+  - Dario Amode insights
+  - AI panic narrative
 
 ### Latent Space
 - No recent episodes detected in the lookback window.
