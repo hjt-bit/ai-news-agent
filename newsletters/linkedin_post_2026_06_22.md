@@ -13,12 +13,12 @@ _Your weekly AI intelligence briefing — the stories that matter, in five minut
 
 ### OpenAI Codex Introduces Record & Replay Feature
 
-**TL;DR:** OpenAI's Codex can now automate tasks by learning from user workflows on macOS.
+**TL;DR:** OpenAI's Codex app now automates workflows with a new Record & Replay feature on macOS
 
-- **What happened:** OpenAI launched the Record & Replay feature for Codex on macOS, enabling task automation from user demonstrations
-- **Why it matters:** This feature enhances productivity by automating repetitive tasks
-- **Business impact:** Potentially reduces labor costs and increases efficiency
-- **Leader action:** Pilot Codex's Record & Replay with a key workflow in your team
+- **What happened:** OpenAI launched the Record & Replay feature for Codex on macOS, enabling automated task repetition from user demonstrations
+- **Why it matters:** Streamlines workflows and enhances productivity for users
+- **Business impact:** Reduces operational costs and increases efficiency in task execution
+- **Leader action:** Pilot Codex's Record & Replay feature in your team’s workflow
 
 [Read full story → The Decoder](https://the-decoder.com/openais-codex-can-now-watch-you-work-once-and-repeat-the-task-forever/)
 
@@ -28,36 +28,36 @@ _Your weekly AI intelligence briefing — the stories that matter, in five minut
 
 ### SAP and Google Cloud Launch New Commerce Architecture
 
-**TL;DR:** SAP and Google Cloud are automating marketing and retail with agentic commerce architecture.
+**TL;DR:** SAP and Google Cloud are automating marketing and retail operations with new architecture.
 
-- **What happened:** SAP and Google Cloud are deploying agentic commerce architecture to automate marketing and retail operations at enterprise scale
+- **What happened:** SAP and Google Cloud are deploying agentic commerce architecture to automate operations at enterprise scale
 - **Why it matters:** AI is crucial for customer retention by 2026
-- **Business impact:** Improves customer experience and operational efficiency
-- **Leader action:** Pilot agentic commerce architecture to enhance marketing automation
+- **Business impact:** Improved customer retention can enhance revenue streams
+- **Leader action:** Pilot agentic commerce architecture in your marketing operations
 
 [Read full story → AI News](https://www.artificialintelligence-news.com/news/sap-and-google-cloud-deploy-agentic-commerce-architecture/)
 
-### US Bans Anthropic's Fable 5 Release
+### Amazon Targets Nvidia with AI Chip Sales
 
-**TL;DR:** The US government halted Anthropic's Fable 5 due to national security concerns over security vulnerabilities
+**TL;DR:** Amazon Web Services plans to sell its AI chips to other data centers.
 
-- **What happened:** The US government forced Anthropic to pull Fable 5 and Mythos 5 on June 19, 2026
-- **Why it matters:** Highlights vulnerabilities in AI models and regulatory scrutiny
-- **Business impact:** Increased risk of regulatory penalties and reputational damage
-- **Leader action:** Assess AI model security measures to prevent vulnerabilities
+- **What happened:** AWS is exploring selling its AI chips, with CEO Andy Jassy citing a $50 billion opportunity
+- **Why it matters:** Increased competition in the AI chip market
+- **Business impact:** Potential for significant revenue growth and market share expansion
+- **Leader action:** Assess your current chip suppliers and consider AWS offerings
 
-[Read full story → TechCrunch AI](https://techcrunch.com/podcast/the-us-banned-anthropics-fable-5-release-but-the-numbers-dont-seem-to-care/)
+[Read full story → TechCrunch AI](https://techcrunch.com/2026/06/18/amazon-hopes-to-challenge-nvidia-more-directly-by-selling-its-ai-chips/)
 
-### Amazon Faces Backlash Over Employee Terminations
+### Anthropic Faces Export Rules Crisis
 
-**TL;DR:** Amazon employees allege retaliation for supporting data center limits at Seattle City Council hearings
+**TL;DR:** Anthropic struggles to restore access to its AI models after new export restrictions
 
-- **What happened:** Three Amazon software engineers testified on June 10th about data center limits and now face termination for their stance
-- **Why it matters:** Employee support for regulations can impact company reputation
-- **Business impact:** Potential legal risks and damage to employee morale
-- **Leader action:** Review company policies on political speech and employee protection
+- **What happened:** Anthropic blocked access to Fable 5 and Mythos 5 due to new export rules from the Trump administration
+- **Why it matters:** New regulations could hinder AI development and deployment
+- **Business impact:** Potential loss of revenue and competitive edge in AI market
+- **Leader action:** Assess compliance strategies for export regulations immediately
 
-[Read full story → The Verge AI](https://www.theverge.com/ai-artificial-intelligence/952180/amazon-seattle-data-center-moratorium-aecj-disciplinary-action)
+[Read full story → The Verge AI](https://www.theverge.com/ai-artificial-intelligence/951703/anthropic-shutdown-export-controls)
 
 ---
 
@@ -66,14 +66,14 @@ _Your weekly AI intelligence briefing — the stories that matter, in five minut
 I'm now sending the full SIGNAL — including the sections below — by email. Here's what email subscribers are reading this week:
 
 **From the Region**
-→ Sovra secures $2M pre-seed funding
+→ Sovra secures $2M pre-seed funding round
 → CNTXT AI Secures $60M for AI Infrastructure
 **Consumer Signals**
-→ ChatGPT gets smarter with scheduled tasks
+→ ChatGPT gets a new scheduling upgrade
 → Exciting AI Features Coming to iOS 27
-→ Cisco AI Launches FAPO for Better Prompt Optimization
+→ Cisco AI's FAPO Optimizes Your Prompts
 **Tip of the Week**
-→ Unlocking ChatGPT's Custom GPTs
+→ Explore Custom GPTs for Seasonal Tasks
 
 🔓 Read all of it free, every Monday at 08:00 GST → https://signalweekly.beehiiv.com/?modal=signup
 
