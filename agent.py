@@ -43,7 +43,7 @@ MAX_PER_SOURCE = 2
 
 # Where to send readers when they click "Subscribe".
 SIGNUP_URL  = "https://www.linkedin.com/newsletters/signal-7459465103449468928/"
-BEEHIIV_URL = "https://signalweekly.beehiiv.com/subscribe"
+BEEHIIV_URL = "https://signalweekly.beehiiv.com/?modal=signup"
 
 # GitHub Pages archive base (used to build the canonical link to each issue).
 PAGES_BASE_URL = "https://hjt-bit.github.io/ai-news-agent"
@@ -58,6 +58,13 @@ else:
 # Also export a LinkedIn-formatted version of the newsletter on each run.
 EXPORT_LINKEDIN = True
 
+# ── LinkedIn Teaser Mode ────────────────────────────────────────────────────────
+# When True, the LinkedIn post shows the Viral Lead + Strategic Briefing in full,
+# then "teases" the remaining sections (From the Region, Consumer Signals, Tip of
+# the Week) as headlines-only behind an email call-to-action. This drives LinkedIn
+# readers to the owned email list. Set to False to publish the full issue on LinkedIn.
+TEASER_MODE = True
+
 # ── Forced Viral Lead ──────────────────────────────────────────────────────────
 # Set this to a keyword/phrase to force the agent to feature a specific story as
 # the viral lead. Set to None to let the agent auto-detect.
@@ -66,7 +73,7 @@ FORCED_LEAD = None
 # Set this to an integer to force a specific issue number (e.g. 6 to label the
 # output "Issue #006" regardless of the run date). Set to None to auto-compute
 # the issue number from the date. Remember to reset to None after a one-off run.
-FORCED_ISSUE = 6   # one-off: label this run as Issue #006; reset to None after
+FORCED_ISSUE = None
 
 # =========================================================
 # SOURCES -- RSS feeds organized by tier
@@ -1517,7 +1524,11 @@ def analyze_article(article, audience="business"):
                  "The leader_action field MUST be specific, varied, and tailored to THIS exact story — name the "
                  "actual tool/product to pilot, the precise metric to measure, or a concrete first step. "
                  "NEVER reuse the generic template 'Brief your [X] team' — vary the verb and the action across stories. "
-                 "NEVER use generic phrases like 'Evaluate AI tools' or 'Consider implications'.")
+                 "NEVER use generic phrases like 'Evaluate AI tools' or 'Consider implications'. "
+                 "FAITHFULNESS (critical): use ONLY facts present in the title/summary provided. NEVER invent a "
+                 "dollar figure, percentage, date, or claim that is not in the source text. The headline MUST be "
+                 "consistent with the TL;DR and must describe the SAME event as the source — do not generalize a "
+                 "specific story into a different, bigger claim.")
     elif audience == "middle_east":
         schema_hint = """{
   "headline": "punchy 6-10 word headline (no period)",
@@ -1526,7 +1537,11 @@ def analyze_article(article, audience="business"):
         rules = ("Audience: regional business leaders in the GCC/MENA. "
                  "Mention the country or company by name. The sentence must convey what is practical or actionable -- "
                  "a deal, a launch, a hire, a fund, a regulation, a partnership -- not just commentary or geopolitics. "
-                 "If the article is purely political, focus on the business/AI angle only.")
+                 "If the article is purely political, focus on the business/AI angle only. "
+                 "FAITHFULNESS (critical): the headline AND tldr MUST describe the SAME event as the source title/summary. "
+                 "Use ONLY facts present in the source — NEVER invent dollar figures, percentages, or claims (e.g. do not "
+                 "write a '$100B commitment' headline if the source is about a venture fund or a language-AI topic). "
+                 "The headline must accurately reflect what the article is actually about.")
     else:  # everyday
         schema_hint = """{
   "headline": "fun 6-10 word headline (no period)",
@@ -2065,6 +2080,10 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
     # Canonical link to THIS issue, surfaced at the very top (above the fold).
     issue_url = f"{PAGES_BASE_URL}/newsletters/newsletter_{datetime.now().strftime('%Y_%m_%d')}.html"
     lines.append(f"📩 Read Issue #{issue_number} in full: {issue_url}")
+    # Above-the-fold email CTA (teaser mode): capture readers before they scroll.
+    if TEASER_MODE and BEEHIIV_URL:
+        lines.append("")
+        lines.append(f"✉️ Get the complete briefing in your inbox every Monday → {BEEHIIV_URL}")
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -2106,48 +2125,76 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
     lines.append("---")
     lines.append("")
 
-    # Middle East
-    lines.append("## 03 // FROM THE REGION")
-    lines.append("")
-    for art, data in me_items:
-        lines.append(f"**{data.get('headline', art['title'])}**")
-        lines.append(f"{data.get('tldr', '')}")
-        lines.append(f"[Read more → {art['source']}]({art['link']})")
-        lines.append("")
-    lines.append("---")
-    lines.append("")
+    if TEASER_MODE:
+        # ── Teaser gate: headlines-only for the remaining sections, behind an email CTA ──
+        teased = []
+        for art, data in me_items:
+            teased.append(("From the Region", data.get('headline', art['title'])))
+        for art, data in eve_pairs:
+            teased.append(("Consumer Signals", data.get('headline', art['title'])))
+        if tip:
+            teased.append(("Tip of the Week", tip.get('title', '')))
 
-    # Consumer
-    lines.append("## 04 // CONSUMER SIGNALS")
-    lines.append("")
-    for art, data in eve_pairs:
-        lines.append(f"### {data.get('headline', art['title'])}")
+        if teased:
+            lines.append("## 📬 THE REST OF THIS WEEK'S BRIEFING IS IN YOUR INBOX")
+            lines.append("")
+            lines.append("I'm now sending the full SIGNAL — including the sections below — by email. "
+                         "Here's what email subscribers are reading this week:")
+            lines.append("")
+            current_sec = None
+            for sec, head in teased:
+                if sec != current_sec:
+                    lines.append(f"**{sec}**")
+                    current_sec = sec
+                lines.append(f"→ {head}")
+            lines.append("")
+            lines.append(f"🔓 Read all of it free, every Monday at 08:00 GST → {BEEHIIV_URL}")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+    else:
+        # Middle East
+        lines.append("## 03 // FROM THE REGION")
         lines.append("")
-        lines.append(f"**TL;DR:** {data.get('tldr', '')}")
-        lines.append("")
-        lines.append(f"- **In plain English:** {data.get('in_plain_english', '')}")
-        lines.append(f"- **Why you care:** {data.get('why_you_care', '')}")
-        lines.append(f"- **What to do:** {data.get('what_to_do', '')}")
-        lines.append("")
-        lines.append(f"[Read full story → {art['source']}]({art['link']})")
-        lines.append("")
-    lines.append("---")
-    lines.append("")
-
-    # Tip
-    if tip:
-        lines.append("## 05 // TIP OF THE WEEK")
-        lines.append("")
-        lines.append(f"**{tip.get('title', '')}**")
-        lines.append("")
-        lines.append(tip.get('what', ''))
-        lines.append("")
-        lines.append(f"**Try this:** {tip.get('try_this', '')}")
-        lines.append("")
-        lines.append(f"[{tip.get('link_label', 'Explore')}]({tip.get('link_url', '#')})")
-        lines.append("")
+        for art, data in me_items:
+            lines.append(f"**{data.get('headline', art['title'])}**")
+            lines.append(f"{data.get('tldr', '')}")
+            lines.append(f"[Read more → {art['source']}]({art['link']})")
+            lines.append("")
         lines.append("---")
         lines.append("")
+
+        # Consumer
+        lines.append("## 04 // CONSUMER SIGNALS")
+        lines.append("")
+        for art, data in eve_pairs:
+            lines.append(f"### {data.get('headline', art['title'])}")
+            lines.append("")
+            lines.append(f"**TL;DR:** {data.get('tldr', '')}")
+            lines.append("")
+            lines.append(f"- **In plain English:** {data.get('in_plain_english', '')}")
+            lines.append(f"- **Why you care:** {data.get('why_you_care', '')}")
+            lines.append(f"- **What to do:** {data.get('what_to_do', '')}")
+            lines.append("")
+            lines.append(f"[Read full story → {art['source']}]({art['link']})")
+            lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        # Tip
+        if tip:
+            lines.append("## 05 // TIP OF THE WEEK")
+            lines.append("")
+            lines.append(f"**{tip.get('title', '')}**")
+            lines.append("")
+            lines.append(tip.get('what', ''))
+            lines.append("")
+            lines.append(f"**Try this:** {tip.get('try_this', '')}")
+            lines.append("")
+            lines.append(f"[{tip.get('link_label', 'Explore')}]({tip.get('link_url', '#')})")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
 
     # Footer
     next_issue = f"{int(issue_number) + 1:03d}"
@@ -2175,7 +2222,7 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
 # =========================================================
 def generate_newsletter():
     print("=" * 60)
-    print("  SIGNAL Agent v6 — Starting...")
+    print("  SIGNAL Agent v7 — Starting...")
     print("=" * 60)
     print(f"  Mode: {'EDITOR-IN-CHIEF (interactive)' if INTERACTIVE_MODE else 'AUTONOMOUS'}")
     print(f"  Model: {MODEL}")
