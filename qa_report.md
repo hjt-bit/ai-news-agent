@@ -1,6 +1,6 @@
 # SIGNAL — Pre-Publish QA Report
 
-**Generated:** June 21, 2026 15:10  
+**Generated:** June 22, 2026 04:56  
 **Overall result:** ✅ PASS
 
 | Status | Check |
@@ -14,7 +14,7 @@
 | ✅ PASS | Source diversity OK (max 2/source) |
 | ✅ PASS | No regional stories misfiled in Strategic Briefing |
 | ✅ PASS | All 'From the Region' stories are genuinely regional |
-| ✅ PASS | Tip of the Week is fresh: Explore Krea for AI Art Inspiration |
+| ✅ PASS | Tip of the Week is fresh: Explore ChatGPT Custom Instructions |
 | ⚠️ WARN | Podcasts seen but no transcript read (titles/descriptions only) |
 | ✅ PASS | All source links are credible news articles (no podcast/audio links) |
 
