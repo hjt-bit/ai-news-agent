@@ -43,7 +43,7 @@ HIDE_FROM_ARCHIVE = {
 }
 
 LINKEDIN_URL = "https://www.linkedin.com/newsletters/signal-7459465103449468928/"
-BEEHIIV_URL = "https://signalweekly.beehiiv.com/subscribe"
+BEEHIIV_URL = "https://signalweekly.beehiiv.com/?modal=signup"
 GITHUB_PAGES_BASE = "https://hjt-bit.github.io/ai-news-agent"
 
 # ---------------------------------------------------------------------------
