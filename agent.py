@@ -138,6 +138,15 @@ NON_ARTICLE_LINK_DOMAINS = (
     "substack.com/feed/podcast", "api.substack.com/feed/podcast",
 )
 
+# URL PATH segments that indicate a podcast/video/audio page rather than a written
+# article. These appear even on otherwise-credible news domains (e.g.
+# techcrunch.com/podcast/..., theverge.com/video/...). Matched as a path segment so
+# real article slugs that merely *contain* the substring are not falsely blocked.
+NON_ARTICLE_PATH_SEGMENTS = (
+    "podcast", "podcasts", "episode", "episodes", "listen",
+    "video", "videos", "watch", "audio", "webinar", "webinars",
+)
+
 
 def is_valid_article_link(url, source=None):
     """Return True only if `url` looks like a credible standalone news article.
@@ -172,6 +181,18 @@ def is_valid_article_link(url, source=None):
         # Domain pattern: match the host exactly or as a subdomain suffix.
         if host == bad or host.endswith("." + bad):
             return False
+    # Block podcast/video/audio PAGES even on legitimate news domains. We inspect
+    # the URL path SEGMENTS (split on '/') so that, e.g., techcrunch.com/podcast/...
+    # is rejected, while an article whose slug merely contains the word (e.g.
+    # "/2026/06/best-ai-podcast-tools") is NOT — only a whole path segment counts.
+    path_segments = [seg for seg in path.split("/") if seg]
+    if any(seg in NON_ARTICLE_PATH_SEGMENTS for seg in path_segments):
+        return False
+    # Also catch the first slug starting with these route words joined by a dash
+    # (rare, e.g. "/podcast-the-..."), but only the leading segment.
+    if path_segments and path_segments[0].split("-")[0] in NON_ARTICLE_PATH_SEGMENTS:
+        return False
+
     # Block obvious feed endpoints.
     if u.rstrip("/").endswith(("/feed", "/rss", ".xml", ".rss")):
         return False
@@ -237,6 +258,18 @@ PREVIOUS_TIPS = [
     "Granola AI Brainstorming",
     "Claude Computer Use",
     "NotebookLM Audio Overviews",
+]
+
+# =========================================================
+# PREVIOUS LEADS (to avoid leading two weeks on the same subject)
+# =========================================================
+# Subjects/entities used as the Viral Lead in recent issues. The agent will not
+# lead again on a subject that overlaps these; it picks the next-best fresh story.
+# Add the previous issue's lead subject here each week (lowercase keywords).
+PREVIOUS_LEADS = [
+    "anthropic fable",   # #006 + #007 lead — do not lead on Fable again
+    "fable",
+    "mythos",
 ]
 
 # =========================================================
@@ -945,12 +978,48 @@ def detect_viral_story(articles):
 
     # Auto-detect: use the highest-scored article as viral lead
     # (articles should already be sorted by score from score_articles_v2)
+    # Skip any top story whose subject repeats a recent issue's lead (staleness guard),
+    # falling through to the next-best fresh story.
+    for cand in articles:
+        if cand.get("_score", 0) <= 0:
+            break
+        if _is_stale_lead(cand):
+            print(f"  ○ Skipping stale lead (repeats a recent issue): {cand['title'][:70]}")
+            continue
+        print(f"\n  Auto-detected viral lead (score={cand['_score']}): {cand['title'][:80]}")
+        return cand, []
+
+    # If every positive-score story was stale, fall back to the highest-scored one
+    # rather than leaving the issue with no lead.
     if articles and articles[0].get("_score", 0) > 0:
-        viral = articles[0]
-        print(f"\n  Auto-detected viral lead (score={viral['_score']}): {viral['title'][:80]}")
-        return viral, []
+        print(f"  ! All top stories were stale; using highest-scored as lead anyway.")
+        return articles[0], []
 
     return None, []
+
+
+def _is_stale_lead(article):
+    """True if the article's subject overlaps a recent issue's Viral Lead.
+
+    Compares the article's primary entities against PREVIOUS_LEADS keywords so the
+    newsletter never leads two consecutive weeks on the same company/product.
+    """
+    if not PREVIOUS_LEADS:
+        return False
+    entities = _primary_entities(article)
+    text = f"{article.get('title', '')} {article.get('summary', '')}".lower()
+    for prev in PREVIOUS_LEADS:
+        prev = prev.strip().lower()
+        if not prev:
+            continue
+        # Match if any previous-lead keyword appears as a primary entity, or as a
+        # whole word/phrase in the title+summary.
+        if prev in entities:
+            return True
+        pattern = r"(?<![a-z0-9])" + re.escape(prev) + r"(?![a-z0-9])"
+        if re.search(pattern, text):
+            return True
+    return False
 
 
 # =========================================================
@@ -1454,6 +1523,12 @@ def run_qa_checks(viral_article, picks, tip, podcast_report):
     else:
         for label, title, link in bad_links:
             checks.append(("FAIL", f"Non-article link in {label} ('{title}'): {link}"))
+
+    # 10) Viral lead must not repeat a recent issue's subject (freshness guard).
+    if viral_article and _is_stale_lead(viral_article):
+        checks.append(("WARN", f"Viral lead may repeat a recent issue's subject: {viral_article['title'][:50]}"))
+    elif viral_article:
+        checks.append(("PASS", "Viral lead is a fresh subject (not a repeat of a recent issue)"))
 
     # Tally
     fails = [m for s, m in checks if s == "FAIL"]
@@ -2222,7 +2297,7 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
 # =========================================================
 def generate_newsletter():
     print("=" * 60)
-    print("  SIGNAL Agent v7 — Starting...")
+    print("  SIGNAL Agent v7.1 — Starting...")
     print("=" * 60)
     print(f"  Mode: {'EDITOR-IN-CHIEF (interactive)' if INTERACTIVE_MODE else 'AUTONOMOUS'}")
     print(f"  Model: {MODEL}")
