@@ -1,6 +1,6 @@
 # SIGNAL — Podcast Review Log
 
-_Generated June 28, 2026. This file confirms which podcasts the agent read this week,
+_Generated July 05, 2026. This file confirms which podcasts the agent read this week,
 whether full transcripts were successfully fetched, and what topic signals were extracted._
 
 | Podcast | Episodes Found | Transcript Read | Transcript Length | Topics Extracted |
@@ -13,23 +13,23 @@ whether full transcripts were successfully fetched, and what topic signals were 
 
 ### All-In Podcast
 - Recent episodes detected:
-  - 2 Reasons Socialism is Rising in America
-  - Socialists Sweep NYC, China Catches Up in Coding, AI Memory Crunch, Micron's Blowout Quarter
-  - GameStop CEO: 3 Ways I’d Fix eBay
-  - GameStop CEO Ryan Cohen’s $56B Plan to Take Over eBay
-  - The Great Lie: It's not rich vs poor, it's makers vs takers
+  - Friedberg’s Immigration Test: Workers vs Welfare
+  - Don't trust OpenAI. Use your own models.
+  - AI Sovereignty Wars, Palantir-Nvidia Deal, SCOTUS Birthright Ruling, Newsom’s CA Budget Lie
+  - What Anthropic is Actually Worth... It's More Than You Think
+  - $50B Fund Manager Breaks Down SpaceX’s Soaring Valuation
 - Transcript fetched: No (0 chars)
 - Topic signals fed into story scoring:
-  - China's open-source AI
-  - OpenAI new chip
-  - AI memory crunch
-  - Micron's AI advancements
-  - eBay AI advertising strategies
-  - GameStop AI integration
-  - activist investing in tech
-  - social media AI bans
-  - AI in e-commerce
-  - distillation in AI
+  - Palantir-Nvidia open source deal
+  - AI jobs debate
+  - Anthropic's Fable 5
+  - AI Sovereignty Wars
+  - OpenAI models skepticism
+  - AI export restrictions
+  - AI valuation discussions
+  - AI technology investment
+  - AI regulation implications
+  - AI and immigration policy
 
 ### Latent Space
 - No recent episodes detected in the lookback window.

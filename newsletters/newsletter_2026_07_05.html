@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIGNAL // AI Intelligence Briefing - July 05, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f7;
+    --paper: #ffffff;
+    --panel: #f3f6fb;
+    --line: #d9dfe9;
+    --line-bright: #b6bfd0;
+    --ink: #050d1f;
+    --ink-2: #1a2438;
+    --muted: #4a5468;
+    --muted-2: #7b859a;
+    --cyan: #0e7490;
+    --cyan-bright: #0891b2;
+    --violet: #6d28d9;
+    --highlight: #fff3a3;
+    --brand-navy: #0E1A2B;
+    --brand-navy-2: #16243a;
+    --title-band: #E8EEF7;
+    --tip-bg: #FDF6E3;
+    --tip-rule: #C49A2C;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    background-image:
+      radial-gradient(800px 400px at 50% -180px, rgba(14,116,144,0.10), transparent 60%),
+      radial-gradient(600px 350px at 95% 5%, rgba(109,40,217,0.06), transparent 65%);
+    color: var(--ink);
+    padding: 40px 16px;
+    line-height: 1.6;
+    font-size: 15px;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 700px;
+    margin: 0 auto;
+    background: var(--paper);
+    border: 1px solid var(--line-bright);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(5,13,31,0.05), 0 16px 50px rgba(5,13,31,0.10);
+  }
+  .masthead {
+    padding: 38px 44px 30px;
+    border-bottom: 3px solid #00D4FF;
+    background: linear-gradient(180deg, var(--brand-navy) 0%, var(--brand-navy-2) 100%);
+    color: #ffffff;
+    position: relative;
+  }
+  .masthead::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(600px 220px at 80% -40px, rgba(0,212,255,0.18), transparent 60%),
+      radial-gradient(420px 180px at 0% 100%, rgba(109,40,217,0.14), transparent 70%);
+    pointer-events: none;
+  }
+  .masthead > * { position: relative; z-index: 1; }
+  .masthead-top {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 2.4px;
+    color: rgba(255,255,255,0.62);
+    text-transform: uppercase; margin-bottom: 26px;
+  }
+  .masthead-top .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #00D4FF; margin-right: 8px; vertical-align: middle;
+    box-shadow: 0 0 10px rgba(0,212,255,0.8);
+  }
+  .masthead h1 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700; font-size: 54px; line-height: 1; letter-spacing: -1.8px;
+    margin: 0 0 14px; color: #ffffff;
+  }
+  .masthead h1 .accent { color: #00D4FF; }
+  .masthead .tagline {
+    font-size: 15.5px; color: rgba(255,255,255,0.92); font-weight: 500;
+    line-height: 1.45;
+  }
+  .masthead .promise {
+    margin-top: 10px;
+    font-size: 12.5px; color: rgba(255,255,255,0.62);
+    letter-spacing: 0.2px;
+  }
+  .subscribe-strip {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    justify-content: space-between;
+    padding: 14px 44px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    font-size: 13px; color: var(--ink-2);
+  }
+  .subscribe-strip .copy { flex: 1; min-width: 200px; }
+  .subscribe-strip .copy strong { color: var(--ink); }
+  .subscribe-strip a.cta-mini {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: #ffffff; background: var(--ink);
+    padding: 10px 18px; border-radius: 3px; text-decoration: none;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  .subscribe-strip a.cta-mini:hover { background: var(--cyan); transform: translateY(-1px); }
+  .subscribe-strip a.cta-mini::after { content: "->"; }
+  .subscribe-strip a.cta-mini.alt {
+    background: var(--cyan);
+  }
+  .subscribe-strip a.cta-mini.alt:hover { background: var(--violet); }
+  .section-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 28px 44px 10px; border-top: 1px solid var(--line);
+  }
+  .section-header .index {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 2.4px; color: var(--cyan);
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .section-header h2 {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 20px; font-weight: 700; margin: 0; color: var(--ink);
+    letter-spacing: -0.3px;
+  }
+  .section-header .rule {
+    flex: 1; height: 1px; background: var(--line);
+  }
+  .card {
+    margin: 0 44px 22px; padding: 22px 26px;
+    border: 1px solid var(--line); border-radius: 5px;
+    background: var(--paper);
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+  .card:hover {
+    border-color: var(--line-bright);
+    box-shadow: 0 2px 12px rgba(14,116,144,0.08);
+  }
+  .card .card-title {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 17px; font-weight: 700; color: var(--ink);
+    margin: 0 0 10px; line-height: 1.3; letter-spacing: -0.2px;
+    padding: 4px 8px; margin-left: -8px;
+    background: var(--title-band); border-radius: 3px;
+    display: inline-block;
+  }
+  .card .card-tldr {
+    font-size: 14px; color: var(--ink-2); margin-bottom: 14px;
+    line-height: 1.5; font-weight: 400;
+  }
+  .card .meta-grid {
+    display: grid; grid-template-columns: auto 1fr; gap: 4px 12px;
+    font-size: 12.5px; line-height: 1.6;
+  }
+  .card .meta-grid .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9.5px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted-2); padding-top: 2px;
+  }
+  .card .meta-grid .value { color: var(--ink-2); }
+  .card .source-link {
+    display: inline-block; margin-top: 12px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--cyan); text-decoration: none;
+    border-bottom: 1px dashed var(--cyan);
+    padding-bottom: 1px;
+  }
+  .card .source-link:hover { color: var(--violet); border-color: var(--violet); }
+  /* Viral lead special styling */
+  .card.viral {
+    border: 2px solid var(--brand-navy);
+    background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+    box-shadow: 0 4px 20px rgba(14,26,43,0.10);
+  }
+  .card.viral .card-title {
+    font-size: 20px;
+    background: var(--brand-navy); color: #ffffff;
+    padding: 6px 12px; border-radius: 3px;
+  }
+  /* Middle East section */
+  .me-block {
+    margin: 0 44px 22px; padding: 18px 24px;
+    border: 1px solid var(--line); border-radius: 5px;
+    background: var(--panel);
+  }
+  .me-block .me-item {
+    margin-bottom: 14px; padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .me-block .me-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .me-block .me-headline {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 15px; font-weight: 600; color: var(--ink); margin: 0 0 4px;
+  }
+  .me-block .me-tldr {
+    font-size: 13.5px; color: var(--ink-2); line-height: 1.5; margin: 0;
+  }
+  .me-block .me-link {
+    display: inline-block; margin-top: 6px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--cyan); text-decoration: none;
+  }
+  /* Tip of the Week */
+  .tip-block {
+    margin: 0 44px 22px; padding: 22px 26px;
+    border: 1px solid var(--tip-rule); border-radius: 5px;
+    background: var(--tip-bg);
+    border-left: 4px solid var(--tip-rule);
+  }
+  .tip-block .tip-title {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 8px;
+  }
+  .tip-block .tip-what {
+    font-size: 14px; color: var(--ink-2); margin-bottom: 10px; line-height: 1.5;
+  }
+  .tip-block .tip-try {
+    font-size: 13px; color: var(--muted); margin-bottom: 10px;
+    padding: 8px 12px; background: rgba(255,255,255,0.7); border-radius: 3px;
+  }
+  .tip-block .tip-try strong { color: var(--ink-2); }
+  .tip-block .tip-link {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--tip-rule); text-decoration: none;
+    border-bottom: 1px dashed var(--tip-rule);
+  }
+  /* CTA */
+  .cta-section {
+    text-align: center; padding: 36px 44px;
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .cta-section .cta-text {
+    font-size: 14px; color: var(--muted); margin-bottom: 16px;
+  }
+  .cta-section .button {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: #ffffff; background: var(--ink);
+    padding: 14px 28px; border-radius: 3px; text-decoration: none;
+    transition: background 0.15s ease, transform 0.15s ease;
+    margin: 4px;
+  }
+  .cta-section .button:hover { background: var(--cyan); transform: translateY(-1px); }
+  .cta-section .button.alt {
+    background: var(--cyan);
+  }
+  .cta-section .button.alt:hover { background: var(--violet); }
+  /* Footer */
+  .footer {
+    padding: 24px 44px; text-align: center;
+    font-size: 11px; color: var(--muted-2);
+    border-top: 1px solid var(--line);
+  }
+  .footer a { color: var(--cyan); text-decoration: none; }
+  @media (max-width: 600px) {
+    body { padding: 16px 4px; }
+    .masthead, .subscribe-strip, .section-header, .card, .me-block, .tip-block, .cta-section, .footer {
+      padding-left: 20px; padding-right: 20px;
+    }
+    .card { margin-left: 12px; margin-right: 12px; }
+    .me-block { margin-left: 12px; margin-right: 12px; }
+    .tip-block { margin-left: 12px; margin-right: 12px; }
+    .masthead h1 { font-size: 38px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <div class="masthead-top">
+      <span><span class="dot"></span>Issue #009</span>
+      <span>July 05, 2026</span>
+    </div>
+    <h1>SIGN<span class="accent">A</span>L</h1>
+    <p class="tagline">Your weekly AI intelligence briefing — the stories that matter,<br>in five minutes flat.</p>
+    <p class="promise">Curated for leaders &amp; curious minds · Every Monday · Dubai 08:00 GST</p>
+  </div>
+  <div class="subscribe-strip">
+    <div class="copy"><strong>Never miss an issue.</strong> Join SIGNAL — free, every Monday.</div>
+    <a class="cta-mini" href="https://www.linkedin.com/newsletters/signal-7459465103449468928/" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
+    <a class="cta-mini alt" href="https://signalweekly.beehiiv.com/?modal=signup" target="_blank" rel="noopener">Subscribe by email</a>
+  </div>
+  
+        <div class="section-header">
+          <span class="index">01 //</span>
+          <h2>The Viral Lead</h2>
+          <span class="rule"></span>
+        </div>
+        
+    <div class="card viral">
+      <div class="card-title">Mistral AI Raises Funding to Compete with OpenAI</div>
+      <div class="card-tldr">Mistral AI has raised significant funding to advance open source AI models since its 2023 launch.</div>
+      <div class="meta-grid">
+        <span class="label">What happened</span><span class="value">Mistral AI launched in 2023 and has raised significant funding to develop open source AI models</span>
+        <span class="label">Why it matters</span><span class="value">Open source AI could democratize access to advanced technology</span>
+        <span class="label">Business impact</span><span class="value">Potentially lower costs and increase competition in AI solutions</span>
+        <span class="label">Leader action</span><span class="value">Explore Mistral AI's models for potential integration into your projects</span>
+      </div>
+      <a class="source-link" href="https://techcrunch.com/2026/07/04/what-is-mistral-ai-everything-to-know-about-the-openai-competitor/" target="_blank" rel="noopener">Read full story → TechCrunch AI</a>
+    </div>
+        
+  <div class="section-header">
+    <span class="index">02 //</span>
+    <h2>Strategic Briefing</h2>
+    <span class="rule"></span>
+  </div>
+  
+    <div class="card">
+      <div class="card-title">New Tool Cuts AI Costs by Up to 70%</div>
+      <div class="card-tldr">pxpipe reduces Claude Code costs by converting text into PNGs, saving up to 70%</div>
+      <div class="meta-grid">
+        <span class="label">What happened</span><span class="value">Developer Steven Chong launched pxpipe, saving 59 to 70 percent on Claude Code costs since July 4, 2026</span>
+        <span class="label">Why it matters</span><span class="value">Significant cost reduction for businesses using AI tools</span>
+        <span class="label">Business impact</span><span class="value">Lower operational costs enhance profitability and competitiveness</span>
+        <span class="label">Leader action</span><span class="value">Pilot pxpipe to evaluate cost savings on AI text processing</span>
+      </div>
+      <a class="source-link" href="https://the-decoder.com/open-source-tool-pxpipe-hides-text-in-pngs-to-cut-claude-code-and-fable-5-token-costs-up-to-70/" target="_blank" rel="noopener">Read full story → The Decoder</a>
+    </div>
+    <div class="card">
+      <div class="card-title">Anthropic Enters Drug Discovery Market</div>
+      <div class="card-tldr">Anthropic launches drug development for neglected diseases, targeting efficiency and success rates</div>
+      <div class="meta-grid">
+        <span class="label">What happened</span><span class="value">Anthropic is launching a drug program for neglected diseases, aiming to cut development time from twelve to seven years</span>
+        <span class="label">Why it matters</span><span class="value">AI could significantly improve drug development efficiency</span>
+        <span class="label">Business impact</span><span class="value">Potentially lower costs and higher success rates in drug development</span>
+        <span class="label">Leader action</span><span class="value">Explore AI tools to reduce drug development timelines</span>
+      </div>
+      <a class="source-link" href="https://the-decoder.com/anthropic-launches-its-own-drug-discovery-programs-to-tackle-diseases-big-pharma-considers-unprofitable/" target="_blank" rel="noopener">Read full story → The Decoder</a>
+    </div>
+    <div class="card">
+      <div class="card-title">New York City Hosts Summer of Ludd Festival</div>
+      <div class="card-tldr">The Summer of Ludd festival teaches offline living to combat Big Tech's influence.</div>
+      <div class="meta-grid">
+        <span class="label">What happened</span><span class="value">New York City’s Summer of Ludd festival is teaching people to live offline starting July 3, 2026</span>
+        <span class="label">Why it matters</span><span class="value">Addresses growing concerns about technology's impact on society</span>
+        <span class="label">Business impact</span><span class="value">Potential shifts in consumer behavior towards offline experiences</span>
+        <span class="label">Leader action</span><span class="value">Explore partnerships with local events promoting offline engagement</span>
+      </div>
+      <a class="source-link" href="https://arstechnica.com/culture/2026/07/inside-the-luddite-festival-harnessing-gen-zs-rage-against-big-tech/" target="_blank" rel="noopener">Read full story → Ars Technica</a>
+    </div>
+  <div class="section-header">
+    <span class="index">03 //</span>
+    <h2>From the Region</h2>
+    <span class="rule"></span>
+  </div>
+  <div class="me-block">
+        <div class="me-item">
+          <p class="me-headline">SpaceX Prototyping AI Handset for Connectivity</p>
+          <p class="me-tldr">SpaceX is developing an AI handset, signaling potential advancements in satellite connectivity for regional business leaders to explore new tech partnerships.</p>
+          <a class="me-link" href="https://www.tahawultech.com/home-slide/spacex-is-reportedly-prototyping-an-ai-handset/" target="_blank" rel="noopener">Read more → TahawulTech</a>
+        </div>
+        <div class="me-item">
+          <p class="me-headline">Microsoft launches new AI unit for businesses</p>
+          <p class="me-tldr">Microsoft's new AI unit ensures customer data remains private, offering regional leaders a competitive edge in leveraging AI without compromising their data.</p>
+          <a class="me-link" href="https://www.tahawultech.com/enterprise/microsoft-reveals-new-ai-unit/" target="_blank" rel="noopener">Read more → TahawulTech</a>
+        </div></div>
+  <div class="section-header">
+    <span class="index">04 //</span>
+    <h2>Consumer Signals</h2>
+    <span class="rule"></span>
+  </div>
+  
+    <div class="card">
+      <div class="card-title">Summarize notes with TikTok-style clips</div>
+      <div class="card-tldr">Google's NotebookLM now creates 60-second videos to summarize your research.</div>
+      <div class="meta-grid">
+        <span class="label">In plain English</span><span class="value">Get quick summaries of your notes in video form</span>
+        <span class="label">Why you care</span><span class="value">Easily digest your research in a fun way</span>
+        <span class="label">What to do</span><span class="value">Try NotebookLM's new video feature now</span>
+      </div>
+      <a class="source-link" href="https://www.theverge.com/tech/959778/google-notebooklm-ai-clips" target="_blank" rel="noopener">Read full story → The Verge AI</a>
+    </div>
+    <div class="card">
+      <div class="card-title">Midjourney pushes studios to disclose AI use</div>
+      <div class="card-tldr">Midjourney is asking Hollywood studios to share their AI usage details.</div>
+      <div class="meta-grid">
+        <span class="label">In plain English</span><span class="value">Midjourney wants studios to reveal AI details</span>
+        <span class="label">Why you care</span><span class="value">Transparency in AI usage affects the industry</span>
+        <span class="label">What to do</span><span class="value">Stay informed about AI in entertainment</span>
+      </div>
+      <a class="source-link" href="https://techcrunch.com/2026/07/04/midjourney-wants-hollywood-studios-to-reveal-the-details-of-their-ai-usage/" target="_blank" rel="noopener">Read full story → TechCrunch AI</a>
+    </div>
+    <div class="card">
+      <div class="card-title">Exciting Updates: Gemini Flash and More</div>
+      <div class="card-tldr">Meta introduces Gemini Flash upgrade and AI cloud features.</div>
+      <div class="meta-grid">
+        <span class="label">In plain English</span><span class="value">Gemini Flash upgrade and Meta AI cloud are here</span>
+        <span class="label">Why you care</span><span class="value">Stay updated with the latest tech advancements</span>
+        <span class="label">What to do</span><span class="value">Explore the new features now</span>
+      </div>
+      <a class="source-link" href="https://tldr.tech/ai/2026-07-02" target="_blank" rel="noopener">Read full story → TLDR AI</a>
+    </div>
+  
+    <div class="section-header">
+      <span class="index">05 //</span>
+      <h2>Tip of the Week</h2>
+      <span class="rule"></span>
+    </div>
+    <div class="tip-block">
+      <div class="tip-title">Explore Perplexity Labs for Research</div>
+      <div class="tip-what">Dive into Perplexity's Labs feature, which allows you to create collaborative research spaces. It's surprising how it integrates various AI models and data sources, streamlining your exploration process like never before.</div>
+      <div class="tip-try"><strong>Try this:</strong> Visit Perplexity Spaces, create a new research space, and invite a colleague to experiment with shared insights and discoveries across different AI models.</div>
+      <a class="tip-link" href="https://www.perplexity.ai/spaces" target="_blank" rel="noopener">Start a Collaborative Research Space</a>
+    </div>
+  <div class="cta-section">
+    <p class="cta-text">Enjoyed this issue? Share SIGNAL with a colleague who wants to stay sharp on AI.</p>
+    <a class="button" href="https://www.linkedin.com/newsletters/signal-7459465103449468928/" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
+    <a class="button alt" href="https://signalweekly.beehiiv.com/?modal=signup" target="_blank" rel="noopener">Subscribe by email</a>
+  </div>
+  <div class="footer">
+    SIGNAL is composed each week by an autonomous AI agent. Reviewed and published by Hasan.<br>
+    <em>Represents my own views and not that of my employer.</em><br><br>
+    <a href="https://www.linkedin.com/newsletters/signal-7459465103449468928/">LinkedIn Newsletter</a>
+  </div>
+</div>
+</body>
+</html>
