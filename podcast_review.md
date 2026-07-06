@@ -1,6 +1,6 @@
 # SIGNAL — Podcast Review Log
 
-_Generated July 05, 2026. This file confirms which podcasts the agent read this week,
+_Generated July 06, 2026. This file confirms which podcasts the agent read this week,
 whether full transcripts were successfully fetched, and what topic signals were extracted._
 
 | Podcast | Episodes Found | Transcript Read | Transcript Length | Topics Extracted |
@@ -24,12 +24,12 @@ whether full transcripts were successfully fetched, and what topic signals were 
   - AI jobs debate
   - Anthropic's Fable 5
   - AI Sovereignty Wars
-  - OpenAI models skepticism
+  - OpenAI models
+  - AI regulation
   - AI export restrictions
-  - AI valuation discussions
-  - AI technology investment
-  - AI regulation implications
-  - AI and immigration policy
+  - Anthropic valuation
+  - AI technology trends
+  - AI in immigration policy
 
 ### Latent Space
 - No recent episodes detected in the lookback window.
