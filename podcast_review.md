@@ -1,6 +1,6 @@
 # SIGNAL — Podcast Review Log
 
-_Generated July 06, 2026. This file confirms which podcasts the agent read this week,
+_Generated July 12, 2026. This file confirms which podcasts the agent read this week,
 whether full transcripts were successfully fetched, and what topic signals were extracted._
 
 | Podcast | Episodes Found | Transcript Read | Transcript Length | Topics Extracted |
@@ -13,23 +13,23 @@ whether full transcripts were successfully fetched, and what topic signals were 
 
 ### All-In Podcast
 - Recent episodes detected:
-  - Friedberg’s Immigration Test: Workers vs Welfare
-  - Don't trust OpenAI. Use your own models.
-  - AI Sovereignty Wars, Palantir-Nvidia Deal, SCOTUS Birthright Ruling, Newsom’s CA Budget Lie
-  - What Anthropic is Actually Worth... It's More Than You Think
-  - $50B Fund Manager Breaks Down SpaceX’s Soaring Valuation
+  - "We've never seen anything like this." - Brad Gerstner on Anthropic's Historic Revenue Ramp
+  - OpenAI vs Anthropic IPOs, Anthropic $3T, Zuck's Price War, China Ends Open Source?, Trump Accounts
+  - Open Source Wins, AGI Is Here, and Scorsese’s AI Toolkit with CEOs of Cerebras & Black Forest Labs
+  - Four Reasons Why Gavin Newsom’s Presidential Chances are Dropping FAST - Nate Silver
+  - The Three Warring Factions of The Democratic Party: Progressives, Abundance, Resistance
 - Transcript fetched: No (0 chars)
 - Topic signals fed into story scoring:
-  - Palantir-Nvidia open source deal
-  - AI jobs debate
-  - Anthropic's Fable 5
-  - AI Sovereignty Wars
-  - OpenAI models
-  - AI regulation
-  - AI export restrictions
-  - Anthropic valuation
-  - AI technology trends
-  - AI in immigration policy
+  - OpenAI IPO
+  - Anthropic IPO
+  - AI duopoly
+  - Open source AI
+  - AGI development
+  - Generative video technology
+  - AI sovereignty
+  - Data centers for AI
+  - Moore's Law in AI
+  - Meta's AI model
 
 ### Latent Space
 - No recent episodes detected in the lookback window.
