@@ -1,6 +1,6 @@
 # SIGNAL — Podcast Review Log
 
-_Generated July 12, 2026. This file confirms which podcasts the agent read this week,
+_Generated July 19, 2026. This file confirms which podcasts the agent read this week,
 whether full transcripts were successfully fetched, and what topic signals were extracted._
 
 | Podcast | Episodes Found | Transcript Read | Transcript Length | Topics Extracted |
@@ -13,23 +13,23 @@ whether full transcripts were successfully fetched, and what topic signals were 
 
 ### All-In Podcast
 - Recent episodes detected:
-  - "We've never seen anything like this." - Brad Gerstner on Anthropic's Historic Revenue Ramp
-  - OpenAI vs Anthropic IPOs, Anthropic $3T, Zuck's Price War, China Ends Open Source?, Trump Accounts
-  - Open Source Wins, AGI Is Here, and Scorsese’s AI Toolkit with CEOs of Cerebras & Black Forest Labs
-  - Four Reasons Why Gavin Newsom’s Presidential Chances are Dropping FAST - Nate Silver
-  - The Three Warring Factions of The Democratic Party: Progressives, Abundance, Resistance
+  - David Sacks: Kathy Hochul is LYING about Datacenters!
+  - David Friedberg: Scientists just REVERSED skin age from 70 years to 31
+  - Can the AI Industry Regulate Itself? Stripe Wants PayPal, China Catches Up, NY Bans Datacenters
+  - Former Intel CEO on What Went Wrong, What's Next + Lovable CEO on the Real Promise of Vibe Coding
+  - Cerebras CEO Warns: A Massive AI Data Breach Is Coming
 - Transcript fetched: No (0 chars)
 - Topic signals fed into story scoring:
-  - OpenAI IPO
-  - Anthropic IPO
-  - AI duopoly
-  - Open source AI
-  - AGI development
-  - Generative video technology
-  - AI sovereignty
-  - Data centers for AI
-  - Moore's Law in AI
-  - Meta's AI model
+  - DeepMind regulatory proposal
+  - AI data privacy
+  - Apple lawsuit against OpenAI
+  - AI data breach warning
+  - Lovable app development
+  - Stripe PayPal acquisition
+  - Intel technology challenges
+  - AI industry self-regulation
+  - Tokenmaxxing update
+  - Mira AI technology
 
 ### Latent Space
 - No recent episodes detected in the lookback window.
