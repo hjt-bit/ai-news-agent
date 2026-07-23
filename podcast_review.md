@@ -1,6 +1,6 @@
 # SIGNAL — Podcast Review Log
 
-_Generated July 19, 2026. This file confirms which podcasts the agent read this week,
+_Generated July 23, 2026. This file confirms which podcasts the agent read this week,
 whether full transcripts were successfully fetched, and what topic signals were extracted._
 
 | Podcast | Episodes Found | Transcript Read | Transcript Length | Topics Extracted |
@@ -13,23 +13,23 @@ whether full transcripts were successfully fetched, and what topic signals were 
 
 ### All-In Podcast
 - Recent episodes detected:
-  - David Sacks: Kathy Hochul is LYING about Datacenters!
-  - David Friedberg: Scientists just REVERSED skin age from 70 years to 31
-  - Can the AI Industry Regulate Itself? Stripe Wants PayPal, China Catches Up, NY Bans Datacenters
-  - Former Intel CEO on What Went Wrong, What's Next + Lovable CEO on the Real Promise of Vibe Coding
-  - Cerebras CEO Warns: A Massive AI Data Breach Is Coming
+  - David Sacks: Anthropic Wants to Ban Open Source AI in America
+  - How the Finance Department Killed Intel - Former CEO
+  - China Could Cripple Taiwan in 3 Weeks, Without Invading
+  - Mark Cuban on the AI Bubble: Who Actually Gets Wiped Out?
+  - Chamath: Tokenmaxxing is a bridge to nowhere
 - Transcript fetched: No (0 chars)
 - Topic signals fed into story scoring:
-  - DeepMind regulatory proposal
-  - AI data privacy
-  - Apple lawsuit against OpenAI
-  - AI data breach warning
-  - Lovable app development
-  - Stripe PayPal acquisition
-  - Intel technology challenges
-  - AI industry self-regulation
-  - Tokenmaxxing update
-  - Mira AI technology
+  - Anthropic open source AI ban
+  - AI market bubble
+  - enterprise AI challenges
+  - AI-first workspace transition
+  - healthcare AI applications
+  - biometric data in healthcare
+  - wealth tax and AI
+  - self-directed healthcare
+  - AI technology limits
+  - AI regulation discussions
 
 ### Latent Space
 - No recent episodes detected in the lookback window.

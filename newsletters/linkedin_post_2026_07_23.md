@@ -1,0 +1,25 @@
+OpenAI Launches ChatGPT Health for All Users — plus 4 more stories you need to know.
+
+SIGNAL #012 is live:
+https://hjt-bit.github.io/ai-news-agent/newsletters/newsletter_2026_07_23.html
+
+Here's what's inside:
+
+01 | The Viral Lead — OpenAI Launches ChatGPT Health for All Users
+02 | Strategic Briefing — AMD Invests $5 Billion in Anthropic Deal + 2 more
+03 | From the Region — Deep Finance Capital Launches as DIFC's First AI Manager + 1 more
+04 | Consumer Signals — Nvidia's New AI Framework for Healthcare Robots + 2 more
+05 | Tip of the Week — Discover Emerging AI Tools This Summer
+
+Read the full issue (5 min): https://hjt-bit.github.io/ai-news-agent/newsletters/newsletter_2026_07_23.html
+
+---
+
+Get SIGNAL in your inbox every Monday (free): https://signalweekly.beehiiv.com/?modal=signup
+Follow on LinkedIn: https://www.linkedin.com/newsletters/signal-7459465103449468928/
+
+— Hasan
+
+_Represents my own views and not those of my employer._
+
+#AI #ArtificialIntelligence #AINews #GenerativeAI #MachineLearning
