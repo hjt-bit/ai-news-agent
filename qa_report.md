@@ -1,6 +1,6 @@
 # SIGNAL — Pre-Publish QA Report
 
-**Generated:** July 23, 2026 20:43  
+**Generated:** July 23, 2026 21:07  
 **Overall result:** ✅ PASS
 
 | Status | Check |
@@ -14,7 +14,7 @@
 | ✅ PASS | Source diversity OK (max 2/source) |
 | ✅ PASS | No regional stories misfiled in Strategic Briefing |
 | ✅ PASS | All 'From the Region' stories are genuinely regional |
-| ✅ PASS | Tip of the Week is fresh: Discover Emerging AI Tools This Summer |
+| ✅ PASS | Tip of the Week is fresh: Explore Krea AI's Visual Prompts |
 | ⚠️ WARN | Podcasts seen but no transcript read (titles/descriptions only) |
 | ✅ PASS | All source links are credible news articles (no podcast/audio links) |
 | ✅ PASS | Viral lead is a fresh subject (not a repeat of a recent issue) |
