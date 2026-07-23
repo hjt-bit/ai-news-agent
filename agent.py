@@ -2926,7 +2926,7 @@ def generate_newsletter():
         beehiiv_main_btn=beehiiv_main_btn,
         issue_url=issue_url,
         og_image_url=og_image_url,
-        email_capture_top=email_capture_html,
+        email_capture_top='',  # removed: redundant with header buttons
         email_capture_bottom=email_capture_html,
         share_bar=share_bar_html,
         share_bar_bottom=share_bar_html,
