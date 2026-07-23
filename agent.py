@@ -1895,8 +1895,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   }}
   .card .meta-grid .label {{
     font-family: "JetBrains Mono", monospace;
-    font-size: 9.5px; letter-spacing: 1.5px; text-transform: uppercase;
-    color: var(--muted-2); padding-top: 2px;
+    font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; padding-top: 2px;
   }}
   .card .meta-grid .value {{ color: var(--ink-2); }}
   .card .source-link {{
@@ -2126,7 +2126,6 @@ def render_viral_block(article, data):
     return f"""
     <div class="card viral">
       <div class="card-title">{data.get('headline', article['title'])}</div>
-      <div class="card-tldr">{data.get('tldr', '')}</div>
       <div class="meta-grid">
         <span class="label">What happened</span><span class="value">{data.get('what_happened', '')}</span>
         <span class="label">Why it matters</span><span class="value">{data.get('why_it_matters', '')}</span>
@@ -2144,7 +2143,6 @@ def render_business_card(article, data):
     return f"""
     <div class="card">
       <div class="card-title">{data.get('headline', article['title'])}</div>
-      <div class="card-tldr">{data.get('tldr', '')}</div>
       <div class="meta-grid">
         <span class="label">What happened</span><span class="value">{data.get('what_happened', '')}</span>
         <span class="label">Why it matters</span><span class="value">{data.get('why_it_matters', '')}</span>
@@ -2162,7 +2160,6 @@ def render_everyday_card(article, data):
     return f"""
     <div class="card">
       <div class="card-title">{data.get('headline', article['title'])}</div>
-      <div class="card-tldr">{data.get('tldr', '')}</div>
       <div class="meta-grid">
         <span class="label">In plain English</span><span class="value">{data.get('in_plain_english', '')}</span>
         <span class="label">Why you care</span><span class="value">{data.get('why_you_care', '')}</span>
