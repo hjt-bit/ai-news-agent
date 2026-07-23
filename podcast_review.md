@@ -25,8 +25,8 @@ whether full transcripts were successfully fetched, and what topic signals were 
   - enterprise AI challenges
   - AI-first workspace transition
   - healthcare AI applications
-  - biometric data in healthcare
-  - AI wealth tax implications
+  - biometric data in AI
+  - wealth tax and AI
   - self-directed healthcare AI
   - AI technology limits
   - AI in business finance
