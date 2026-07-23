@@ -2223,13 +2223,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   }}
   .subscribe-strip {{
     display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
-    justify-content: space-between;
     padding: 14px 44px;
     background: var(--panel);
     border-bottom: 1px solid var(--line);
     font-size: 13px; color: var(--ink-2);
   }}
   .subscribe-strip .copy {{ flex: 1; min-width: 200px; }}
+  .subscribe-strip .btn-group {{ display: flex; gap: 10px; flex-wrap: wrap; }}
   .subscribe-strip .copy strong {{ color: var(--ink); }}
   .subscribe-strip a.cta-mini {{
     display: inline-flex; align-items: center; gap: 8px;
@@ -2468,8 +2468,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   </div>
   <div class="subscribe-strip">
     <div class="copy"><strong>Never miss an issue.</strong> Join SIGNAL — free, every Monday.</div>
-    <a class="cta-mini" href="{signup_url}" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
-    {beehiiv_strip_btn}
+    <div class="btn-group">
+      <a class="cta-mini" href="{signup_url}" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
+      {beehiiv_strip_btn}
+    </div>
   </div>
   <!-- Email subscribe box (top) -->
   {email_capture_top}
