@@ -25,11 +25,11 @@ whether full transcripts were successfully fetched, and what topic signals were 
   - enterprise AI challenges
   - AI-first workspace transition
   - healthcare AI applications
-  - biometric data in healthcare
+  - biometric data in AI
   - wealth tax and AI
-  - self-directed healthcare
+  - self-directed healthcare AI
   - AI technology limits
-  - AI and politics
+  - Tokenmaxxing in AI
 
 ### Latent Space
 - No recent episodes detected in the lookback window.
