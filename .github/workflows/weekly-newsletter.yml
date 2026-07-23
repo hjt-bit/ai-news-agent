@@ -34,6 +34,7 @@ jobs:
           mkdir -p newsletters
           mv newsletter_*.html newsletters/ 2>/dev/null || true
           mv linkedin_post_*.md newsletters/ 2>/dev/null || true
+          mv email_post_*.md newsletters/ 2>/dev/null || true
 
       - name: Rebuild homepage archive (index.html)
         run: python build_index.py
