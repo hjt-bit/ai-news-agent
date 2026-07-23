@@ -58,12 +58,11 @@ else:
 # Also export a LinkedIn-formatted version of the newsletter on each run.
 EXPORT_LINKEDIN = True
 
-# ── LinkedIn Teaser Mode ────────────────────────────────────────────────────────
-# When True, the LinkedIn post shows the Viral Lead + Strategic Briefing in full,
-# then "teases" the remaining sections (From the Region, Consumer Signals, Tip of
-# the Week) as headlines-only behind an email call-to-action. This drives LinkedIn
-# readers to the owned email list. Set to False to publish the full issue on LinkedIn.
-TEASER_MODE = True
+# ── LinkedIn TL;DR Mode (v8) ───────────────────────────────────────────────────
+# The LinkedIn post is always a short TL;DR summary with a link to the full HTML
+# issue. The old TEASER_MODE flag is no longer needed — kept as True for backward
+# compatibility with any code that references it, but the export function ignores it.
+TEASER_MODE = True  # deprecated; LinkedIn export always uses TL;DR mode now
 
 # ── Forced Viral Lead ──────────────────────────────────────────────────────────
 # Set this to a keyword/phrase to force the agent to feature a specific story as
@@ -1725,7 +1724,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SIGNAL // AI Intelligence Briefing - {date}</title>
+<title>SIGNAL // AI Intelligence Briefing - Issue #{issue_number} - {date}</title>
+<meta name="description" content="SIGNAL Issue #{issue_number} — Your weekly AI intelligence briefing. The stories that matter, in five minutes flat.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="SIGNAL #{issue_number} — AI Intelligence Briefing">
+<meta property="og:description" content="The AI stories that matter this week, in five minutes flat. Curated for leaders and curious minds.">
+<meta property="og:url" content="{issue_url}">
+<meta property="og:image" content="{og_image_url}">
+<meta property="og:site_name" content="SIGNAL Weekly">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SIGNAL #{issue_number} — AI Intelligence Briefing">
+<meta name="twitter:description" content="The AI stories that matter this week, in five minutes flat.">
+<meta name="twitter:image" content="{og_image_url}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -1989,11 +1999,60 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     border-top: 1px solid var(--line);
   }}
   .footer a {{ color: var(--cyan); text-decoration: none; }}
+  /* Share buttons */
+  .share-bar {{
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    padding: 16px 44px;
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+  }}
+  .share-bar .share-label {{
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted-2); margin-right: 8px;
+  }}
+  .share-bar a.share-btn {{
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 500; color: var(--ink-2);
+    text-decoration: none; padding: 7px 14px;
+    border: 1px solid var(--line); border-radius: 4px;
+    background: var(--paper);
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }}
+  .share-bar a.share-btn:hover {{
+    border-color: var(--cyan); background: rgba(14,116,144,0.04);
+  }}
+  .share-bar a.share-btn svg {{ width: 14px; height: 14px; fill: currentColor; }}
+  /* Email subscribe box (prominent) */
+  .email-capture {{
+    margin: 28px 44px; padding: 28px 30px;
+    border: 2px solid var(--cyan); border-radius: 6px;
+    background: linear-gradient(135deg, #f0fafb 0%, #ffffff 100%);
+    text-align: center;
+  }}
+  .email-capture .ec-headline {{
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 18px; font-weight: 700; color: var(--ink);
+    margin: 0 0 8px;
+  }}
+  .email-capture .ec-sub {{
+    font-size: 14px; color: var(--muted); margin: 0 0 18px; line-height: 1.5;
+  }}
+  .email-capture a.ec-button {{
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: #ffffff; background: var(--cyan);
+    padding: 14px 32px; border-radius: 4px; text-decoration: none;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }}
+  .email-capture a.ec-button:hover {{ background: var(--violet); transform: translateY(-1px); }}
   @media (max-width: 600px) {{
     body {{ padding: 16px 4px; }}
-    .masthead, .subscribe-strip, .section-header, .card, .me-block, .tip-block, .cta-section, .footer {{
+    .masthead, .subscribe-strip, .section-header, .card, .me-block, .tip-block, .cta-section, .footer, .share-bar {{
       padding-left: 20px; padding-right: 20px;
     }}
+    .email-capture {{ margin-left: 12px; margin-right: 12px; }}
     .card {{ margin-left: 12px; margin-right: 12px; }}
     .me-block {{ margin-left: 12px; margin-right: 12px; }}
     .tip-block {{ margin-left: 12px; margin-right: 12px; }}
@@ -2017,7 +2076,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <a class="cta-mini" href="{signup_url}" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
     {beehiiv_strip_btn}
   </div>
+  <!-- Email subscribe box (top) -->
+  {email_capture_top}
   {viral_block}
+  <!-- Share buttons (after viral lead) -->
+  {share_bar}
   <div class="section-header">
     <span class="index">02 //</span>
     <h2>Strategic Briefing</h2>
@@ -2037,6 +2100,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   </div>
   {everyday_cards}
   {tip_block}
+  <!-- Email subscribe box (bottom) -->
+  {email_capture_bottom}
+  <!-- Share buttons (bottom) -->
+  {share_bar_bottom}
   <div class="cta-section">
     <p class="cta-text">Enjoyed this issue? Share SIGNAL with a colleague who wants to stay sharp on AI.</p>
     <a class="button" href="{signup_url}" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
@@ -2141,149 +2208,69 @@ def render_tip_block(tip):
 
 
 # =========================================================
-# 8. LINKEDIN EXPORT
+# 8. LINKEDIN EXPORT — TL;DR Summary (v8)
 # =========================================================
 def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pairs, me_items, tip):
-    """Write a LinkedIn-formatted Markdown version of the newsletter."""
-    print("\n  Exporting LinkedIn post...")
-    lines = []
-    lines.append(f"# SIGNAL // Issue #{issue_number}")
-    lines.append(f"**{date_str}**")
-    lines.append("")
-    lines.append("_Your weekly AI intelligence briefing — the stories that matter, in five minutes flat._")
-    lines.append("")
-    # Canonical link to THIS issue, surfaced at the very top (above the fold).
+    """Write a short TL;DR LinkedIn post that drives readers to the full HTML issue."""
+    print("\n  Exporting LinkedIn post (TL;DR mode)...")
     issue_url = f"{PAGES_BASE_URL}/newsletters/newsletter_{datetime.now().strftime('%Y_%m_%d')}.html"
-    lines.append(f"📩 Read Issue #{issue_number} in full: {issue_url}")
-    # Above-the-fold email CTA (teaser mode): capture readers before they scroll.
-    if TEASER_MODE and BEEHIIV_URL:
-        lines.append("")
-        lines.append(f"✉️ Get the complete briefing in your inbox every Monday → {BEEHIIV_URL}")
+    lines = []
+
+    # ── Hook line (above the fold) ──
+    if viral_pair:
+        _, vdata = viral_pair
+        hook = vdata.get('headline', 'This week in AI')
+    else:
+        hook = "This week in AI"
+    lines.append(f"{hook} — plus 4 more stories you need to know.")
     lines.append("")
-    lines.append("---")
+    lines.append(f"SIGNAL #{issue_number} is live:")
+    lines.append(issue_url)
     lines.append("")
 
-    # Viral lead
+    # ── TL;DR bullet summary of ALL sections (one line each) ──
+    lines.append("Here's what's inside:")
+    lines.append("")
+    # 01 Viral Lead
     if viral_pair:
         art, data = viral_pair
-        lines.append("## 01 // THE VIRAL LEAD")
-        lines.append("")
-        lines.append(f"### {data.get('headline', art['title'])}")
-        lines.append("")
-        lines.append(f"**TL;DR:** {data.get('tldr', '')}")
-        lines.append("")
-        lines.append(f"- **What happened:** {data.get('what_happened', '')}")
-        lines.append(f"- **Why it matters:** {data.get('why_it_matters', '')}")
-        lines.append(f"- **Business impact:** {data.get('business_impact', '')}")
-        lines.append(f"- **Leader action:** {data.get('leader_action', '')}")
-        lines.append("")
-        lines.append(f"[Read full story → {art['source']}]({art['link']})")
-        lines.append("")
-        lines.append("---")
-        lines.append("")
-
-    # Business
-    lines.append("## 02 // STRATEGIC BRIEFING")
+        lines.append(f"01 | The Viral Lead — {data.get('headline', art['title'])}")
+    # 02 Strategic Briefing
+    biz_headlines = [d.get('headline', a['title']) for a, d in biz_pairs if d]
+    if biz_headlines:
+        lines.append(f"02 | Strategic Briefing — {biz_headlines[0]}" + (f" + {len(biz_headlines)-1} more" if len(biz_headlines) > 1 else ""))
+    # 03 From the Region
+    me_headlines = [d.get('headline', a['title']) for a, d in me_items if d]
+    if me_headlines:
+        lines.append(f"03 | From the Region — {me_headlines[0]}" + (f" + {len(me_headlines)-1} more" if len(me_headlines) > 1 else ""))
+    # 04 Consumer Signals
+    eve_headlines = [d.get('headline', a['title']) for a, d in eve_pairs if d]
+    if eve_headlines:
+        lines.append(f"04 | Consumer Signals — {eve_headlines[0]}" + (f" + {len(eve_headlines)-1} more" if len(eve_headlines) > 1 else ""))
+    # 05 Tip of the Week
+    if tip:
+        lines.append(f"05 | Tip of the Week — {tip.get('title', 'AI Tip')}")
     lines.append("")
-    for art, data in biz_pairs:
-        lines.append(f"### {data.get('headline', art['title'])}")
-        lines.append("")
-        lines.append(f"**TL;DR:** {data.get('tldr', '')}")
-        lines.append("")
-        lines.append(f"- **What happened:** {data.get('what_happened', '')}")
-        lines.append(f"- **Why it matters:** {data.get('why_it_matters', '')}")
-        lines.append(f"- **Business impact:** {data.get('business_impact', '')}")
-        lines.append(f"- **Leader action:** {data.get('leader_action', '')}")
-        lines.append("")
-        lines.append(f"[Read full story → {art['source']}]({art['link']})")
-        lines.append("")
+
+    # ── CTA: Read the full issue ──
+    lines.append(f"Read the full issue (5 min): {issue_url}")
+    lines.append("")
     lines.append("---")
     lines.append("")
 
-    if TEASER_MODE:
-        # ── Teaser gate: headlines-only for the remaining sections, behind an email CTA ──
-        teased = []
-        for art, data in me_items:
-            teased.append(("From the Region", data.get('headline', art['title'])))
-        for art, data in eve_pairs:
-            teased.append(("Consumer Signals", data.get('headline', art['title'])))
-        if tip:
-            teased.append(("Tip of the Week", tip.get('title', '')))
-
-        if teased:
-            lines.append("## 📬 THE REST OF THIS WEEK'S BRIEFING IS IN YOUR INBOX")
-            lines.append("")
-            lines.append("I'm now sending the full SIGNAL — including the sections below — by email. "
-                         "Here's what email subscribers are reading this week:")
-            lines.append("")
-            current_sec = None
-            for sec, head in teased:
-                if sec != current_sec:
-                    lines.append(f"**{sec}**")
-                    current_sec = sec
-                lines.append(f"→ {head}")
-            lines.append("")
-            lines.append(f"🔓 Read all of it free, every Monday at 08:00 GST → {BEEHIIV_URL}")
-            lines.append("")
-            lines.append("---")
-            lines.append("")
-    else:
-        # Middle East
-        lines.append("## 03 // FROM THE REGION")
-        lines.append("")
-        for art, data in me_items:
-            lines.append(f"**{data.get('headline', art['title'])}**")
-            lines.append(f"{data.get('tldr', '')}")
-            lines.append(f"[Read more → {art['source']}]({art['link']})")
-            lines.append("")
-        lines.append("---")
-        lines.append("")
-
-        # Consumer
-        lines.append("## 04 // CONSUMER SIGNALS")
-        lines.append("")
-        for art, data in eve_pairs:
-            lines.append(f"### {data.get('headline', art['title'])}")
-            lines.append("")
-            lines.append(f"**TL;DR:** {data.get('tldr', '')}")
-            lines.append("")
-            lines.append(f"- **In plain English:** {data.get('in_plain_english', '')}")
-            lines.append(f"- **Why you care:** {data.get('why_you_care', '')}")
-            lines.append(f"- **What to do:** {data.get('what_to_do', '')}")
-            lines.append("")
-            lines.append(f"[Read full story → {art['source']}]({art['link']})")
-            lines.append("")
-        lines.append("---")
-        lines.append("")
-
-        # Tip
-        if tip:
-            lines.append("## 05 // TIP OF THE WEEK")
-            lines.append("")
-            lines.append(f"**{tip.get('title', '')}**")
-            lines.append("")
-            lines.append(tip.get('what', ''))
-            lines.append("")
-            lines.append(f"**Try this:** {tip.get('try_this', '')}")
-            lines.append("")
-            lines.append(f"[{tip.get('link_label', 'Explore')}]({tip.get('link_url', '#')})")
-            lines.append("")
-            lines.append("---")
-            lines.append("")
-
-    # Footer
-    next_issue = f"{int(issue_number) + 1:03d}"
-    lines.append(f"Issue #{next_issue} lands next Monday at 08:00 GST.")
-    lines.append("")
-    lines.append(f"📂 Full archive: {PAGES_BASE_URL}/")
-    if SIGNUP_URL:
-        lines.append(f"🔔 Subscribe on LinkedIn: {SIGNUP_URL}")
+    # ── Subscribe CTAs ──
     if BEEHIIV_URL:
-        lines.append(f"✉️ Prefer email? Subscribe at {BEEHIIV_URL}")
+        lines.append(f"Get SIGNAL in your inbox every Monday (free): {BEEHIIV_URL}")
+    if SIGNUP_URL:
+        lines.append(f"Follow on LinkedIn: {SIGNUP_URL}")
     lines.append("")
-    lines.append("— SIGNAL is composed each week by an autonomous AI agent. Reviewed and published by Hasan.")
+
+    # ── Sign-off ──
+    lines.append("— Hasan")
     lines.append("")
-    lines.append("_Represents my own views and not that of my employer._")
+    lines.append("_Represents my own views and not those of my employer._")
+    lines.append("")
+    lines.append("#AI #ArtificialIntelligence #AINews #GenerativeAI #MachineLearning")
 
     fname = f"linkedin_post_{datetime.now().strftime('%Y_%m_%d')}.md"
     with open(fname, "w", encoding="utf-8") as f:
@@ -2293,11 +2280,84 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
 
 
 # =========================================================
+# 9. BEEHIIV EMAIL EXPORT (v8)
+# =========================================================
+def export_beehiiv_email(date_str, issue_number, viral_pair, biz_pairs, eve_pairs, me_items, tip):
+    """Write a short branded email wrapper that drives readers to the full HTML issue.
+
+    Output is a Markdown file (email_post_YYYY_MM_DD.md) with YAML-style front-matter
+    for subject line and preview text, followed by the email body.
+    """
+    print("\n  Exporting Beehiiv email post...")
+    issue_url = f"{PAGES_BASE_URL}/newsletters/newsletter_{datetime.now().strftime('%Y_%m_%d')}.html"
+    lines = []
+
+    # ── Front-matter (subject + preview) ──
+    if viral_pair:
+        _, vdata = viral_pair
+        subject_hook = vdata.get('headline', 'This week in AI')
+    else:
+        subject_hook = "This week in AI"
+    lines.append("---")
+    lines.append(f"subject: SIGNAL #{issue_number}: {subject_hook}")
+    lines.append(f"preview: Five minutes. The AI stories that matter. Issue #{issue_number} is live.")
+    lines.append("---")
+    lines.append("")
+
+    # ── Email body ──
+    lines.append(f"# SIGNAL #{issue_number}")
+    lines.append(f"*{date_str}*")
+    lines.append("")
+    lines.append(f"**{subject_hook}** — plus the rest of this week's AI intelligence briefing.")
+    lines.append("")
+
+    # ── TL;DR bullets (same structure as LinkedIn) ──
+    lines.append("**In this issue:**")
+    lines.append("")
+    if viral_pair:
+        art, data = viral_pair
+        lines.append(f"- **The Viral Lead** — {data.get('headline', art['title'])}")
+    biz_headlines = [d.get('headline', a['title']) for a, d in biz_pairs if d]
+    for h in biz_headlines:
+        lines.append(f"- **Strategic Briefing** — {h}")
+    me_headlines = [d.get('headline', a['title']) for a, d in me_items if d]
+    for h in me_headlines:
+        lines.append(f"- **From the Region** — {h}")
+    eve_headlines = [d.get('headline', a['title']) for a, d in eve_pairs if d]
+    for h in eve_headlines:
+        lines.append(f"- **Consumer Signals** — {h}")
+    if tip:
+        lines.append(f"- **Tip of the Week** — {tip.get('title', 'AI Tip')}")
+    lines.append("")
+
+    # ── Big CTA button ──
+    lines.append(f"[📨 Read the full issue →]({issue_url})")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    # ── Reply CTA (engagement driver) ──
+    lines.append("*Which story would you have led with? Hit reply and let me know.*")
+    lines.append("")
+
+    # ── Sign-off ──
+    lines.append("— Hasan")
+    lines.append("")
+    lines.append("_Represents my own views and not those of my employer._")
+
+    fname = f"email_post_{datetime.now().strftime('%Y_%m_%d')}.md"
+    with open(fname, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    print(f"  Beehiiv email post written -> {fname}")
+    return fname
+
+
+# =========================================================
 # MAIN
 # =========================================================
 def generate_newsletter():
     print("=" * 60)
-    print("  SIGNAL Agent v7.1 — Starting...")
+    print("  SIGNAL Agent v8 — Starting...")
     print("=" * 60)
     print(f"  Mode: {'EDITOR-IN-CHIEF (interactive)' if INTERACTIVE_MODE else 'AUTONOMOUS'}")
     print(f"  Model: {MODEL}")
@@ -2416,6 +2476,42 @@ def generate_newsletter():
         beehiiv_strip_btn = ""
         beehiiv_main_btn = ""
 
+    # Build canonical issue URL and OG image
+    issue_url = f"{PAGES_BASE_URL}/newsletters/newsletter_{datetime.now().strftime('%Y_%m_%d')}.html"
+    # Static branded OG image (replace with a per-issue generated image later if desired)
+    og_image_url = f"{PAGES_BASE_URL}/assets/signal_og_card.png"
+
+    # Build share bar HTML (LinkedIn, X/Twitter, WhatsApp, copy-link)
+    share_url_encoded = issue_url.replace(':', '%3A').replace('/', '%2F')
+    share_text_encoded = f"SIGNAL%20%23{issue_number_str}%20%E2%80%94%20AI%20Intelligence%20Briefing"
+    share_bar_html = f'''<div class="share-bar">
+      <span class="share-label">Share this issue</span>
+      <a class="share-btn" href="https://www.linkedin.com/sharing/share-offsite/?url={share_url_encoded}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        LinkedIn
+      </a>
+      <a class="share-btn" href="https://twitter.com/intent/tweet?url={share_url_encoded}&text={share_text_encoded}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        X
+      </a>
+      <a class="share-btn" href="https://wa.me/?text={share_text_encoded}%20{share_url_encoded}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        WhatsApp
+      </a>
+      <a class="share-btn" href="#" onclick="navigator.clipboard.writeText('{issue_url}');this.textContent='Copied!';return false;">
+        &#128279; Copy link
+      </a>
+    </div>'''
+
+    # Build email capture box HTML
+    email_capture_html = ''
+    if BEEHIIV_URL:
+        email_capture_html = f'''<div class="email-capture">
+      <p class="ec-headline">Get SIGNAL in your inbox every Monday</p>
+      <p class="ec-sub">Five minutes. The AI stories that matter. Free, forever.</p>
+      <a class="ec-button" href="{BEEHIIV_URL}" target="_blank" rel="noopener">Subscribe by email</a>
+    </div>'''
+
     html = HTML_TEMPLATE.format(
         date=today,
         issue_number=issue_number_str,
@@ -2427,6 +2523,12 @@ def generate_newsletter():
         signup_url=SIGNUP_URL,
         beehiiv_strip_btn=beehiiv_strip_btn,
         beehiiv_main_btn=beehiiv_main_btn,
+        issue_url=issue_url,
+        og_image_url=og_image_url,
+        email_capture_top=email_capture_html,
+        email_capture_bottom=email_capture_html,
+        share_bar=share_bar_html,
+        share_bar_bottom=share_bar_html,
     )
 
     fname = f"newsletter_{datetime.now().strftime('%Y_%m_%d')}.html"
@@ -2442,6 +2544,10 @@ def generate_newsletter():
         biz_pairs = [(art, analyze_article(art, "business")) for art in picks["business"]]
         eve_pairs = [(art, analyze_article(art, "everyday")) for art in picks["everyday"]]
         export_linkedin_post(today, issue_number_str, viral_pair, biz_pairs, eve_pairs, me_items, tip)
+
+    # 12) Beehiiv email export
+    if EXPORT_LINKEDIN:  # reuse same flag — if we export LinkedIn, we export email too
+        export_beehiiv_email(today, issue_number_str, viral_pair, biz_pairs, eve_pairs, me_items, tip)
 
 
 if __name__ == "__main__":
