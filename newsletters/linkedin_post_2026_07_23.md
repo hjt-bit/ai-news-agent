@@ -1,15 +1,15 @@
-OpenAI Launches ChatGPT Health for US Users — plus 4 more stories you need to know.
+OpenAI Launches ChatGPT Health for All Users — plus 4 more stories you need to know.
 
 SIGNAL #012 is live:
 https://hjt-bit.github.io/ai-news-agent/newsletters/newsletter_2026_07_23.html
 
 Here's what's inside:
 
-01 | The Viral Lead — OpenAI Launches ChatGPT Health for US Users
+01 | The Viral Lead — OpenAI Launches ChatGPT Health for All Users
 02 | Strategic Briefing — AMD Invests $5 Billion in Anthropic Partnership + 2 more
 03 | From the Region — Origen and Deepexi Boost AI Adoption in MEA + 1 more
-04 | Consumer Signals — Gemini approaches one billion users + 2 more
-05 | Tip of the Week — Explore Krea AI's Visual Prompts
+04 | Consumer Signals — Gemini approaches billion-user milestone + 2 more
+05 | Tip of the Week — Leverage ChatGPT for Personal AI Agents
 
 Read the full issue (5 min): https://hjt-bit.github.io/ai-news-agent/newsletters/newsletter_2026_07_23.html
 
