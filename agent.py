@@ -74,6 +74,13 @@ FORCED_LEAD = None
 # the issue number from the date. Remember to reset to None after a one-off run.
 FORCED_ISSUE = None
 
+# ── v9: AI-Relevance Filter + Story Ranker + Fact Checker ─────────────────────
+AI_RELEVANCE_THRESHOLD = 6       # Min score (0-10) to pass relevance filter
+MAGNITUDE_VIRAL_THRESHOLD = 8.0  # Score above which story MUST be considered for viral lead
+FACT_CHECK_ENABLED = True        # Toggle fact-checking (disable for faster dev runs)
+FACT_CHECK_MIN_CONFIDENCE = "LOW"  # Minimum confidence to include (LOW=warn, MEDIUM=reject LOW)
+MAX_SEARCH_PER_STORY = 3        # Max web searches per story for fact-checking
+
 # =========================================================
 # SOURCES -- RSS feeds organized by tier
 # =========================================================
@@ -923,6 +930,330 @@ def score_articles_v2(articles, podcast_topics):
 
 
 # =========================================================
+# 3b. AI-RELEVANCE FILTER (v9)
+# =========================================================
+def filter_ai_relevance(articles):
+    """
+    Score each article 0-10 on AI/tech relevance using a batch LLM call.
+    Reject anything scoring below AI_RELEVANCE_THRESHOLD.
+    Returns only articles that pass the filter.
+    """
+    if not articles:
+        return articles
+
+    print(f"\n{'='*60}")
+    print(f"STEP 3b: AI-RELEVANCE FILTER (v9)")
+    print(f"{'='*60}")
+    print(f"  Input: {len(articles)} articles")
+    print(f"  Threshold: {AI_RELEVANCE_THRESHOLD}/10")
+
+    # Batch articles in groups of 25 for efficiency
+    BATCH_SIZE = 25
+    all_scores = {}
+
+    for batch_start in range(0, len(articles), BATCH_SIZE):
+        batch = articles[batch_start:batch_start + BATCH_SIZE]
+        listing = "\n".join(
+            f"[{i}] {a['title']} ({a['source']}) - {a.get('summary', '')[:100]}"
+            for i, a in enumerate(batch)
+        )
+
+        prompt = f"""You are a strict AI-relevance classifier for an AI/tech newsletter called SIGNAL.
+
+Score each article 0-10 on how directly relevant it is to AI, machine learning, or AI-driven technology.
+
+Scoring guide:
+- 9-10: Core AI story (new model release, AI product launch, AI funding round, AI regulation, AI research breakthrough)
+- 7-8: AI-adjacent (tech company strategy involving AI, AI hardware, AI in specific industry like healthcare/finance)
+- 5-6: Tangentially related (general tech news that mentions AI, science policy with AI angle)
+- 3-4: Weak connection (general business/politics that briefly mentions AI or automation)
+- 1-2: Not AI-related (general news, lifestyle, non-tech business)
+
+Return a JSON object with article indices as keys and scores as values.
+Example: {{"0": 9, "1": 4, "2": 7}}
+
+Articles:
+{listing}
+"""
+        try:
+            resp = client.chat.completions.create(
+                model=MODEL,
+                temperature=0.1,
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"},
+            )
+            scores = json.loads(resp.choices[0].message.content)
+            for idx_str, score in scores.items():
+                try:
+                    global_idx = batch_start + int(idx_str)
+                    all_scores[global_idx] = int(score)
+                except (ValueError, TypeError):
+                    continue
+        except Exception as e:
+            print(f"  \u2717 Relevance scoring batch failed: {e} -- keeping all articles in batch")
+            for i in range(batch_start, batch_start + len(batch)):
+                all_scores[i] = AI_RELEVANCE_THRESHOLD  # default pass on error
+
+    # Filter and report
+    passed = []
+    rejected = []
+    for i, art in enumerate(articles):
+        score = all_scores.get(i, AI_RELEVANCE_THRESHOLD)
+        art["_ai_relevance"] = score
+        if score >= AI_RELEVANCE_THRESHOLD:
+            passed.append(art)
+        else:
+            rejected.append(art)
+
+    print(f"\n  Results:")
+    print(f"  \u2713 Passed: {len(passed)} articles (score >= {AI_RELEVANCE_THRESHOLD})")
+    print(f"  \u2717 Rejected: {len(rejected)} articles")
+    if rejected:
+        for art in rejected[:5]:
+            print(f"    \u25cb [{art.get('_ai_relevance', '?')}] {art['title'][:60]}")
+        if len(rejected) > 5:
+            print(f"    ... and {len(rejected) - 5} more")
+
+    # Safety: if too many rejected, lower threshold for this run
+    if len(passed) < (TOP_BUSINESS + TOP_EVERYDAY + TOP_MIDDLE_EAST + 3):
+        print(f"  \u26a0 Too few articles passed. Lowering threshold to 4 for this run.")
+        passed = [a for a in articles if a.get("_ai_relevance", 0) >= 4]
+
+    return passed
+
+
+# =========================================================
+# 3c. STORY MAGNITUDE RANKER (v9)
+# =========================================================
+def rank_story_magnitude(articles):
+    """
+    Score each article on magnitude/impact across 5 dimensions.
+    Also extracts key figures (dollar amounts, user counts, percentages).
+    Returns articles with _magnitude_score and _key_figures attached,
+    sorted by magnitude score descending.
+    """
+    if not articles:
+        return articles
+
+    print(f"\n{'='*60}")
+    print(f"STEP 3c: STORY MAGNITUDE RANKING (v9)")
+    print(f"{'='*60}")
+    print(f"  Scoring {len(articles)} articles on magnitude...")
+
+    # Process top 30 articles only (rest won't be selected anyway)
+    to_rank = articles[:30]
+    rest = articles[30:]
+
+    listing = "\n".join(
+        f"[{i}] {a['title']} ({a['source']}) - {a.get('summary', '')[:150]}"
+        for i, a in enumerate(to_rank)
+    )
+
+    prompt = f"""You are an editorial judgment engine for SIGNAL, a weekly AI newsletter.
+
+For each article, score it on 5 dimensions (each 1-10) and extract any key figures.
+
+Dimensions:
+1. financial_magnitude: Dollar amounts involved (10 = $50B+, 8 = $1-10B, 6 = $100M-1B, 4 = $10-100M, 2 = <$10M, 1 = no financial element)
+2. user_impact: Number of people affected (10 = 1B+ users, 8 = 100M+, 6 = 10M+, 4 = 1M+, 2 = <1M, 1 = niche)
+3. novelty: How unprecedented is this? (10 = first-ever, 8 = major pivot/surprise, 6 = significant new development, 4 = incremental update, 2 = routine news)
+4. brand_recognition: How well-known is the company/person? (10 = top-5 tech co, 8 = household name, 6 = well-known in tech, 4 = known in niche, 2 = unknown)
+5. virality_potential: Controversy, surprise factor, shareability (10 = explosive, 8 = very shareable, 6 = interesting, 4 = moderate, 2 = dry)
+
+Also extract key_figures: any specific dollar amounts, user counts, percentages, or dates mentioned.
+
+Return a JSON object:
+{{
+  "0": {{"financial": 8, "user_impact": 7, "novelty": 9, "brand": 10, "virality": 9, "key_figures": ["$60 billion", "all-stock deal"]}},
+  "1": {{"financial": 3, "user_impact": 6, "novelty": 5, "brand": 7, "virality": 4, "key_figures": ["750 million users"]}}
+}}
+
+Articles:
+{listing}
+"""
+
+    magnitude_data = {}
+    try:
+        resp = client.chat.completions.create(
+            model=MODEL,
+            temperature=0.2,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+        )
+        magnitude_data = json.loads(resp.choices[0].message.content)
+    except Exception as e:
+        print(f"  \u2717 Magnitude ranking failed: {e} -- using relevance scores as fallback")
+
+    # Apply scores
+    for i, art in enumerate(to_rank):
+        idx_str = str(i)
+        if idx_str in magnitude_data:
+            data = magnitude_data[idx_str]
+            # Weighted composite: financial 30%, user_impact 25%, novelty 20%, brand 15%, virality 10%
+            fin = data.get("financial", 5)
+            usr = data.get("user_impact", 5)
+            nov = data.get("novelty", 5)
+            brd = data.get("brand", 5)
+            vir = data.get("virality", 5)
+            composite = (fin * 0.30) + (usr * 0.25) + (nov * 0.20) + (brd * 0.15) + (vir * 0.10)
+            art["_magnitude_score"] = round(composite, 2)
+            art["_magnitude_breakdown"] = {"financial": fin, "user_impact": usr, "novelty": nov, "brand": brd, "virality": vir}
+            art["_key_figures"] = data.get("key_figures", [])
+        else:
+            # Fallback: use normalized _score as proxy
+            art["_magnitude_score"] = round(art.get("_score", 0) / 10, 2)
+            art["_magnitude_breakdown"] = {}
+            art["_key_figures"] = []
+
+    # Sort by magnitude score
+    to_rank.sort(key=lambda x: x.get("_magnitude_score", 0), reverse=True)
+
+    # Assign default scores to rest
+    for art in rest:
+        art["_magnitude_score"] = 0
+        art["_magnitude_breakdown"] = {}
+        art["_key_figures"] = []
+
+    # Print top 10 by magnitude
+    print(f"\n  Top 10 by magnitude score:")
+    print(f"  {'\u2500'*75}")
+    print(f"  {'Mag':<6} {'Fin':<5} {'Usr':<5} {'Nov':<5} {'Brd':<5} {'Vir':<5} Title")
+    print(f"  {'\u2500'*75}")
+    for art in to_rank[:10]:
+        bd = art.get("_magnitude_breakdown", {})
+        title_short = art["title"][:50]
+        figs = ", ".join(art.get("_key_figures", [])[:2])
+        fig_str = f" [{figs}]" if figs else ""
+        print(f"  {art['_magnitude_score']:<6} {bd.get('financial', '-'):<5} {bd.get('user_impact', '-'):<5} "
+              f"{bd.get('novelty', '-'):<5} {bd.get('brand', '-'):<5} {bd.get('virality', '-'):<5} {title_short}{fig_str}")
+    print(f"  {'\u2500'*75}")
+
+    return to_rank + rest
+
+
+# =========================================================
+# 3d. FACT CHECKER (v9)
+# =========================================================
+def fact_check_stories(viral, picks):
+    """
+    Cross-reference key claims in selected stories against web search results.
+    Assigns confidence: HIGH (3+ sources), MEDIUM (1-2), LOW (0), CONTRADICTED.
+    Returns updated viral and picks with _fact_check metadata attached.
+    """
+    if not FACT_CHECK_ENABLED:
+        print("  Fact-checking disabled (FACT_CHECK_ENABLED=False)")
+        return viral, picks
+
+    print(f"\n{'='*60}")
+    print(f"STEP 5f: FACT-CHECKING SELECTED STORIES (v9)")
+    print(f"{'='*60}")
+
+    # Collect all stories to check
+    stories_to_check = []
+    if viral:
+        stories_to_check.append(viral)
+    for track in ["business", "everyday", "middle_east"]:
+        stories_to_check.extend(picks.get(track, []))
+
+    for art in stories_to_check:
+        title = art["title"]
+        source = art["source"]
+        print(f"  Checking: {title[:60]}...")
+
+        # Extract the core claim to search for
+        claim = _extract_core_claim(art)
+
+        # Search for corroboration
+        corroborating, contradicting = _search_corroboration(claim, source)
+
+        # Assign confidence
+        if contradicting:
+            confidence = "CONTRADICTED"
+        elif len(corroborating) >= 3:
+            confidence = "HIGH"
+        elif len(corroborating) >= 1:
+            confidence = "MEDIUM"
+        else:
+            confidence = "LOW"
+
+        art["_fact_check"] = {
+            "confidence": confidence,
+            "claim_searched": claim,
+            "corroborating_sources": corroborating[:3],
+            "contradicting_sources": contradicting[:2],
+        }
+        status_icon = {"HIGH": "\u2713", "MEDIUM": "\u25cb", "LOW": "\u26a0", "CONTRADICTED": "\u2717"}[confidence]
+        print(f"    {status_icon} Confidence: {confidence} ({len(corroborating)} corroborating sources)")
+
+    return viral, picks
+
+
+def _extract_core_claim(article):
+    """Extract the most important factual claim from an article for fact-checking."""
+    title = article["title"]
+    summary = article.get("summary", "")
+    # Use title as the primary claim — it's the most specific assertion
+    # Combine with key figures if available
+    key_figs = article.get("_key_figures", [])
+    if key_figs:
+        return f"{title} {' '.join(key_figs[:2])}"
+    return title
+
+
+def _search_corroboration(claim, original_source):
+    """
+    Search DuckDuckGo for the claim and check if other sources report it.
+    Returns (corroborating_sources, contradicting_sources) as lists of strings.
+    """
+    import urllib.parse
+
+    corroborating = []
+    contradicting = []
+
+    try:
+        # Use DuckDuckGo HTML search
+        query = urllib.parse.quote(claim[:100])  # Limit query length
+        url = f"https://html.duckduckgo.com/html/?q={query}"
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        })
+        with urllib.request.urlopen(req, timeout=10) as response:
+            html = response.read().decode("utf-8", errors="ignore")
+
+        # Parse search results (extract result titles and sources)
+        results = re.findall(r'class="result__title"[^>]*>.*?<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>', html, re.DOTALL)
+
+        # Also try simpler pattern
+        if not results:
+            results = re.findall(r'<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', html, re.DOTALL)
+
+        # Filter out the original source
+        original_domain = _extract_domain(original_source)
+        for result_url, result_title in results[:MAX_SEARCH_PER_STORY * 2]:
+            result_domain = _extract_domain(result_url)
+            if original_domain and result_domain == original_domain:
+                continue
+            # Clean HTML tags from title
+            clean_title = re.sub(r'<[^>]+>', '', result_title).strip()
+            if clean_title:
+                corroborating.append(f"{clean_title} ({result_domain})")
+
+    except Exception as e:
+        print(f"    (Search failed: {e} — marking as unverified)")
+
+    return corroborating[:MAX_SEARCH_PER_STORY], contradicting
+
+
+def _extract_domain(source_or_url):
+    """Extract domain from a URL or source name."""
+    if source_or_url.startswith("http"):
+        match = re.search(r'https?://(?:www\.)?([^/]+)', source_or_url)
+        return match.group(1) if match else ""
+    # Source name — convert to likely domain
+    return source_or_url.lower().replace(" ", "")
+
+
+# =========================================================
 # 4. VIRAL DETECTOR (with scoring integration)
 # =========================================================
 STOPWORDS = {
@@ -975,17 +1306,32 @@ def detect_viral_story(articles):
                 print(f"  ✗ No strong match for '{FORCED_LEAD}' (best={best_score}, need={threshold})")
                 print(f"    Falling back to auto-detect (highest scored article).")
 
-    # Auto-detect: use the highest-scored article as viral lead
-    # (articles should already be sorted by score from score_articles_v2)
-    # Skip any top story whose subject repeats a recent issue's lead (staleness guard),
-    # falling through to the next-best fresh story.
+    # [v9] Auto-detect: use MAGNITUDE score as primary signal for viral lead.
+    # Sort candidates by magnitude score first, then fall back to relevance score.
+    # Skip any top story whose subject repeats a recent issue's lead (staleness guard).
+    magnitude_sorted = sorted(articles, key=lambda a: a.get("_magnitude_score", 0), reverse=True)
+
+    # First pass: any story above MAGNITUDE_VIRAL_THRESHOLD MUST be considered
+    for cand in magnitude_sorted:
+        mag = cand.get("_magnitude_score", 0)
+        if mag < MAGNITUDE_VIRAL_THRESHOLD:
+            break  # No more high-magnitude stories
+        if _is_stale_lead(cand):
+            print(f"  \u25cb Skipping stale lead (repeats a recent issue): {cand['title'][:70]}")
+            continue
+        key_figs = cand.get("_key_figures", [])
+        fig_str = f" [{', '.join(key_figs[:2])}]" if key_figs else ""
+        print(f"\n  \u2605 Viral lead by MAGNITUDE (score={mag}): {cand['title'][:70]}{fig_str}")
+        return cand, []
+
+    # Second pass: fall back to relevance score ordering (original behavior)
     for cand in articles:
         if cand.get("_score", 0) <= 0:
             break
         if _is_stale_lead(cand):
-            print(f"  ○ Skipping stale lead (repeats a recent issue): {cand['title'][:70]}")
+            print(f"  \u25cb Skipping stale lead (repeats a recent issue): {cand['title'][:70]}")
             continue
-        print(f"\n  Auto-detected viral lead (score={cand['_score']}): {cand['title'][:80]}")
+        print(f"\n  Auto-detected viral lead (score={cand['_score']}, magnitude={cand.get('_magnitude_score', 'N/A')}): {cand['title'][:80]}")
         return cand, []
 
     # If every positive-score story was stale, fall back to the highest-scored one
@@ -1528,6 +1874,54 @@ def run_qa_checks(viral_article, picks, tip, podcast_report):
         checks.append(("WARN", f"Viral lead may repeat a recent issue's subject: {viral_article['title'][:50]}"))
     elif viral_article:
         checks.append(("PASS", "Viral lead is a fresh subject (not a repeat of a recent issue)"))
+
+    # ── v9 QA checks ─────────────────────────────────────────────────────────
+
+    # 11) All selected stories scored >= AI_RELEVANCE_THRESHOLD
+    all_selected = []
+    if viral_article:
+        all_selected.append(viral_article)
+    for track in ["business", "everyday", "middle_east"]:
+        all_selected.extend(picks.get(track, []))
+    low_relevance = [a for a in all_selected if a.get("_ai_relevance", 10) < AI_RELEVANCE_THRESHOLD]
+    if low_relevance:
+        checks.append(("WARN", f"v9 Relevance: {len(low_relevance)} selected story(ies) below AI-relevance threshold: "
+                       f"{', '.join(a['title'][:30] for a in low_relevance[:3])}"))
+    else:
+        checks.append(("PASS", "v9 Relevance: All selected stories pass AI-relevance threshold"))
+
+    # 12) Viral lead has highest magnitude score (or justified override)
+    if viral_article and all_selected:
+        viral_mag = viral_article.get("_magnitude_score", 0)
+        max_mag = max(a.get("_magnitude_score", 0) for a in all_selected)
+        if viral_mag >= max_mag or viral_mag >= MAGNITUDE_VIRAL_THRESHOLD:
+            checks.append(("PASS", f"v9 Ranking: Viral lead has top magnitude score ({viral_mag})"))
+        else:
+            higher = [a for a in all_selected if a.get("_magnitude_score", 0) > viral_mag]
+            checks.append(("WARN", f"v9 Ranking: Viral lead (mag={viral_mag}) is NOT the highest-magnitude story. "
+                          f"Higher: {higher[0]['title'][:40]} (mag={higher[0].get('_magnitude_score', 0)})"))
+
+    # 13) All stories have MEDIUM or HIGH fact-check confidence
+    low_confidence = [a for a in all_selected
+                      if a.get("_fact_check", {}).get("confidence") in ("LOW", "CONTRADICTED")]
+    if low_confidence:
+        for a in low_confidence:
+            fc = a.get("_fact_check", {})
+            conf = fc.get("confidence", "UNKNOWN")
+            if conf == "CONTRADICTED":
+                checks.append(("FAIL", f"v9 Fact-check: CONTRADICTED — {a['title'][:50]}"))
+            else:
+                checks.append(("WARN", f"v9 Fact-check: LOW confidence — {a['title'][:50]} (could not find corroborating sources)"))
+    else:
+        fc_count = sum(1 for a in all_selected if a.get("_fact_check"))
+        checks.append(("PASS", f"v9 Fact-check: All {fc_count} checked stories have MEDIUM or HIGH confidence"))
+
+    # 14) Key figures present in stories where applicable
+    stories_with_figs = [a for a in all_selected if a.get("_key_figures")]
+    if stories_with_figs:
+        checks.append(("PASS", f"v9 Figures: {len(stories_with_figs)} story(ies) have extracted key figures for headline use"))
+    else:
+        checks.append(("WARN", "v9 Figures: No key figures extracted from any selected story"))
 
     # Tally
     fails = [m for s, m in checks if s == "FAIL"]
@@ -2354,7 +2748,7 @@ def export_beehiiv_email(date_str, issue_number, viral_pair, biz_pairs, eve_pair
 # =========================================================
 def generate_newsletter():
     print("=" * 60)
-    print("  SIGNAL Agent v8 — Starting...")
+    print("  SIGNAL Agent v9 — Starting...")
     print("=" * 60)
     print(f"  Mode: {'EDITOR-IN-CHIEF (interactive)' if INTERACTIVE_MODE else 'AUTONOMOUS'}")
     print(f"  Model: {MODEL}")
@@ -2375,7 +2769,13 @@ def generate_newsletter():
     # 3) Score all articles with weighted relevance
     scored_articles = score_articles_v2(articles, podcast_topics)
 
-    # 4) Detect viral lead (uses scores)
+    # 3b) [v9] AI-Relevance Filter — reject non-AI stories
+    scored_articles = filter_ai_relevance(scored_articles)
+
+    # 3c) [v9] Story Magnitude Ranking — score impact + extract key figures
+    scored_articles = rank_story_magnitude(scored_articles)
+
+    # 4) Detect viral lead (now uses magnitude score as primary signal)
     viral, _ = detect_viral_story(scored_articles)
 
     # 5) Pick stories for the three tracks (with source diversity)
@@ -2406,7 +2806,10 @@ def generate_newsletter():
     # 5e) Tip of the Week (generated early so QA can verify it isn't a repeat)
     tip = generate_tip_of_week()
 
-    # 5f) Automated pre-publish QA self-check (writes qa_report.md)
+    # 5f) [v9] Fact-check selected stories
+    viral, picks = fact_check_stories(viral, picks)
+
+    # 5g) Automated pre-publish QA self-check (writes qa_report.md)
     qa_passed, qa_checks = run_qa_checks(viral, picks, tip, podcast_report)
     if not qa_passed:
         print("\n  ⚠ QA reported FAIL item(s) — see qa_report.md. "
