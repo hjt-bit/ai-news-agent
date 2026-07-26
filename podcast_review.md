@@ -1,6 +1,6 @@
 # SIGNAL — Podcast Review Log
 
-_Generated July 23, 2026. This file confirms which podcasts the agent read this week,
+_Generated July 26, 2026. This file confirms which podcasts the agent read this week,
 whether full transcripts were successfully fetched, and what topic signals were extracted._
 
 | Podcast | Episodes Found | Transcript Read | Transcript Length | Topics Extracted |
@@ -13,23 +13,23 @@ whether full transcripts were successfully fetched, and what topic signals were 
 
 ### All-In Podcast
 - Recent episodes detected:
+  - Chamath: Banning Open Source AI Will Crash the Stock Market
+  - David Sacks: Anthropic Wants to Kill Open Source AI in America
+  - David Friedberg: The Socialists Are Coming for Your Private Property Rights
+  - The Fight Over Open Source AI, Anthropic's $1.5B Payout, NYC Socialists: Evictions = Violence?
   - David Sacks: Anthropic Wants to Ban Open Source AI in America
-  - How the Finance Department Killed Intel - Former CEO
-  - China Could Cripple Taiwan in 3 Weeks, Without Invading
-  - Mark Cuban on the AI Bubble: Who Actually Gets Wiped Out?
-  - Chamath: Tokenmaxxing is a bridge to nowhere
 - Transcript fetched: No (0 chars)
 - Topic signals fed into story scoring:
-  - Anthropic open source AI ban
-  - AI market bubble
-  - enterprise AI challenges
-  - AI-first workspace transition
-  - healthcare AI applications
-  - biometric data in AI
-  - wealth tax and AI
-  - self-directed healthcare AI
-  - AI technology limits
-  - AI in business finance
+  - Open Source AI
+  - Anthropic AI
+  - AI regulatory capture
+  - IP theft in AI
+  - AI market impact
+  - AI technology competition
+  - AI growth rates
+  - AI investment trends
+  - AI and private property rights
+  - AI industry settlement
 
 ### Latent Space
 - No recent episodes detected in the lookback window.
