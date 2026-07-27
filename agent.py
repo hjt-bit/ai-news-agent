@@ -233,17 +233,16 @@ _WEAK_ME_TOKENS = {"arab", "arabian", "sandbox", "du", "e&", "rain", "valu", "ha
 def is_regional_story(article):
     """Strict test for whether a story genuinely belongs in 'From the Region'.
 
-    A story qualifies only if:
-      (a) it comes from a dedicated MENA news source, OR
-      (b) a STRONG Middle East keyword appears as a whole word in the title/summary.
-    Weak/ambiguous tokens alone do not qualify, which prevents non-regional
-    stories (e.g. a US SpaceX IPO) from being stretched to fill the section.
+    A story qualifies only if its title/summary contains a STRONG Middle East
+    keyword (country, city, company, or regional entity). Being published by a
+    MENA outlet alone is NOT sufficient — the story itself must be about the
+    region. This prevents global stories (e.g. 'OpenAI security breach') that
+    happen to be reported by TahawulTech from filling the regional section.
     """
     if not article:
         return False
-    if article.get("source") in MIDDLE_EAST_SOURCES:
-        return True
     text = f"{article.get('title', '')} {article.get('summary', '')}".lower()
+    has_regional_keyword = False
     for kw in ME_KEYWORDS:
         if kw in _WEAK_ME_TOKENS:
             continue
@@ -251,7 +250,32 @@ def is_regional_story(article):
         # another word and short tokens don't over-trigger.
         pattern = r"(?<![a-z0-9])" + re.escape(kw) + r"(?![a-z0-9])"
         if re.search(pattern, text):
+            has_regional_keyword = True
+            break
+    # Stories from MENA sources get a slight boost: they qualify if they have
+    # at least one regional keyword OR if the title itself names a regional entity.
+    # But source alone is never enough.
+    if has_regional_keyword:
+        return True
+    # Fallback for MENA sources: check if the title (not just summary) mentions
+    # any regional company or entity that might not be in ME_KEYWORDS
+    if article.get("source") in MIDDLE_EAST_SOURCES:
+        # Only qualify if title contains a regional proper noun not in global tech
+        _GLOBAL_ENTITIES = {"openai", "google", "meta", "microsoft", "apple", "nvidia",
+                           "anthropic", "hugging face", "amazon", "spacex", "tesla"}
+        title_lower = article.get('title', '').lower()
+        # If the title is ONLY about global entities, reject it
+        has_global_only = any(ge in title_lower for ge in _GLOBAL_ENTITIES)
+        has_any_regional = any(
+            re.search(r"(?<![a-z0-9])" + re.escape(kw) + r"(?![a-z0-9])", title_lower)
+            for kw in ME_KEYWORDS if kw not in _WEAK_ME_TOKENS
+        )
+        if has_any_regional:
             return True
+        if has_global_only and not has_any_regional:
+            return False
+        # If from MENA source but no clear signal either way, reject to be safe
+        return False
     return False
 
 # =========================================================
@@ -1420,8 +1444,12 @@ TRACK 1 -- "Strategic Briefing" for BUSINESS LEADERS ({TOP_BUSINESS} stories):
 - AVOID: pure geopolitics, defense procurement, abstract policy debates.
 
 TRACK 2 -- "Consumer Signals" for EVERYDAY USERS ({TOP_EVERYDAY} stories):
-- Consumer apps, privacy, jobs, fun creative tools, lifestyle impact.
-- Must be accessible to non-technical readers.
+- Stories that directly affect individuals in their daily lives: consumer app launches, privacy changes, job market shifts, creative tools, lifestyle AI products, personal productivity features.
+- Must be accessible to non-technical readers — a normal person should immediately understand why they care.
+- THE LITMUS TEST: Would your non-technical friend share this story? If it requires explaining what an API, rack-scale system, or enterprise deployment is, it does NOT belong here.
+- NEVER pick for this track: enterprise infrastructure, B2B SaaS, developer tools, chip architecture, data center deals, model training breakthroughs, open-source model releases aimed at developers, or corporate strategy moves.
+- GOOD examples: "ChatGPT adds voice mode", "Instagram uses AI to detect fake accounts", "Spotify AI DJ now speaks Spanish", "Google Photos can now erase people from backgrounds".
+- BAD examples: "AMD launches rack-scale AI system", "Microsoft shifts Azure strategy", "New open-weight model beats GPT-4 on benchmarks".
 
 TRACK 3 -- "From the Region" for MIDDLE EAST coverage ({TOP_MIDDLE_EAST} stories):
 - AI / tech-business developments tied to UAE, Saudi Arabia, Qatar, Egypt, or the broader GCC/MENA region.
@@ -1463,6 +1491,37 @@ Articles:
         me = me_candidates[:TOP_MIDDLE_EAST]
     # Final safety: drop anything that isn't genuinely regional.
     me = [a for a in me if is_regional_story(a)]
+
+    # POST-SELECTION: Consumer validation — reject enterprise stories from consumer track
+    _CONSUMER_REJECT_KEYWORDS = {
+        "enterprise", "b2b", "rack-scale", "data center", "data centre",
+        "infrastructure", "developer tool", "open-weight", "open-source model",
+        "benchmark", "token cost", "api pricing", "azure", "cloud platform",
+        "server", "accelerator", "chip architecture", "foundry",
+    }
+    def _is_consumer_appropriate(article):
+        text = f"{article.get('title', '')} {article.get('summary', '')[:150]}".lower()
+        for kw in _CONSUMER_REJECT_KEYWORDS:
+            if kw in text:
+                return False
+        return True
+
+    rejected_consumer = [a for a in eve if not _is_consumer_appropriate(a)]
+    eve = [a for a in eve if _is_consumer_appropriate(a)]
+    if rejected_consumer:
+        print(f"  [consumer-filter] Rejected {len(rejected_consumer)} non-consumer stories:")
+        for a in rejected_consumer:
+            print(f"    - {a['title'][:60]}")
+        # Backfill from pool with genuinely consumer stories
+        used = {a['link'] for a in biz + me + eve}
+        if viral_article:
+            used.add(viral_article['link'])
+        for a in pool:
+            if len(eve) >= TOP_EVERYDAY:
+                break
+            if a['link'] not in used and _is_consumer_appropriate(a):
+                eve.append(a)
+                used.add(a['link'])
 
     # Dedupe across tracks
     used_links = set()
@@ -1647,6 +1706,14 @@ def _primary_entities(article):
     return {e.lower() for e in (multi | singles | tokens)}
 
 
+# Short but significant company/brand names that should ALWAYS count as strong
+# entities for dedup purposes, even though they are <= 3 characters.
+_KNOWN_SHORT_ENTITIES = {
+    "amd", "ibm", "sap", "aws", "gcp", "arm", "tsm", "htc", "lg",
+    "hp", "dell", "abb", "nio", "byd", "uae", "sia", "dji",
+}
+
+
 def enforce_entity_dedup(viral_article, picks):
     """
     Prevent the SAME entity/subject (e.g., 'Anthropic Fable') from appearing in
@@ -1670,9 +1737,9 @@ def enforce_entity_dedup(viral_article, picks):
             ents = _primary_entities(art)
             # Significant overlap = same subject as something already used
             overlap = ents & claimed
-            # Require the overlap to include a 'strong' entity (len>3) to avoid
-            # dropping on generic collisions.
-            strong_overlap = {e for e in overlap if len(e) > 3}
+            # A 'strong' entity is either longer than 3 chars OR is a known
+            # short company name (AMD, IBM, etc.) that must always trigger dedup.
+            strong_overlap = {e for e in overlap if len(e) > 3 or e in _KNOWN_SHORT_ENTITIES}
             if strong_overlap:
                 notes.append(
                     f"[entity-dedup] dropped {label} '{art['title'][:55]}' "
@@ -2019,7 +2086,17 @@ def analyze_article(article, audience="business"):
   "why_you_care": "max 14 words, no period",
   "what_to_do": "max 14 words, action verb first, no period"
 }"""
-        rules = "Audience: everyday users. Friendly tone. Zero jargon."
+        rules = ("Audience: everyday users. Friendly tone. Zero jargon. "
+                 "Every field MUST be specific and concrete — name the actual app, feature, or product. "
+                 "The 'in_plain_english' field must explain what the thing DOES in simple words (not what it IS). "
+                 "The 'why_you_care' field must state a tangible personal benefit or risk — not a vague platitude. "
+                 "The 'what_to_do' field must name a SPECIFIC action: the exact app to download, setting to change, "
+                 "or feature to try — never 'Stay tuned', 'Keep an eye on', or 'Check for updates'. "
+                 "BANNED PHRASES (never use these): 'Stay tuned', 'Keep an eye on', 'Check for updates', "
+                 "'Explore options', 'Consider trying', 'More competition means better tech', "
+                 "'This could lower costs', 'Improved security for your digital environment'. "
+                 "FAITHFULNESS (critical): use ONLY facts present in the title/summary provided. "
+                 "NEVER invent features, prices, or dates not in the source text.")
 
     prompt = f"""You write tight, scannable newsletter cards.
 
@@ -2751,7 +2828,7 @@ def export_beehiiv_email(date_str, issue_number, viral_pair, biz_pairs, eve_pair
 # =========================================================
 def generate_newsletter():
     print("=" * 60)
-    print("  SIGNAL Agent v9 — Starting...")
+    print("  SIGNAL Agent v9.1 — Starting...")
     print("=" * 60)
     print(f"  Mode: {'EDITOR-IN-CHIEF (interactive)' if INTERACTIVE_MODE else 'AUTONOMOUS'}")
     print(f"  Model: {MODEL}")
