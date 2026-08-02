@@ -1,6 +1,6 @@
 # SIGNAL — Podcast Review Log
 
-_Generated July 27, 2026. This file confirms which podcasts the agent read this week,
+_Generated August 02, 2026. This file confirms which podcasts the agent read this week,
 whether full transcripts were successfully fetched, and what topic signals were extracted._
 
 | Podcast | Episodes Found | Transcript Read | Transcript Length | Topics Extracted |
@@ -13,23 +13,23 @@ whether full transcripts were successfully fetched, and what topic signals were 
 
 ### All-In Podcast
 - Recent episodes detected:
-  - Chamath: Google Is the Ultimate AI Compounding Machine
-  - Chamath: Banning Open Source AI Will Crash the Stock Market
-  - David Sacks: Anthropic Wants to Kill Open Source AI in America
-  - David Friedberg: The Socialists Are Coming for Your Private Property Rights
-  - The Fight Over Open Source AI, Anthropic's $1.5B Payout, NYC Socialists: Evictions = Violence?
+  - Friedberg: NYC’s Socialist Grocery Stores Will Be Wildly Popular and a Marketing Tool for 2028
+  - David Sacks: The Chip Stock Crash is Based on Momentum, NOT Fundamentals
+  - Chip Stocks Crash, $20B Fund Margin Called, Frontier Labs: SLOW DOWN AI, Mamdani's Grocery Stores
+  - The $1/Hour Robot Is Coming: Four Industry Leaders Explain What’s Next
+  - The Incredible Deal Behind Darth Vader’s AI Voice
 - Transcript fetched: No (0 chars)
 - Topic signals fed into story scoring:
-  - Open Source AI
-  - Anthropic
-  - Google AI Compounding
-  - AI Regulation
-  - AI Stock Market Impact
-  - IP Theft in AI
-  - AI Growth Rates
-  - AI and Private Property Rights
-  - Kimi K3 Panic
-  - Tesla Stock and AI
+  - SLOW DOWN AI
+  - ANYbotics four-legged robots
+  - China's armed robot dogs
+  - Darth Vader AI voice
+  - chip stock market trends
+  - Frontier Labs AI concerns
+  - robotics industry advancements
+  - AI in grocery stores
+  - AI technology regulation
+  - AI-driven financial solutions
 
 ### Latent Space
 - No recent episodes detected in the lookback window.
