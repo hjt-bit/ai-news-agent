@@ -1,11 +1,11 @@
 # SIGNAL — Podcast Review Log
 
-_Generated August 02, 2026. This file confirms which podcasts the agent read this week,
+_Generated August 09, 2026. This file confirms which podcasts the agent read this week,
 whether full transcripts were successfully fetched, and what topic signals were extracted._
 
 | Podcast | Episodes Found | Transcript Read | Transcript Length | Topics Extracted |
 |---|---|---|---|---|
-| All-In Podcast | 5 | ❌ No (titles/descriptions only) | — | 10 |
+| All-In Podcast | 3 | ❌ No (titles/descriptions only) | — | 10 |
 | Latent Space | 0 | ❌ No (titles/descriptions only) | — | 0 |
 | Dwarkesh Podcast | 0 | ❌ No (titles/descriptions only) | — | 0 |
 
@@ -13,23 +13,21 @@ whether full transcripts were successfully fetched, and what topic signals were 
 
 ### All-In Podcast
 - Recent episodes detected:
-  - Friedberg: NYC’s Socialist Grocery Stores Will Be Wildly Popular and a Marketing Tool for 2028
-  - David Sacks: The Chip Stock Crash is Based on Momentum, NOT Fundamentals
-  - Chip Stocks Crash, $20B Fund Margin Called, Frontier Labs: SLOW DOWN AI, Mamdani's Grocery Stores
-  - The $1/Hour Robot Is Coming: Four Industry Leaders Explain What’s Next
-  - The Incredible Deal Behind Darth Vader’s AI Voice
+  - 🚨 The All-In Summit 2026 Speaker Announcement
+  - Google’s AI Brain Drain, SpaceX's Huge Quarter, Airtable’s 90% Collapse, US Data Fuels China AI
+  - China Outbuilds America 230-to-1. Saronic Has a Plan
 - Transcript fetched: No (0 chars)
 - Topic signals fed into story scoring:
-  - SLOW DOWN AI
-  - ANYbotics four-legged robots
-  - China's armed robot dogs
-  - Darth Vader AI voice
-  - chip stock market trends
-  - Frontier Labs AI concerns
-  - robotics industry advancements
-  - AI in grocery stores
-  - AI technology regulation
-  - AI-driven financial solutions
+  - Google AI brain drain
+  - NVIDIA AI technologies
+  - Microsoft AI initiatives
+  - SpaceX AI Capex
+  - China AI development
+  - autonomous rescue technology
+  - AI in defense budget
+  - Saronic AI solutions
+  - Airtable AI integration
+  - AI revenue projections
 
 ### Latent Space
 - No recent episodes detected in the lookback window.
