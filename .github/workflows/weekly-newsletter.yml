@@ -46,7 +46,7 @@ jobs:
         if: ${{ inputs.publish != true }}
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python agent_v10.py
+        run: python agent.py
 
       - name: Upload review bundle
         if: ${{ inputs.publish != true }}
@@ -60,7 +60,7 @@ jobs:
         if: ${{ inputs.publish == true }}
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python agent_v10.py --publish
+        run: python agent.py --publish
 
       - name: QA gate — refuse to commit unless QA passed
         if: ${{ inputs.publish == true }}
