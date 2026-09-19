@@ -2583,15 +2583,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .tip-block {{ margin-left: 12px; margin-right: 12px; }}
     .masthead h1 {{ font-size: 38px; }}
   }}
-  .byline { text-align: center; color: var(--muted); font-size: 14px; margin: 8px 0 0; }
-  .byline-photo { width: 44px; height: 44px; border-radius: 50%; vertical-align: middle; margin-right: 8px; }
-  .byline-tag { font-size: 12.5px; }
-  .social-links { text-align: center; font-size: 13px; margin: 8px 0 0; }
-  .social-links a { color: #00D4FF; margin: 0 6px; text-decoration: none; }
-  .take-placeholder { border-left: 3px solid #f59e0b; background: rgba(245,158,11,.06); }
-  .take-note { font-size: 15px; margin: 0 0 6px; }
-  .take-hint { font-size: 13px; color: var(--muted); margin: 0; }
-  .take-text { font-size: 15.5px; line-height: 1.65; margin: 0; }
+  .byline {{ text-align: center; color: var(--muted); font-size: 14px; margin: 8px 0 0; }}
+  .byline-photo {{ width: 44px; height: 44px; border-radius: 50%; vertical-align: middle; margin-right: 8px; }}
+  .byline-tag {{ font-size: 12.5px; }}
+  .social-links {{ text-align: center; font-size: 13px; margin: 8px 0 0; }}
+  .social-links a {{ color: #00D4FF; margin: 0 6px; text-decoration: none; }}
+  .take-placeholder {{ border-left: 3px solid #f59e0b; background: rgba(245,158,11,.06); }}
+  .take-note {{ font-size: 15px; margin: 0 0 6px; }}
+  .take-hint {{ font-size: 13px; color: var(--muted); margin: 0; }}
+  .take-text {{ font-size: 15.5px; line-height: 1.65; margin: 0; }}
 </style>
 </head>
 <body>
