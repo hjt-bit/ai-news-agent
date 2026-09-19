@@ -1,13 +1,27 @@
-name: Weekly AI Newsletter
+name: Weekly AI Newsletter (v10)
 
-# Runs every Sunday at 13:00 UTC = 17:00 Dubai/GST so the newsletter is ready well before Monday 08:00 share time. Can also be triggered manually.
+# REVIEW-BY-DEFAULT: scheduled runs generate a review bundle and STOP.
+# Nothing is committed or published without a human. A manual run with
+# publish=true renders final outputs; the workflow commits them only if
+# QA passed — the agent itself aborts --publish runs on any QA FAIL, and
+# the QA-gate step below refuses to commit unless qa_report.md says PASS.
 on:
   schedule:
     - cron: '0 13 * * 0'   # Sun 13:00 UTC = 17:00 Dubai (GST, UTC+4) — ready overnight, no Monday morning rush
-  workflow_dispatch:        # adds a "Run workflow" button in the GitHub UI
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish mode: render final outputs and commit them (default: review-only)'
+        required: false
+        default: 'false'
+        type: boolean
 
 permissions:
-  contents: write           # allow the workflow to commit the generated newsletter
+  contents: write           # allow the publish path to commit the reviewed newsletter
+
+concurrency:
+  group: signal-newsletter
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -24,12 +38,44 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Generate the newsletter
+      - name: Run v10 test suite
+        # Tests run BEFORE generation: a broken agent never produces an issue.
+        run: python test_v10.py
+
+      - name: Generate the newsletter (REVIEW mode — nothing published)
+        if: ${{ inputs.publish != true }}
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python agent.py
+        run: python agent_v10.py
+
+      - name: Upload review bundle
+        if: ${{ inputs.publish != true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: signal-review-${{ github.run_number }}
+          path: review/
+          retention-days: 30
+
+      - name: Generate the newsletter (PUBLISH mode — aborts on QA FAIL)
+        if: ${{ inputs.publish == true }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python agent_v10.py --publish
+
+      - name: QA gate — refuse to commit unless QA passed
+        if: ${{ inputs.publish == true }}
+        run: |
+          python - <<'EOF'
+          import re, sys
+          report = open('qa_report.md').read()
+          if '**Overall result:** ✅ PASS' not in report:
+              print('QA did not PASS — refusing to commit.')
+              sys.exit(1)
+          print('QA PASS — proceeding to commit.')
+          EOF
 
       - name: Move outputs into /newsletters/
+        if: ${{ inputs.publish == true }}
         run: |
           mkdir -p newsletters
           mv newsletter_*.html newsletters/ 2>/dev/null || true
@@ -37,17 +83,20 @@ jobs:
           mv email_post_*.md newsletters/ 2>/dev/null || true
 
       - name: Rebuild homepage archive (index.html)
+        if: ${{ inputs.publish == true }}
         run: python build_index.py
 
       - name: Disable Jekyll on GitHub Pages
         # Ensures GitHub Pages serves our custom index.html as-is
         # instead of auto-rendering README.md through the Jekyll theme.
+        if: ${{ inputs.publish == true }}
         run: touch .nojekyll
 
       - name: Commit the new newsletter and refreshed homepage
+        if: ${{ inputs.publish == true }}
         run: |
           git config user.name  "ai-news-agent"
           git config user.email "actions@users.noreply.github.com"
           git add newsletters/ index.html .nojekyll podcast_review.md qa_report.md
-          git diff --staged --quiet || git commit -m "Weekly newsletter: $(date -u +%Y-%m-%d)"
+          git diff --staged --quiet || git commit -m "SIGNAL v10 publish: $(date -u +%Y-%m-%d)"
           git push
