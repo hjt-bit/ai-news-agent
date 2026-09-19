@@ -88,7 +88,7 @@ fake_feedparser.parse = lambda *a, **k: types.SimpleNamespace(entries=[], feed={
 sys.modules["feedparser"] = fake_feedparser
 
 sys.path.insert(0, os.path.dirname(__file__))
-import agent_v10 as agent
+import agent as agent
 
 # ─── Test utilities ──────────────────────────────────────────────────────────
 passed = 0
