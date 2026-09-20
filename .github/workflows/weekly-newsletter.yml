@@ -1,4 +1,4 @@
-name: Weekly AI Newsletter (v10)
+name: Weekly AI Newsletter (v11)
 
 # REVIEW-BY-DEFAULT: scheduled runs generate a review bundle and STOP.
 # Nothing is committed or published without a human. A manual run with
@@ -46,6 +46,9 @@ jobs:
         if: ${{ inputs.publish != true }}
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          BEEHIIV_API_KEY: ${{ secrets.BEEHIIV_API_KEY }}
+          BEEHIIV_PUBLICATION_ID: ${{ secrets.BEEHIIV_PUBLICATION_ID }}
         run: python agent.py
 
       - name: Upload review bundle
@@ -60,6 +63,9 @@ jobs:
         if: ${{ inputs.publish == true }}
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          BEEHIIV_API_KEY: ${{ secrets.BEEHIIV_API_KEY }}
+          BEEHIIV_PUBLICATION_ID: ${{ secrets.BEEHIIV_PUBLICATION_ID }}
         run: python agent.py --publish
 
       - name: QA gate — refuse to commit unless QA passed
