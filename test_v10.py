@@ -5,7 +5,7 @@ hardening, fact-check UNVERIFIED/CONTRADICTED, HTML escaping, tip URL
 validation, single-analysis, QA enforcement, take placeholder, social
 derivatives, and build_index.
 
-No live network calls: DuckDuckGo search is monkey-patched out everywhere.
+No live network calls: Serper/Beehiiv HTTP is monkey-patched out everywhere.
 Run: python3 test_v10.py
 """
 
@@ -88,7 +88,10 @@ fake_feedparser.parse = lambda *a, **k: types.SimpleNamespace(entries=[], feed={
 sys.modules["feedparser"] = fake_feedparser
 
 sys.path.insert(0, os.path.dirname(__file__))
-import agent as agent
+try:
+    import agent as agent          # repo live filename (paste target)
+except ImportError:
+    import agent_v10 as agent      # standalone zip filename
 
 # ─── Test utilities ──────────────────────────────────────────────────────────
 passed = 0
@@ -225,62 +228,77 @@ reset_flags()
 # ─── TEST 5: Fact checker — hermetic (no live network) ───────────────────────
 banner("v10 TEST 5 — Fact checker (hermetic: real code, stubbed network)")
 import urllib.request
+from unittest import mock
 
 class _FakeHTTPResp:
-    def __init__(self, html): self._html = html
-    def read(self): return self._html.encode("utf-8")
+    def __init__(self, payload): self._payload = payload
+    def read(self): return self._payload.encode("utf-8")
     def __enter__(self): return self
     def __exit__(self, *a): return False
 
 orig_urlopen = urllib.request.urlopen
-FAKE_SEARCH_HTML = ""
+FAKE_SERPER_JSON = ""
 def _fake_urlopen(req, timeout=10):
-    if FAKE_SEARCH_HTML == "__RAISE__":
+    if FAKE_SERPER_JSON == "__RAISE__":
         raise OSError("simulated network failure")
-    return _FakeHTTPResp(FAKE_SEARCH_HTML)
+    return _FakeHTTPResp(FAKE_SERPER_JSON)
 urllib.request.urlopen = _fake_urlopen
 reset_flags()
 
-def _result_div(url, title):
-    return f'<div class="result__title"><a href="{url}">{title}</a></div>'
+def _serper_json(results):
+    # v11: Serper API shape — {"organic": [{"link":..., "title":...}, ...]}
+    return json.dumps({"organic": [{"link": u, "title": t} for u, t in results]})
 
 # 5a: honest corroboration — self-source excluded, irrelevant results ignored.
 #     Claim from "OpenAI Blog": reuters corroborates (2+ token overlap);
 #     openai.com is the story's own outlet (excluded); recipe blog ignored.
-FAKE_SEARCH_HTML = (
-    _result_div("https://www.reuters.com/tech/openai-model", "OpenAI launches new reasoning model today")
-    + _result_div("https://www.bloomberg.com/ai", "OpenAI launches new reasoning model today")
-    + _result_div("https://openai.com/blog/new-model", "OpenAI launches new reasoning model today")
-    + _result_div("https://recipes.example.com/x", "Best chocolate cake recipe for birthdays")
-)
-corr, contra, ok = agent._search_corroboration("OpenAI launches new reasoning model", "OpenAI Blog")
-check(ok is True, "successful search returns search_ok=True")
-check(len(corr) == 2, f"2 independent corroborating sources (self excluded, irrelevant ignored) — got {len(corr)}")
-check(contra == [], "no contradiction signals")
-check(agent.RUN_FLAGS["fact_check_degraded"] is False, "successful search is not flagged")
-v, _ = agent.fact_check_stories(
-    mk_article("OpenAI launches new reasoning model", "https://x.com/v", source="OpenAI Blog"),
-    {"business": [], "everyday": [], "middle_east": []})
-check(v["_fact_check"]["confidence"] == "MEDIUM", "2 corroborating -> MEDIUM")
+with mock.patch.dict(os.environ, {"SERPER_API_KEY": "test-serper-key"}):
+    FAKE_SERPER_JSON = _serper_json([
+        ("https://www.reuters.com/tech/openai-model", "OpenAI launches new reasoning model today"),
+        ("https://www.bloomberg.com/ai", "OpenAI launches new reasoning model today"),
+        ("https://openai.com/blog/new-model", "OpenAI launches new reasoning model today"),
+        ("https://recipes.example.com/x", "Best chocolate cake recipe for birthdays"),
+    ])
+    corr, contra, ok = agent._search_corroboration("OpenAI launches new reasoning model", "OpenAI Blog")
+    check(ok is True, "successful search returns search_ok=True")
+    check(len(corr) == 2, f"2 independent corroborating sources (self excluded, irrelevant ignored) — got {len(corr)}")
+    check(contra == [], "no contradiction signals")
+    check(agent.RUN_FLAGS["fact_check_degraded"] is False, "successful search is not flagged")
+    v, _ = agent.fact_check_stories(
+        mk_article("OpenAI launches new reasoning model", "https://x.com/v", source="OpenAI Blog"),
+        {"business": [], "everyday": [], "middle_east": []})
+    check(v["_fact_check"]["confidence"] == "MEDIUM", "2 corroborating -> MEDIUM")
 
-# 5b: contradiction signals -> CONTRADICTED
-FAKE_SEARCH_HTML = _result_div("https://www.reuters.com/x",
-                               "OpenAI model safety claims debunked by researchers")
-corr, contra, ok = agent._search_corroboration("OpenAI model safety claims validated", "Some Blog")
-check(ok is True and len(contra) == 1, "contradiction signal detected")
-v, _ = agent.fact_check_stories(
-    mk_article("OpenAI model safety claims validated", "https://x.com/v2"),
-    {"business": [], "everyday": [], "middle_east": []})
-check(v["_fact_check"]["confidence"] == "CONTRADICTED", "contradiction -> CONTRADICTED")
+    # 5b: contradiction signals -> CONTRADICTED
+    FAKE_SERPER_JSON = _serper_json([
+        ("https://www.reuters.com/x", "OpenAI model safety claims debunked by researchers"),
+    ])
+    corr, contra, ok = agent._search_corroboration("OpenAI model safety claims validated", "Some Blog")
+    check(ok is True and len(contra) == 1, "contradiction signal detected")
+    v, _ = agent.fact_check_stories(
+        mk_article("OpenAI model safety claims validated", "https://x.com/v2"),
+        {"business": [], "everyday": [], "middle_east": []})
+    check(v["_fact_check"]["confidence"] == "CONTRADICTED", "contradiction -> CONTRADICTED")
 
-# 5c: search failure -> UNVERIFIED (never LOW-pass), run flagged
-FAKE_SEARCH_HTML = "__RAISE__"
+    # 5c: search failure -> UNVERIFIED (never LOW-pass), run flagged
+    FAKE_SERPER_JSON = "__RAISE__"
+    reset_flags()
+    v, _ = agent.fact_check_stories(
+        mk_article("Some AI story", "https://x.com/v3"),
+        {"business": [], "everyday": [], "middle_east": []})
+    check(v["_fact_check"]["confidence"] == "UNVERIFIED", "search failure -> UNVERIFIED (not LOW)")
+    check(agent.RUN_FLAGS["fact_check_degraded"] is True, "search failure flags the run")
+
+# 5d (v11): SERPER_API_KEY unset -> search skipped, UNVERIFIED, never crashes
 reset_flags()
-v, _ = agent.fact_check_stories(
-    mk_article("Some AI story", "https://x.com/v3"),
-    {"business": [], "everyday": [], "middle_east": []})
-check(v["_fact_check"]["confidence"] == "UNVERIFIED", "search failure -> UNVERIFIED (not LOW)")
-check(agent.RUN_FLAGS["fact_check_degraded"] is True, "search failure flags the run")
+_saved_serper = os.environ.pop("SERPER_API_KEY", None)
+try:
+    corr, contra, ok = agent._search_corroboration("OpenAI launches new model", "Some Blog")
+    check(ok is False and corr == [] and contra == [], "no key -> zero sources, search_ok=False")
+    check(agent.RUN_FLAGS["fact_check_degraded"] is True, "missing key flags the run (degraded)")
+finally:
+    if _saved_serper is not None:
+        os.environ["SERPER_API_KEY"] = _saved_serper
 urllib.request.urlopen = orig_urlopen
 reset_flags()
 
@@ -455,6 +473,157 @@ md_fail = open("/tmp/take_suggestions_fail.md", encoding="utf-8").read()
 check("failed" in md_fail.lower(), "placeholder md notes generation failed")
 reset_flags()
 
+# ─── TEST 16 (v11): Serper request shape + graceful degradation ───────────────
+banner("v11 TEST 16 — Serper API request shape (hermetic)")
+import urllib.request as _urlreq
+captured = {}
+class _SerperResp:
+    def read(self): return json.dumps({"organic": []}).encode("utf-8")
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+def _capture_urlopen(req, timeout=10):
+    captured["url"] = req.full_url
+    captured["method"] = req.get_method()
+    captured["headers"] = dict(req.header_items())
+    captured["data"] = req.data
+    return _SerperResp()
+with mock.patch.dict(os.environ, {"SERPER_API_KEY": "test-serper-key"}):
+    _urlreq.urlopen = _capture_urlopen
+    try:
+        corr, contra, ok = agent._search_corroboration("Anthropic releases new model", "Some Blog")
+    finally:
+        _urlreq.urlopen = orig_urlopen
+check(captured.get("url") == "https://google.serper.dev/search", "Serper endpoint used")
+check(captured.get("method") == "POST", "Serper called with POST")
+_hdrs = {k.lower(): v for k, v in captured.get("headers", {}).items()}
+check("x-api-key" in _hdrs, "X-API-KEY header sent")
+check("test-serper-key" not in json.dumps(captured.get("data", b"").decode("utf-8", errors="ignore")),
+      "API key never appears in request body/logs")
+_body = json.loads(captured["data"].decode("utf-8"))
+check("q" in _body and "Anthropic releases new model" in _body["q"], "claim sent as query")
+check(ok is True and corr == [], "empty organic results -> ok with zero sources")
+
+# ─── TEST 17 (v11): markdown tip URLs stripped before validation ──────────────
+banner("v11 TEST 17 — Markdown link tip URLs")
+check(agent._strip_markdown_link("[NotebookLM](https://notebooklm.google.com/x)") == "https://notebooklm.google.com/x",
+      "markdown link -> raw URL extracted")
+check(agent._strip_markdown_link("https://openai.com/blog") == "https://openai.com/blog",
+      "plain URL unchanged")
+check(agent._validate_tip_url("[My Tool](https://github.com/org/tool)").startswith("https://github.com"),
+      "markdown-wrapped allow-listed URL passes validation")
+check(agent._validate_tip_url("[Evil](javascript:alert(1))").startswith("https://hjt-bit.github.io"),
+      "markdown-wrapped evil URL still falls back")
+
+# ─── TEST 18 (v11): Beehiiv draft — draft-only payload, graceful skip ─────────
+banner("v11 TEST 18 — Beehiiv draft creation (hermetic, draft-only)")
+beehiiv_calls = []
+class _BeehiivResp:
+    status = 200
+    def read(self): return json.dumps({"data": {"id": "post_123", "status": "draft"}}).encode("utf-8")
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+def _beehiiv_urlopen(req, timeout=10):
+    beehiiv_calls.append(req)
+    return _BeehiivResp()
+# 18a: skipped gracefully when secrets absent
+_saved = (os.environ.pop("BEEHIIV_API_KEY", None), os.environ.pop("BEEHIIV_PUBLICATION_ID", None))
+try:
+    check(agent.create_beehiiv_draft_post("T", "<p>x</p>") is None, "absent secrets -> None, no crash")
+finally:
+    if _saved[0] is not None: os.environ["BEEHIIV_API_KEY"] = _saved[0]
+    if _saved[1] is not None: os.environ["BEEHIIV_PUBLICATION_ID"] = _saved[1]
+# 18b: draft-only payload when secrets present
+with mock.patch.dict(os.environ, {"BEEHIIV_API_KEY": "test-beehiiv-key", "BEEHIIV_PUBLICATION_ID": "pub_test123"}):
+    _urlreq.urlopen = _beehiiv_urlopen
+    try:
+        post_id = agent.create_beehiiv_draft_post("SIGNAL #020 — Test", "<p>body</p>", subtitle="sub")
+    finally:
+        _urlreq.urlopen = orig_urlopen
+check(post_id == "post_123", "returns created post id")
+check(len(beehiiv_calls) == 1, "exactly one HTTP call made")
+_req = beehiiv_calls[0]
+check(_req.full_url == "https://api.beehiiv.com/v2/publications/pub_test123/posts", "Beehiiv v2 create-post endpoint")
+check(_req.get_method() == "POST", "draft created with POST")
+_payload = json.loads(_req.data.decode("utf-8"))
+check(_payload.get("status") == "draft", "status is draft")
+check(_payload.get("status") != "confirmed", "status is never confirmed")
+check("scheduled_at" not in _payload, "no scheduled_at (never auto-scheduled)")
+check(_payload.get("title") == "SIGNAL #020 — Test", "title passed through")
+check("Authorization" in dict(_req.header_items()) or "Authorization" in _req.headers, "Bearer auth header sent")
+# 18c: HTTP failure degrades gracefully, never raises
+def _fail_urlopen(req, timeout=10):
+    raise urllib.request.HTTPError(req.full_url, 403, "Forbidden", {}, None)
+with mock.patch.dict(os.environ, {"BEEHIIV_API_KEY": "k", "BEEHIIV_PUBLICATION_ID": "pub_x"}):
+    _urlreq.urlopen = _fail_urlopen
+    try:
+        check(agent.create_beehiiv_draft_post("T", "<p>x</p>") is None, "HTTP 403 -> None, no crash")
+    finally:
+        _urlreq.urlopen = orig_urlopen
+
+# ─── TEST 19 (v11): YouTube transcript — version-agnostic, never crashes ─────
+banner("v11 TEST 19 — YouTube transcript fetch (hermetic)")
+class _Snippet:
+    def __init__(self, text): self.text = text
+# 1.x style: instance.fetch()
+fake_yt1 = types.ModuleType("youtube_transcript_api")
+class _API1x:
+    def fetch(self, video_id, languages=None):
+        return [_Snippet("hello"), _Snippet("world")]
+fake_yt1.YouTubeTranscriptApi = _API1x
+sys.modules["youtube_transcript_api"] = fake_yt1
+try:
+    check(agent._fetch_youtube_transcript("abc123") == "hello world", "1.x fetch() API works")
+finally:
+    del sys.modules["youtube_transcript_api"]
+# 0.x style: static get_transcript()
+fake_yt0 = types.ModuleType("youtube_transcript_api")
+class _API0x:
+    @staticmethod
+    def get_transcript(video_id, languages=None):
+        return [{"text": "legacy"}, {"text": "transcript"}]
+fake_yt0.YouTubeTranscriptApi = _API0x
+sys.modules["youtube_transcript_api"] = fake_yt0
+try:
+    check(agent._fetch_youtube_transcript("abc123") == "legacy transcript", "0.x get_transcript() API works")
+finally:
+    del sys.modules["youtube_transcript_api"]
+# failure -> "" with warning, never raises
+fake_yt_fail = types.ModuleType("youtube_transcript_api")
+class _APIFail:
+    def fetch(self, video_id, languages=None):
+        raise RuntimeError("no transcript")
+fake_yt_fail.YouTubeTranscriptApi = _APIFail
+sys.modules["youtube_transcript_api"] = fake_yt_fail
+try:
+    check(agent._fetch_youtube_transcript("abc123") == "", "fetch failure -> empty string, no crash")
+finally:
+    del sys.modules["youtube_transcript_api"]
+# unknown API shape -> "" , never raises
+fake_yt_weird = types.ModuleType("youtube_transcript_api")
+class _APIWeird:
+    pass
+fake_yt_weird.YouTubeTranscriptApi = _APIWeird
+sys.modules["youtube_transcript_api"] = fake_yt_weird
+try:
+    check(agent._fetch_youtube_transcript("abc123") == "", "unknown API shape -> empty string, no crash")
+finally:
+    del sys.modules["youtube_transcript_api"]
+
+# ─── TEST 20 (v11): headshot wiring — empty URL hides photo, no broken img ────
+banner("v11 TEST 20 — Author headshot wiring")
+_saved_photo = agent.AUTHOR_PHOTO_URL
+try:
+    agent.AUTHOR_PHOTO_URL = ""
+    ctx = agent._author_context()
+    check(ctx["author_photo_html"] == "", "empty URL -> no photo HTML")
+    check("<img" not in ctx["author_photo_html"], "no broken <img> when unset")
+    agent.AUTHOR_PHOTO_URL = "https://example.com/headshot.jpg"
+    ctx2 = agent._author_context()
+    check('src="https://example.com/headshot.jpg"' in ctx2["author_photo_html"], "set URL -> img rendered")
+finally:
+    agent.AUTHOR_PHOTO_URL = _saved_photo
+
+
 # ─── SUMMARY ─────────────────────────────────────────────────────────────────
 print("=" * 60)
 print(f"  RESULT: {passed} passed, {failed} failed")
@@ -464,3 +633,12 @@ if failed == 0:
 else:
     print(f"SOME TESTS FAILED ({failed})")
     sys.exit(1)
+
+
+# ─── pytest bridge ───────────────────────────────────────────────────────────
+# The module-level checks above ARE the suite (run by `python test_v10.py`,
+# as the CI workflow does). This gives `python -m pytest` a real test to
+# collect so it reports a genuine pass instead of "no tests ran".
+
+def test_v11_custom_suite_passed():
+    assert failed == 0, f"{failed} check(s) failed in the custom suite"
