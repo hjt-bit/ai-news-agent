@@ -1,5 +1,5 @@
 """
-SIGNAL -- AI Weekly Intelligence Briefing Agent (v11)
+SIGNAL -- AI Weekly Intelligence Briefing Agent (v12)
 ----------------------------------------------------
 Pipeline:
   1. FETCH      -> pull the last 7 days of articles from trusted RSS feeds
@@ -1306,6 +1306,213 @@ def fact_check_stories(viral, picks):
     return viral, picks
 
 
+# =========================================================
+# 5g. v12 QA CULL — "verify first, build only from survivors"
+# =========================================================
+SECTION_LABELS = {"business": "Strategic Briefing", "everyday": "Consumer Signals",
+                  "middle_east": "From the Region", "viral": "Viral Lead"}
+
+
+def _fact_check_fails_bar(article):
+    """v11: True when the story's fact-check confidence fails the publish bar.
+
+    Mirrors the old QA check-13 FAIL semantics exactly: UNVERIFIED and
+    CONTRADICTED always fail; LOW fails only when FACT_CHECK_MIN_CONFIDENCE
+    is MEDIUM or higher. A story with no _fact_check metadata (e.g. the
+    fact-checker disabled) is kept — the old QA never flagged those either.
+    """
+    conf = (article.get("_fact_check") or {}).get("confidence")
+    if conf in ("UNVERIFIED", "CONTRADICTED"):
+        return True
+    if conf == "LOW":
+        min_level = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}.get(FACT_CHECK_MIN_CONFIDENCE, 0)
+        return min_level >= 1
+    return False
+
+
+def _exclusion_reason(article):
+    conf = (article.get("_fact_check") or {}).get("confidence")
+    if conf == "CONTRADICTED":
+        return "contradicted by independent sources — likely false or hallucinated"
+    if conf == "UNVERIFIED":
+        return "no corroborating sources found (search failed or was skipped)"
+    return (f"LOW confidence below the {FACT_CHECK_MIN_CONFIDENCE} minimum — "
+            "could not be verified")
+
+
+def _exclusion_evidence(article):
+    """Compact evidence summary for the QA exclusions record."""
+    fc = article.get("_fact_check") or {}
+    contra = (fc.get("contradicting_sources") or [])[:2]
+    if contra:
+        return "contradicts: " + "; ".join(contra)
+    corr = (fc.get("corroborating_sources") or [])[:2]
+    if corr:
+        return f"{len(fc.get('corroborating_sources') or [])} corroborating: " + "; ".join(corr)
+    return "0 corroborating sources"
+
+
+def cull_unverifiable_stories(viral, picks):
+    """v11 — remove fact-check failures BEFORE analysis/render/exports.
+
+    "Verify first, build only from survivors": stories whose confidence is
+    CONTRADICTED or UNVERIFIED (plus LOW when FACT_CHECK_MIN_CONFIDENCE is
+    MEDIUM+) are dropped from the selected lists. Every culled story is
+    recorded in the returned report — nothing vanishes silently.
+
+    If the viral lead itself is culled, the highest-magnitude surviving story
+    is promoted to lead (removed from its section); the swap is recorded.
+
+    Returns (viral, picks, cull_report). `picks` is mutated in place and also
+    returned for pipeline clarity.
+    """
+    print(f"\n{'='*60}")
+    print("STEP 5g: QA CULL — verify first, build only from survivors (v11)")
+    print(f"{'='*60}")
+
+    exclusions = []
+    pre_cull_counts = {}
+    for track in ("business", "everyday", "middle_east"):
+        pre_cull_counts[track] = len(picks.get(track, []))
+    pre_cull_counts["viral"] = 1 if viral else 0
+    total_before = sum(pre_cull_counts.values())
+
+    def _record(article, track):
+        fc = article.get("_fact_check") or {}
+        exclusions.append({
+            "title": article.get("title", ""),
+            "link": article.get("link", ""),
+            "section": track,
+            "section_label": SECTION_LABELS.get(track, track),
+            "confidence": fc.get("confidence", "UNKNOWN"),
+            "reason": _exclusion_reason(article),
+            "evidence": _exclusion_evidence(article),
+        })
+
+    for track in ("business", "everyday", "middle_east"):
+        survivors = []
+        for art in picks.get(track, []):
+            if _fact_check_fails_bar(art):
+                _record(art, track)
+            else:
+                survivors.append(art)
+        picks[track] = survivors
+
+    lead_swapped = None
+    if viral and _fact_check_fails_bar(viral):
+        old_title = viral.get("title", "")
+        _record(viral, "viral")
+        candidates = [a for track in ("business", "everyday", "middle_east")
+                      for a in picks.get(track, [])]
+        if candidates:
+            new_lead = max(candidates, key=lambda a: a.get("_magnitude_score", 0) or 0)
+            for track in ("business", "everyday", "middle_east"):
+                picks[track] = [a for a in picks[track] if a is not new_lead]
+            viral = new_lead
+            lead_swapped = {"from": old_title, "to": new_lead.get("title", "")}
+            print(f"  \u21aa Viral lead culled — promoted highest-magnitude survivor: "
+                  f"'{new_lead.get('title', '')[:60]}'")
+        else:
+            viral = None
+            print("  \u2717 Viral lead culled and no surviving story to promote — no lead.")
+
+    for ex in exclusions:
+        print(f"  \u2717 EXCLUDED [{ex['confidence']}] {ex['section_label']}: "
+              f"{ex['title'][:60]} — {ex['reason']}")
+    print(f"  Cull complete: {len(exclusions)} excluded, "
+          f"{total_before - len(exclusions)} survivor(s) of {total_before} checked.")
+
+    cull_report = {
+        "exclusions": exclusions,
+        "pre_cull_counts": pre_cull_counts,
+        "total_before": total_before,
+        "lead_swapped": lead_swapped,
+    }
+    return viral, picks, cull_report
+
+
+def cull_failsafe_tripped(cull_report):
+    """v11: True when the cull removed more than one-third of the issue."""
+    total = cull_report.get("total_before", 0)
+    n = len(cull_report.get("exclusions", []))
+    return total > 0 and n > total / 3
+
+
+def _exclusion_check_entries(cull_report):
+    """QA-report entries for the exclusions section.
+
+    Shared by the normal QA path and the failsafe bundle writer so both show
+    exactly what was killed and why.
+    """
+    exclusions = cull_report.get("exclusions", [])
+    n = len(exclusions)
+    if n == 0:
+        return []
+    entries = [("WARN",
+        f"v10 QA exclusions ({n} story/stories removed before render — "
+        f"verify first, build only from survivors)")]
+    for ex in exclusions:
+        ev = f" Evidence: {ex['evidence']}." if ex.get("evidence") else ""
+        entries.append(("WARN",
+            f"  EXCLUDED [{ex['confidence']}] {ex['section_label']}: "
+            f"{ex['title'][:60]} — {ex['reason']}.{ev}"))
+    swap = cull_report.get("lead_swapped")
+    if swap:
+        entries.append(("WARN",
+            f"  Viral lead swapped after cull: '{swap['from'][:50]}' -> '{swap['to'][:50]}'"))
+    return entries
+
+
+def write_cull_failsafe_bundle(cull_report, today):
+    """v11: the cull gutted the issue — do NOT render a skeleton.
+
+    Writes the review bundle (qa_report.md + REVIEW_SUMMARY.md) with the
+    exclusion details and stops the run before analysis/render. Always lands
+    in review/, even on a --publish run.
+    """
+    n = len(cull_report.get("exclusions", []))
+    total = cull_report.get("total_before", 0)
+    out_dir = REVIEW_DIR
+    os.makedirs(out_dir, exist_ok=True)
+    os.chdir(out_dir)
+    checks = [("FAIL",
+        f"v10 QA: excessive exclusions — {n} of {total} stories failed fact-check "
+        f"(more than one-third). Human review required; issue NOT rendered.")]
+    checks += _exclusion_check_entries(cull_report)
+    _write_qa_report(checks, False)
+    lines = [
+        "# SIGNAL — Review Summary (QA CULL FAILSAFE)",
+        "",
+        f"- Date: {today}",
+        "- Mode: REVIEW-ONLY (not published)",
+        f"- QA: FAIL (excessive exclusions: {n} of {total})",
+        "",
+        "## What happened",
+        "More than one-third of the selected stories failed fact-check and were "
+        "culled before render. Rendering the survivors would produce a skeleton "
+        "issue, so the run stopped here by design.",
+        "",
+        "## QA exclusions",
+    ]
+    for ex in cull_report["exclusions"]:
+        lines.append(f"- [{ex['confidence']}] {ex['section_label']}: {ex['title'][:70]} — {ex['reason']}")
+    lines += [
+        "",
+        "## Human actions required",
+        "- [ ] Review the exclusions above — confirm the cuts are correct.",
+        "- [ ] Re-run the workflow to generate a fresh issue, or investigate the fact-checker.",
+        "",
+        "> The agent never renders or publishes an issue that lost >1/3 of its stories.",
+    ]
+    with open("REVIEW_SUMMARY.md", "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+    print("  \u2713 Wrote failsafe review bundle (qa_report.md + REVIEW_SUMMARY.md)")
+    print("\n" + "=" * 60)
+    print("  \u2717\u2717 QA CULL FAILSAFE — excessive exclusions. Run stopped before render.")
+    print("  Review bundle written to review/. NOTHING has been published.")
+    print("=" * 60)
+
+
 def _extract_core_claim(article):
     """Extract the most important factual claim from an article for fact-checking."""
     title = article["title"]
@@ -1917,11 +2124,16 @@ def backfill_picks(picks, viral_article, scored_articles, notes):
 # =========================================================
 # 5d. AUTOMATED QA SELF-CHECK (runs before every publish)
 # =========================================================
-def run_qa_checks(viral_article, picks, tip, podcast_report):
+def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None):
     """
     Automated pre-publish QA. Validates the assembled issue against a checklist
     and writes qa_report.md. Returns (passed, checks) where `checks` is a list of
     (status, message) tuples. status is 'PASS', 'WARN', or 'FAIL'.
+
+    v11: `cull_report` (from cull_unverifiable_stories) makes the checks
+    cull-aware — sections shrunk by QA exclusions WARN instead of FAILing, and
+    check 13 reports the exclusions instead of re-FAILing culled stories.
+    When cull_report is None the legacy (pre-cull) semantics apply.
     """
     print(f"\n{'='*60}")
     print(f"STEP 6: QA SELF-CHECK (pre-publish validation)")
@@ -1933,25 +2145,46 @@ def run_qa_checks(viral_article, picks, tip, podcast_report):
     eve = picks.get("everyday", [])
     all_stories = ([viral_article] if viral_article else []) + biz + me + eve
 
+    # v11: cull context for section-count checks
+    pre = (cull_report or {}).get("pre_cull_counts", {}) if cull_report else {}
+    excl_by_section = {}
+    if cull_report:
+        for ex in cull_report.get("exclusions", []):
+            excl_by_section[ex["section"]] = excl_by_section.get(ex["section"], 0) + 1
+
+    def _section_status(label, stories, track, target, empty_fail_msg, empty_warn_msg=None):
+        """v11 cull-aware section check: a section shrunk by QA exclusions
+        WARNs (never FAILs) for being short; genuinely empty/short selections
+        keep the legacy verdicts."""
+        n = len(stories)
+        was = pre.get(track)
+        shrunk = excl_by_section.get(track, 0) > 0 and was is not None and was > n
+        if n >= target:
+            return ("PASS", f"{label} has {n} stor(ies)")
+        if shrunk:
+            if n == 0:
+                return ("WARN", f"{label} is empty after QA exclusions (was {was})")
+            return ("WARN", f"{label} has {n} stor(ies) after QA exclusions (was {was})")
+        if n == 0:
+            if empty_warn_msg:
+                return ("WARN", empty_warn_msg)
+            return ("FAIL", empty_fail_msg)
+        return ("PASS", f"{label} has {n} stor(ies)")
+
     # 1) Viral lead exists
     if viral_article:
         checks.append(("PASS", f"Viral lead present: {viral_article['title'][:55]}"))
     else:
         checks.append(("FAIL", "No viral lead selected"))
 
-    # 2) Sections populated
-    if biz:
-        checks.append(("PASS", f"Strategic Briefing has {len(biz)} stor(ies)"))
-    else:
-        checks.append(("FAIL", "Strategic Briefing is empty"))
-    if me:
-        checks.append(("PASS", f"From the Region has {len(me)} stor(ies)"))
-    else:
-        checks.append(("WARN", "From the Region is empty (no regional stories this week)"))
-    if eve:
-        checks.append(("PASS", f"Consumer Signals has {len(eve)} stor(ies)"))
-    else:
-        checks.append(("FAIL", "Consumer Signals is empty"))
+    # 2) Sections populated (v11: cull-aware)
+    checks.append(_section_status("Strategic Briefing", biz, "business", TOP_BUSINESS,
+                                 "Strategic Briefing is empty"))
+    checks.append(_section_status("From the Region", me, "middle_east", TOP_MIDDLE_EAST,
+                                 "From the Region is empty",
+                                 "From the Region is empty (no regional stories this week)"))
+    checks.append(_section_status("Consumer Signals", eve, "everyday", TOP_EVERYDAY,
+                                 "Consumer Signals is empty"))
 
     # 3) No duplicate links
     links = [a["link"] for a in all_stories]
@@ -2069,24 +2302,35 @@ def run_qa_checks(viral_article, picks, tip, podcast_report):
             checks.append(("WARN", f"v9 Ranking: Viral lead (mag={viral_mag}) is NOT the highest-magnitude story. "
                           f"Higher: {higher[0]['title'][:40]} (mag={higher[0].get('_magnitude_score', 0)})"))
 
-    # 13) v10: fact-check confidence — UNVERIFIED/CONTRADICTED always block publish;
-    #     LOW blocks only when FACT_CHECK_MIN_CONFIDENCE == "MEDIUM" (now enforced).
-    blocking_fc = [a for a in all_selected
-                   if a.get("_fact_check", {}).get("confidence") in ("UNVERIFIED", "CONTRADICTED")]
-    low_fc = [a for a in all_selected
-              if a.get("_fact_check", {}).get("confidence") == "LOW"]
-    min_level = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}.get(FACT_CHECK_MIN_CONFIDENCE, 0)
-    for a in blocking_fc:
-        fc = a.get("_fact_check", {})
-        checks.append(("FAIL", f"v10 Fact-check: {fc.get('confidence')} — {a['title'][:50]}"))
-    for a in low_fc:
-        if min_level >= 1:
-            checks.append(("FAIL", f"v10 Fact-check: LOW confidence below minimum ({FACT_CHECK_MIN_CONFIDENCE}) — {a['title'][:50]}"))
-        else:
-            checks.append(("WARN", f"v10 Fact-check: LOW confidence — {a['title'][:50]} (could not find corroborating sources)"))
-    if not blocking_fc and not low_fc:
-        fc_count = sum(1 for a in all_selected if a.get("_fact_check"))
-        checks.append(("PASS", f"v10 Fact-check: all {fc_count} checked stories meet the confidence bar ({FACT_CHECK_MIN_CONFIDENCE}+)"))
+    # 13) v11: fact-check cull — failing stories were REMOVED before render
+    #     (step 5g), so they must NOT also appear as FAILs here (no double
+    #     counting). The exclusions section records what was killed and why;
+    #     the PASS line tallies checked / excluded / verified.
+    if cull_report is not None:
+        checks += _exclusion_check_entries(cull_report)
+        n_ex = len(cull_report.get("exclusions", []))
+        total = cull_report.get("total_before", len(all_selected) + n_ex)
+        checks.append(("PASS",
+            f"v10 Fact-check: {total} stories checked, {n_ex} excluded, "
+            f"{total - n_ex} verified at {FACT_CHECK_MIN_CONFIDENCE}+"))
+    else:
+        # Legacy path (no cull ran): per-story FAILs, as before.
+        blocking_fc = [a for a in all_selected
+                       if a.get("_fact_check", {}).get("confidence") in ("UNVERIFIED", "CONTRADICTED")]
+        low_fc = [a for a in all_selected
+                  if a.get("_fact_check", {}).get("confidence") == "LOW"]
+        min_level = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}.get(FACT_CHECK_MIN_CONFIDENCE, 0)
+        for a in blocking_fc:
+            fc = a.get("_fact_check", {})
+            checks.append(("FAIL", f"v10 Fact-check: {fc.get('confidence')} — {a['title'][:50]}"))
+        for a in low_fc:
+            if min_level >= 1:
+                checks.append(("FAIL", f"v10 Fact-check: LOW confidence below minimum ({FACT_CHECK_MIN_CONFIDENCE}) — {a['title'][:50]}"))
+            else:
+                checks.append(("WARN", f"v10 Fact-check: LOW confidence — {a['title'][:50]} (could not find corroborating sources)"))
+        if not blocking_fc and not low_fc:
+            fc_count = sum(1 for a in all_selected if a.get("_fact_check"))
+            checks.append(("PASS", f"v10 Fact-check: all {fc_count} checked stories meet the confidence bar ({FACT_CHECK_MIN_CONFIDENCE}+)"))
 
     # 14) Key figures present in stories where applicable
     stories_with_figs = [a for a in all_selected if a.get("_key_figures")]
@@ -3435,6 +3679,20 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     # 5f) [v9] Fact-check selected stories
     viral, picks = fact_check_stories(viral, picks)
 
+    # 5g) v11: CULL unverifiable stories — verify first, build only from
+    #     survivors. Everything downstream (analysis, render, LinkedIn/Beehiiv
+    #     exports, take suggestions, social derivatives) consumes the post-cull
+    #     lists, so a failed story can never leak into an output. Exclusions
+    #     are recorded in the QA report — nothing vanishes silently.
+    viral, picks, cull_report = cull_unverifiable_stories(viral, picks)
+
+    # 5h) v11 FAILSAFE: the cull gutted the issue (>1/3 excluded) — do NOT
+    #     render a skeleton. Write the review bundle with the exclusion
+    #     details and stop before analysis/render. --publish stays blocked.
+    if cull_failsafe_tripped(cull_report):
+        write_cull_failsafe_bundle(cull_report, today)
+        return
+
     # 6) v10: ANALYZE EACH STORY ONCE — result reused for HTML + all exports.
     #    (v9 analyzed every story twice: nondeterministic AND double the cost.)
     analyses = {}  # article link -> analysis dict
@@ -3509,7 +3767,8 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
 
     # 8) Automated QA self-check (v10: runs AFTER analysis+render so it can see
     #    failed analyses, hollow renders, and QA-flagged runs; writes qa_report.md)
-    qa_passed, qa_checks = run_qa_checks(viral, picks, tip, podcast_report)
+    qa_passed, qa_checks = run_qa_checks(viral, picks, tip, podcast_report,
+                                         cull_report=cull_report)
     if not qa_passed and not publish:
         print("\n  ⚠ QA reported FAIL item(s) — see qa_report.md in the review bundle. "
               "Not publishing (review mode).")
@@ -3737,6 +3996,10 @@ def _write_review_summary(out_dir, publish, qa_passed, qa_checks, issue_number_s
     lines.append("- [ ] Review social_derivatives.json outlines before any social posting.")
     lines.append("- [ ] REVIEW TAKE SUGGESTIONS: read take_suggestions.md — pick angles, "
                  "rewrite in your own voice (never publish suggestions verbatim).")
+    n_excluded = sum(1 for s, m in qa_checks if s == "WARN" and m.startswith("  EXCLUDED"))
+    if n_excluded:
+        lines.append(f"- [ ] REVIEW QA EXCLUSIONS: {n_excluded} stor(ies) were removed before render "
+                     "for failing fact-check — confirm the cuts in qa_report.md.")
     lines += [
         "",
         "## Files in this bundle",
