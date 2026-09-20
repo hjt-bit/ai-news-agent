@@ -1,3 +1,6 @@
-openai>=1.0.0
+# SIGNAL newsletter agent — runtime dependencies
 feedparser>=6.0.0
-youtube-transcript-api>=0.6.0
+openai>=1.0.0
+# youtube-transcript-api is optional: only needed if fetch_podcast_topics()
+# pulls real YouTube transcripts. The agent runs without it (falls back to
+# an empty podcast report).
