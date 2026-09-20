@@ -1,5 +1,50 @@
 # SIGNAL Agent — Changelog
 
+## v12 (2026-09-20) — Verify-first cull: failed stories never reach outputs
+
+Behavior change requested at human review: previously the fact-checker flagged
+UNVERIFIED/CONTRADICTED/LOW stories as QA FAILs but still rendered them into the
+newsletter HTML, Beehiiv draft, LinkedIn export, take-suggestions and social
+derivatives — the human had to delete them by hand. Now the pipeline culls
+failing stories **before** analysis/render/exports ("verify first, build only
+from survivors").
+
+### Changed
+- **New pipeline step 5g `cull_unverifiable_stories()`** runs immediately after
+  fact-checking (before analysis, render, and all exports). Stories whose
+  confidence is CONTRADICTED or UNVERIFIED — plus LOW when
+  `FACT_CHECK_MIN_CONFIDENCE` is MEDIUM+ — are removed from the selected lists.
+  All downstream outputs (newsletter HTML, Beehiiv draft, LinkedIn post,
+  take-suggestions, social derivatives, REVIEW_SUMMARY.md) are built from the
+  post-cull survivors only.
+- **Every culled story is recorded**, never silently dropped: the QA report
+  gains a prominent "v10 QA exclusions (N story/stories removed before render)"
+  section listing title, section, confidence, reason, and contradicting/
+  corroborating evidence. REVIEW_SUMMARY.md adds a "REVIEW QA EXCLUSIONS"
+  action item.
+- **Viral lead promotion:** if the lead itself is culled, the highest-magnitude
+  surviving story is promoted (removed from its section) and the swap is noted
+  in the QA report. Sections left short stay short — no re-backfill.
+- **Cull-aware QA:** section-count checks that shrink because of exclusions now
+  WARN ("Strategic Briefing has 1 stor(ies) after QA exclusions (was 3)")
+  instead of FAILing. Genuine structural problems (duplicates, misfiled
+  regionals, bad links, empty selections) still FAIL as before.
+- **Failsafe:** if the cull removes more than one-third of the issue, the run
+  stops before analysis/render — no skeleton issue. The review bundle
+  (qa_report.md + REVIEW_SUMMARY.md) is still written with the exclusion
+  details and QA FAILs ("excessive exclusions, human review required").
+- **No double counting:** the old per-story fact-check FAIL items are replaced
+  by the exclusions section; check 13 now reports "N stories checked,
+  M excluded, K verified at MEDIUM+". `--publish` behavior unchanged: any
+  remaining QA FAIL still aborts the publish run.
+
+### Tests
+- `test_v10.py`: TEST 7 rewritten for cull semantics; new TEST 21 (8 sub-cases:
+  cull + exclusion records, downstream render purity, WARN-not-FAIL section
+  counts, tally line, no double counting, lead promotion, failsafe trip
+  boundary at exactly 1/3, failsafe bundle files, no-metadata stories kept).
+  **156 checks, all pass** (`python test_v10.py` and `python -m pytest`).
+
 ## v11 (2026-09-20) — Serper fact-check, Beehiiv drafts, robustness fixes
 
 Incremental upgrade on v10 (`agent_v10.py` in this package pastes over the repo's
