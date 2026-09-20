@@ -1,5 +1,5 @@
 """
-SIGNAL -- AI Weekly Intelligence Briefing Agent (v10)
+SIGNAL -- AI Weekly Intelligence Briefing Agent (v11)
 ----------------------------------------------------
 Pipeline:
   1. FETCH      -> pull the last 7 days of articles from trusted RSS feeds
@@ -21,6 +21,7 @@ import json
 import re
 import urllib.request
 import urllib.error
+import urllib.parse
 from html import escape as _h
 from collections import Counter
 from datetime import datetime, timedelta
@@ -79,7 +80,7 @@ TAKE_MODE = "placeholder"
 # newsletter masthead and footer (HTML-escaped).
 AUTHOR_NAME = "Hasan Jad"
 AUTHOR_ROLE = "AI, decoded for MENA leaders"
-AUTHOR_PHOTO_URL = ""                      # TODO: https://... URL of your headshot
+AUTHOR_PHOTO_URL = os.environ.get("AUTHOR_PHOTO_URL", "")  # TODO: https://... URL of your headshot (empty = photo hidden, no broken image)
 AUTHOR_TAGLINE = "I build production AI agents with the region's biggest companies."
 SOCIAL_LINKS = {
     # TODO(Hasan): fill in your real profile URLs (only http(s) values are rendered).
@@ -88,16 +89,20 @@ SOCIAL_LINKS = {
     "X": "TODO: https://x.com/...",
 }
 
-# ── v10: Future auto-publish integrations (NOT implemented yet) ───────────────
-# Env-var placeholders for the planned review-gated auto-publish pipeline.
-# Nothing in v10 publishes with these; do not add publishing code until the
-# human review gate + run ledger are in place. Follow the existing secrets
-# pattern: GitHub Secrets -> env vars in CI, never committed to the repo.
-#   BEEHIIV_API_KEY       — beehiiv API key, for sending the email issue after
-#                           review approval.
-#   LINKEDIN_ACCESS_TOKEN — LinkedIn API token, for posting the TL;DR after
-#                           review approval.
+# ── v11: review-gated integrations ────────────────────────────────────────────
+# Follow the existing secrets pattern: GitHub Secrets -> env vars in CI, never
+# committed to the repo, never printed in logs.
+#   BEEHIIV_API_KEY        — beehiiv API key. v11 implements DRAFT-ONLY post
+#                            creation (see create_beehiiv_draft_post). Sending /
+#                            scheduling / publishing ALWAYS stays human.
+#   BEEHIIV_PUBLICATION_ID — beehiiv publication id (pub_...), required for drafts.
+#   SERPER_API_KEY         — Serper search API key for the fact-checker (replaces
+#                            the bot-blocked DuckDuckGo scraper). Unset = search
+#                            skipped, stories marked UNVERIFIED (never crash).
+#   LINKEDIN_ACCESS_TOKEN  — LinkedIn API token (NOT implemented yet — future).
 BEEHIIV_API_KEY = os.environ.get("BEEHIIV_API_KEY")
+BEEHIIV_PUBLICATION_ID = os.environ.get("BEEHIIV_PUBLICATION_ID", "")
+SERPER_API_KEY = os.environ.get("SERPER_API_KEY", "")
 LINKEDIN_ACCESS_TOKEN = os.environ.get("LINKEDIN_ACCESS_TOKEN")
 
 # ── v9: AI-Relevance Filter + Story Ranker + Fact Checker ─────────────────────
@@ -198,15 +203,27 @@ TIP_URL_ALLOWLIST_DOMAINS = (
 )
 TIP_URL_FALLBACK = "https://hjt-bit.github.io/ai-news-agent"
 
+def _strip_markdown_link(url):
+    """Extract the raw URL from Markdown link formatting like [text](https://...).
+
+    v11: the LLM sometimes returns tip URLs wrapped in Markdown. Validation
+    must see the raw URL, not the brackets.
+    """
+    s = str(url or "").strip()
+    m = re.match(r"^\[.*?\]\(\s*(https?://[^)\s]+)\s*\)$", s)
+    if m:
+        return m.group(1)
+    return s
+
 def _validate_tip_url(url):
     """Return url if https + allow-listed host, else TIP_URL_FALLBACK."""
     try:
         from urllib.parse import urlparse
-        p = urlparse(str(url or "").strip())
+        p = urlparse(_strip_markdown_link(url))
         host = (p.hostname or "").lower()
         if p.scheme == "https" and host:
             if any(host == d or host.endswith("." + d) for d in TIP_URL_ALLOWLIST_DOMAINS):
-                return str(url).strip()
+                return p.geturl()
     except Exception:
         pass
     print(f"  \u26a0 Tip URL failed allow-list validation ({url!r}) \u2014 using fallback.")
@@ -722,22 +739,60 @@ def _extract_video_id(url):
     return None
 
 
+def _yt_api_fetch_segments(video_id):
+    """Fetch transcript segments via youtube-transcript-api, any version.
+
+    Supports the 0.x API (static YouTubeTranscriptApi.get_transcript) and the
+    1.x API (instance .fetch() / .list()). Raises on failure so the caller can
+    degrade gracefully. Returns a list of plain-text strings.
+    """
+    from youtube_transcript_api import YouTubeTranscriptApi
+
+    def _texts(items):
+        out = []
+        for s in items:
+            if isinstance(s, dict):
+                out.append(s.get("text", "") or "")
+            else:
+                out.append(getattr(s, "text", "") or "")
+        return out
+
+    # 1.x style: instance.fetch(video_id, languages=[...])
+    api = None
+    try:
+        api = YouTubeTranscriptApi()
+    except Exception:
+        api = None
+    if api is not None and hasattr(api, "fetch"):
+        return _texts(api.fetch(video_id, languages=["en"]))
+    # 0.x style: static get_transcript
+    if hasattr(YouTubeTranscriptApi, "get_transcript"):
+        return _texts(YouTubeTranscriptApi.get_transcript(video_id, languages=["en"]))
+    # 1.x fallback: list() transcripts, pick English, fetch it
+    if api is not None and hasattr(api, "list"):
+        transcript = api.list(video_id).find_transcript(["en"])
+        return _texts(transcript.fetch())
+    raise RuntimeError("unsupported youtube-transcript-api version")
+
+
 def _fetch_youtube_transcript(video_id):
     """
     Attempt to fetch YouTube transcript using the youtube-transcript-api.
     Falls back gracefully if the package is not installed or transcript unavailable.
+    v11: version-agnostic (0.x get_transcript and 1.x fetch/list both work).
+    Never raises — returns "" with a warning on any failure.
     """
     try:
-        from youtube_transcript_api import YouTubeTranscriptApi
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
-        # Combine all text segments
-        full_text = " ".join(segment['text'] for segment in transcript_list)
-        return full_text[:5000]  # Cap at 5000 chars to manage token usage
+        from youtube_transcript_api import YouTubeTranscriptApi  # noqa: F401 (version probe)
     except ImportError:
         # youtube-transcript-api not installed — use fallback
         return _fetch_transcript_fallback(video_id)
+    try:
+        segments = _yt_api_fetch_segments(video_id)
+        full_text = " ".join(t for t in segments if t)
+        return full_text[:5000]  # Cap at 5000 chars to manage token usage
     except Exception as e:
-        print(f"    Transcript fetch failed for {video_id}: {e}")
+        print(f"    Transcript fetch failed for {video_id}: {type(e).__name__}")
         return ""
 
 
@@ -1273,9 +1328,11 @@ _CONTRADICTION_SIGNALS = (
 
 def _search_corroboration(claim, original_source):
     """
-    Search DuckDuckGo for the claim and check whether other outlets report it.
+    Search the web for the claim and check whether other outlets report it.
 
-    v10 — honest heuristics (this is NOT a real verifier):
+    v11 — Serper API (https://serper.dev) replaces the DuckDuckGo HTML scraper,
+    which is bot-blocked and returned zero results for every story. Same honest
+    heuristics as v10 (this is NOT a real verifier):
       * a result only counts as corroborating if its title shares >= 2
         significant tokens with the claim (keyword overlap), AND
       * the story's own outlet can never corroborate itself (_same_source), AND
@@ -1283,9 +1340,9 @@ def _search_corroboration(claim, original_source):
         the story CONTRADICTED for human review.
     Returns (corroborating, contradicting, search_ok). On ANY search failure,
     search_ok=False and the story is marked UNVERIFIED (never LOW-pass).
+    Without SERPER_API_KEY the search is skipped with a warning (same
+    zero-result behavior as the blocked scraper — never crashes).
     """
-    import urllib.parse
-
     corroborating = []
     contradicting = []
     search_ok = True
@@ -1293,41 +1350,52 @@ def _search_corroboration(claim, original_source):
     if not claim_tokens:
         return [], [], False
 
+    api_key = os.environ.get("SERPER_API_KEY", "").strip()
+    if not api_key:
+        print("    \u26a0 SERPER_API_KEY not set \u2014 fact-check search skipped (UNVERIFIED).")
+        RUN_FLAGS["fact_check_degraded"] = True
+        return [], [], False
+
     try:
-        # Use DuckDuckGo HTML search
-        query = urllib.parse.quote(claim[:100])  # Limit query length
-        url = f"https://html.duckduckgo.com/html/?q={query}"
-        req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        })
-        with urllib.request.urlopen(req, timeout=10) as response:
-            page = response.read().decode("utf-8", errors="ignore")
+        # Serper: POST https://google.serper.dev/search, X-API-KEY header, stdlib only.
+        payload = json.dumps({
+            "q": claim[:200],
+            "num": MAX_SEARCH_PER_STORY * 2,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://google.serper.dev/search",
+            data=payload,
+            headers={
+                "X-API-KEY": api_key,  # never logged
+                "Content-Type": "application/json",
+                "User-Agent": "SIGNAL-newsletter-agent/1.0",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as response:
+            data = json.loads(response.read().decode("utf-8", errors="ignore") or "{}")
 
-        # Parse search results (extract result titles and sources)
-        results = re.findall(r'class="result__title"[^>]*>.*?<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>', page, re.DOTALL)
+        results = data.get("organic", []) or []
 
-        # Also try simpler pattern
-        if not results:
-            results = re.findall(r'<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', page, re.DOTALL)
-
-        for result_url, result_title in results[:MAX_SEARCH_PER_STORY * 2]:
+        for r in results[:MAX_SEARCH_PER_STORY * 2]:
+            result_url = r.get("link", "") or ""
+            result_title = (r.get("title", "") or "").strip()
             result_domain = _extract_domain(result_url)
             if _same_source(result_domain, original_source):
                 continue  # the story's own outlet cannot corroborate itself
-            clean_title = re.sub(r'<[^>]+>', '', result_title).strip()
-            if not clean_title:
+            if not result_title:
                 continue
-            title_tokens = set(_tokens(clean_title))
+            title_tokens = set(_tokens(result_title))
             overlap = claim_tokens & title_tokens
-            lowered = clean_title.lower()
+            lowered = result_title.lower()
             if any(sig in lowered for sig in _CONTRADICTION_SIGNALS) and overlap:
-                contradicting.append(f"{clean_title} ({result_domain}) [contradiction signal]")
+                contradicting.append(f"{result_title} ({result_domain}) [contradiction signal]")
             elif len(overlap) >= 2:
-                corroborating.append(f"{clean_title} ({result_domain})")
+                corroborating.append(f"{result_title} ({result_domain})")
             # else: irrelevant result — ignored, never counted as corroboration
 
     except Exception as e:
-        print(f"    (Search failed: {e} — marking as UNVERIFIED)")
+        print(f"    (Serper search failed: {type(e).__name__} \u2014 marking as UNVERIFIED)")
         search_ok = False
         RUN_FLAGS["fact_check_degraded"] = True
 
@@ -3176,6 +3244,97 @@ def export_beehiiv_email(date_str, issue_number, viral_pair, biz_pairs, eve_pair
 
 
 # =========================================================
+# 9b. BEEHIIV DRAFT CREATION — API v2 (v11, DRAFT-ONLY)
+# =========================================================
+# Beehiiv public API v2 (docs: https://developers.beehiiv.com/api-reference):
+#   POST https://api.beehiiv.com/v2/publications/{publicationId}/posts
+#   Headers: Authorization: Bearer <BEEHIIV_API_KEY>, Content-Type: application/json
+#   Body: { title (required), subtitle, body_content (raw HTML — one of
+#           body_content/blocks), status: "draft", content_tags: [...] }
+#
+# SAFETY RULE (absolute): status is HARDCODED to "draft". This code never sends,
+# never schedules, never publishes. Sending stays a human action in the Beehiiv
+# dashboard. Do not add a "confirmed"/scheduled_at path without a separate
+# human-approval gate.
+#
+# Degrades gracefully: missing env vars -> warning + skip; HTTP errors (e.g.
+# 403 SEND_API_NOT_ENTERPRISE_PLAN on non-Enterprise plans) -> warning + skip.
+# Never raises, never logs secrets.
+BEEHIIV_API_BASE = "https://api.beehiiv.com/v2"
+
+def create_beehiiv_draft_post(title, body_html, subtitle="", content_tags=("signal", "weekly")):
+    """Create the rendered newsletter as a DRAFT post in Beehiiv (API v2).
+
+    DRAFT-ONLY: status="draft" is hardcoded below. Returns the created post id
+    (str) on success, or None when skipped/failed. Never raises.
+    """
+    api_key = os.environ.get("BEEHIIV_API_KEY", "").strip()
+    pub_id = os.environ.get("BEEHIIV_PUBLICATION_ID", "").strip()
+    if not api_key or not pub_id:
+        print("  \u26a0 Beehiiv draft creation skipped: "
+              "BEEHIIV_API_KEY / BEEHIIV_PUBLICATION_ID not set.")
+        return None
+    try:
+        payload = {
+            "title": title,
+            "subtitle": subtitle,
+            "body_content": body_html,   # raw HTML per Beehiiv API v2
+            "status": "draft",           # DRAFT-ONLY. Never "confirmed".
+            "content_tags": list(content_tags),
+        }
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            f"{BEEHIIV_API_BASE}/publications/{urllib.parse.quote(pub_id)}/posts",
+            data=data,
+            headers={
+                "Authorization": "Bearer " + api_key,  # never logged
+                "Content-Type": "application/json",
+                "User-Agent": "SIGNAL-newsletter-agent/1.0",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            code = getattr(resp, "status", 200)
+            raw = resp.read().decode("utf-8", errors="ignore") or "{}"
+        body = json.loads(raw)
+        if code in (200, 201, 202):
+            post = body.get("data") if isinstance(body, dict) else None
+            post_id = post.get("id") if isinstance(post, dict) else None
+            print(f"  \u2713 Beehiiv draft created (post id: {post_id or 'unknown'}) "
+                  f"\u2014 DRAFT only, NOT sent.")
+            return post_id
+        print(f"  \u26a0 Beehiiv draft creation returned HTTP {code} \u2014 draft NOT created.")
+        return None
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8", errors="ignore")[:200]
+        except Exception:
+            pass
+        if e.code == 403 or "ENTERPRISE" in detail.upper():
+            print("  \u26a0 Beehiiv refused draft creation (HTTP 403 \u2014 post creation via "
+                  "API may require an Enterprise/Scale plan). Create the draft manually.")
+        else:
+            print(f"  \u26a0 Beehiiv draft creation failed: HTTP {e.code} \u2014 draft NOT created.")
+        return None
+    except Exception as e:
+        print(f"  \u26a0 Beehiiv draft creation failed ({type(e).__name__}) \u2014 draft NOT created.")
+        return None
+
+
+def maybe_create_beehiiv_draft(html, issue_number_str, today):
+    """v11 pipeline step: create the rendered issue as a Beehiiv DRAFT.
+
+    Runs after the review bundle is written (both review and publish modes).
+    Skipped gracefully with a warning when BEEHIIV_API_KEY /
+    BEEHIIV_PUBLICATION_ID are absent. Returns the Beehiiv post id or None.
+    """
+    title = f"SIGNAL #{issue_number_str} \u2014 AI, decoded for MENA leaders ({today})"
+    subtitle = "Five minutes. The AI stories that matter."
+    return create_beehiiv_draft_post(title, html, subtitle=subtitle)
+
+
+# =========================================================
 # MAIN
 # =========================================================
 def parse_args(argv=None):
@@ -3211,7 +3370,7 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
             RUN_FLAGS[key] = []
 
     print("=" * 60)
-    print("  SIGNAL Agent v10 — Starting...")
+    print("  SIGNAL Agent v11 — Starting...")
     print("=" * 60)
     print(f"  Run mode: {'PUBLISH (final outputs to repo root)' if publish else 'REVIEW-ONLY (outputs to review/, nothing published)'}")
     print(f"  Editor mode: {'INTERACTIVE' if INTERACTIVE_MODE else 'AUTONOMOUS'}")
@@ -3521,6 +3680,11 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
                           qa_checks=qa_checks, issue_number_str=issue_number_str,
                           today=today, viral=viral, tip=tip, take=take,
                           files=sorted(os.listdir(".")))
+
+    # 14b) v11: Beehiiv DRAFT creation (draft-only — sending stays human).
+    #      Runs after the review bundle; skipped with a warning when the
+    #      Beehiiv secrets are absent. Never blocks the run on failure.
+    maybe_create_beehiiv_draft(html, issue_number_str, today)
 
     # 15) Final banner — unmistakable.
     print("\n" + "=" * 60)
