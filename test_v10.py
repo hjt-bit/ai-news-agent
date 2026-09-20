@@ -315,27 +315,37 @@ check(any("v10 Render" in m for m in msgs), "QA includes v10 render check")
 check(any("v10 Relevance" in m for m in msgs), "QA includes v10 relevance check")
 reset_flags()
 
-# ─── TEST 7: QA — fact-check confidence blocks publish ───────────────────────
-banner("v10 TEST 7 — QA fact-check enforcement")
+# ─── TEST 7 (v11): QA cull — fact-check failures removed before render ────────
+banner("v11 TEST 7 — QA cull replaces per-story fact-check FAILs")
 check(agent.FACT_CHECK_MIN_CONFIDENCE == "MEDIUM", "FACT_CHECK_MIN_CONFIDENCE default is MEDIUM (reject unverifiable)")
-for conf in ("UNVERIFIED", "CONTRADICTED"):
+for conf in ("UNVERIFIED", "CONTRADICTED", "LOW"):
     reset_flags()
-    viral, picks, tip = passing_fixture(confidence=conf)
-    qa_passed, _ = agent.run_qa_checks(viral, picks, tip, [])
-    check(qa_passed is False, f"{conf} always blocks publish")
-reset_flags()
-viral, picks, tip = passing_fixture(confidence="LOW")
-qa_passed, qa_checks = agent.run_qa_checks(viral, picks, tip, [])
-check(qa_passed is False, "LOW blocks publish when minimum is MEDIUM")
-# The constant is actually enforced: flip it to LOW and LOW only warns.
+    viral, picks, tip = passing_fixture(confidence=conf)  # bad-confidence viral lead
+    viral2, picks2, report = agent.cull_unverifiable_stories(viral, picks)
+    check(len(report["exclusions"]) == 1, f"{conf} viral lead culled (1 exclusion)")
+    check(report["exclusions"][0]["confidence"] == conf, f"exclusion records confidence={conf}")
+    check(all(set(e.keys()) >= {"title", "section", "confidence", "reason", "evidence"}
+              for e in report["exclusions"]), "exclusion records title/section/confidence/reason/evidence")
+    qa_passed, qa_checks = agent.run_qa_checks(viral2, picks2, tip, [], cull_report=report)
+    fails = [m for s, m in qa_checks if s == "FAIL"]
+    check(not any("Fact-check" in m for m in fails),
+          f"no fact-check FAIL after cull ({conf}) — no double counting")
+    check(any("v10 QA exclusions (1 story/stories removed before render" in m
+              for _, m in qa_checks), "exclusions section present in QA report")
+# LOW is kept when the bar is LOW
 orig_min = agent.FACT_CHECK_MIN_CONFIDENCE
 agent.FACT_CHECK_MIN_CONFIDENCE = "LOW"
 reset_flags()
 viral, picks, tip = passing_fixture(confidence="LOW")
-qa_passed, qa_checks = agent.run_qa_checks(viral, picks, tip, [])
+_, _, report = agent.cull_unverifiable_stories(viral, picks)
 agent.FACT_CHECK_MIN_CONFIDENCE = orig_min
-warns = [m for s, m in qa_checks if s == "WARN" and "Fact-check" in m]
-check(qa_passed is True and warns, "FACT_CHECK_MIN_CONFIDENCE=LOW makes LOW-confidence only warn")
+check(len(report["exclusions"]) == 0, "FACT_CHECK_MIN_CONFIDENCE=LOW keeps LOW-confidence stories")
+reset_flags()
+# Legacy path (no cull_report): old per-story FAIL semantics preserved
+viral, picks, tip = passing_fixture(confidence="CONTRADICTED")
+qa_passed, qa_checks = agent.run_qa_checks(viral, picks, tip, [])
+check(qa_passed is False and any("Fact-check: CONTRADICTED" in m for _, m in qa_checks),
+      "legacy QA (no cull_report) still FAILs contradicted stories")
 reset_flags()
 
 # ─── TEST 8: QA — fail-closed run flags block publish ────────────────────────
@@ -622,6 +632,145 @@ try:
     check('src="https://example.com/headshot.jpg"' in ctx2["author_photo_html"], "set URL -> img rendered")
 finally:
     agent.AUTHOR_PHOTO_URL = _saved_photo
+
+
+# ─── TEST 21 (v11): QA cull — verify first, build only from survivors ─────────
+banner("v11 TEST 21 — QA cull: verify first, build only from survivors")
+
+def fc_article(title, link, confidence, mag=7.0, source="TestSource"):
+    a = mk_article(title, link, source=source)
+    a["_magnitude_score"] = mag
+    a["_fact_check"] = {
+        "confidence": confidence, "claim_searched": "x",
+        "corroborating_sources": ["ok story (reuters)"] if confidence in ("HIGH", "MEDIUM") else [],
+        "contradicting_sources": ["story debunked by experts (reuters)"]
+        if confidence == "CONTRADICTED" else [],
+    }
+    return a
+
+def cull_fixture():
+    viral = fc_article("Viral AI breakthrough verified", "https://reuters.com/viral-ai", "HIGH", mag=9.0)
+    biz = [
+        fc_article("Solid enterprise AI deal", "https://bloomberg.com/ai-deal", "MEDIUM", mag=8.0),
+        fc_article("Fake Chinese nuclear AI story", "https://techcrunch.com/fake-nuke", "CONTRADICTED", mag=7.0),
+        fc_article("Unverifiable rumor mill story", "https://ft.com/rumor", "LOW", mag=6.0),
+    ]
+    eve = [fc_article("Consumer AI gadget launch", "https://theverge.com/gadget", "MEDIUM", mag=7.2)]
+    me = [fc_article("Gulf AI datacenter opens", "https://arabnews.com/datacenter", "UNVERIFIED",
+                     mag=7.4, source="Arab News")]
+    picks = {"business": biz, "everyday": eve, "middle_east": me}
+    tip = {"title": "Fresh test tip", "tool_name": "X", "url": "https://example.com",
+           "one_liner": "x", "how_to": "x", "why_now": "x"}
+    return viral, picks, tip
+
+# 21a: cull removes failing stories pre-render; exclusions fully recorded
+reset_flags()
+viral, picks, tip = cull_fixture()
+viral2, picks2, report = agent.cull_unverifiable_stories(viral, picks)
+ex = report["exclusions"]
+check(len(ex) == 3, f"3 failing stories culled (got {len(ex)})")
+check({e["confidence"] for e in ex} == {"CONTRADICTED", "LOW", "UNVERIFIED"},
+      "all failing confidences culled")
+check(all(set(e.keys()) >= {"title", "section", "confidence", "reason", "evidence"} for e in ex),
+      "every exclusion records title/section/confidence/reason/evidence")
+check(any(e["section"] == "business" and "contradicted" in e["reason"] for e in ex),
+      "contradiction reason recorded")
+check(any("debunked" in e["evidence"] for e in ex if e["confidence"] == "CONTRADICTED"),
+      "contradicting evidence attached to exclusion")
+check([a["title"] for a in picks2["business"]] == ["Solid enterprise AI deal"],
+      "business section keeps only the survivor")
+check(len(picks2["middle_east"]) == 0, "UNVERIFIED regional story culled (section left short)")
+check(viral2["title"] == "Viral AI breakthrough verified", "verified viral lead untouched")
+check(report["total_before"] == 6, "total_before counts viral + all sections")
+check(report["lead_swapped"] is None, "no lead swap when lead survives")
+
+# 21b: downstream render contains no culled titles
+data = {"headline": "H", "tldr": "T", "what_happened": "W", "why_it_matters": "M",
+        "business_impact": "B", "leader_action": "A", "link_url": "https://bloomberg.com/ai-deal"}
+rendered = "".join(agent.render_business_card(a, data) for a in picks2["business"])
+check("Fake Chinese nuclear AI story" not in rendered and "Unverifiable rumor" not in rendered,
+      "culled titles absent from rendered business cards")
+check("H" in rendered, "survivor's analysis rendered as a card")
+
+# 21c: section counts WARN (not FAIL) after cull shrinkage
+qa_passed, qa_checks = agent.run_qa_checks(viral2, picks2, tip, [], cull_report=report)
+fails = [m for s, m in qa_checks if s == "FAIL"]
+check(not fails, f"no FAILs on a cull-shrunk issue (got {fails})")
+check(qa_passed is True, "cull-shrunk issue passes QA")
+warns = [m for s, m in qa_checks if s == "WARN"]
+check(any("Strategic Briefing has 1 stor(ies) after QA exclusions (was 3)" in m for m in warns),
+      "section-count downgraded to WARN with (was N)")
+check(any("From the Region is empty after QA exclusions (was 1)" in m for m in warns),
+      "emptied-by-cull region section WARNs instead of FAILing")
+
+# 21d: tally line + no double counting
+msgs = [m for _, m in qa_checks]
+check(any("v10 Fact-check: 6 stories checked, 3 excluded, 3 verified at MEDIUM+" in m for m in msgs),
+      "fact-check tally line: checked/excluded/verified")
+check(not any("Fake Chinese nuclear" in m or "Unverifiable rumor" in m or "Gulf AI datacenter" in m
+              for s, m in qa_checks if s == "FAIL"),
+      "culled story never appears as a FAIL (no double counting)")
+
+# 21e: viral lead culled -> highest-magnitude survivor promoted
+reset_flags()
+v_bad = fc_article("Hallucinated viral scoop", "https://reuters.com/bad-scoop", "CONTRADICTED", mag=9.9)
+p_bad = {"business": [fc_article("Enterprise AI deal", "https://bloomberg.com/deal", "MEDIUM", mag=8.2),
+                      fc_article("AI chip funding", "https://techcrunch.com/chips", "MEDIUM", mag=7.1)],
+         "everyday": [], "middle_east": []}
+v_new, p_new, rep = agent.cull_unverifiable_stories(v_bad, p_bad)
+check(v_new is not None and v_new["title"] == "Enterprise AI deal",
+      "culled lead replaced by highest-magnitude survivor")
+check(all(a["title"] != "Enterprise AI deal" for a in p_new["business"]),
+      "promoted story removed from its section")
+check(rep["lead_swapped"] == {"from": "Hallucinated viral scoop", "to": "Enterprise AI deal"},
+      "lead swap recorded in cull report")
+qa2_passed, qa2_checks = agent.run_qa_checks(v_new, p_new, tip, [], cull_report=rep)
+check(any("Viral lead swapped after cull" in m for _, m in qa2_checks),
+      "lead swap noted in QA report")
+
+# 21f: failsafe trips past one-third (strictly greater)
+reset_flags()
+doms = ["reuters.com", "bloomberg.com", "techcrunch.com", "ft.com", "theverge.com",
+        "wired.com", "venturebeat.com", "arstechnica.com", "theguardian.com"]
+arts = [fc_article(f"Story {i}", f"https://{doms[i]}/s{i}",
+                   "CONTRADICTED" if i < 4 else "MEDIUM", mag=7.0) for i in range(9)]
+v_ok = fc_article("Good lead", "https://reuters.com/good-lead", "HIGH", mag=9.0)
+p_fs = {"business": arts[:3], "everyday": arts[3:6], "middle_east": arts[6:9]}
+_, _, rep_fs = agent.cull_unverifiable_stories(v_ok, p_fs)
+check(agent.cull_failsafe_tripped(rep_fs) is True, "4 of 10 excluded (>1/3) trips failsafe")
+arts2 = [fc_article(f"Story {i}", f"https://{doms[i]}/t{i}",
+                    "CONTRADICTED" if i < 3 else "MEDIUM", mag=7.0) for i in range(9)]
+p_ok = {"business": arts2[:3], "everyday": arts2[3:6], "middle_east": arts2[6:9]}
+_, _, rep_ok = agent.cull_unverifiable_stories(v_ok, p_ok)
+check(agent.cull_failsafe_tripped(rep_ok) is False, "3 of 10 excluded (=1/3) does not trip failsafe")
+check(agent.cull_failsafe_tripped({"exclusions": [], "total_before": 0}) is False,
+      "empty issue does not trip failsafe")
+
+# 21g: failsafe bundle written, QA FAILs with clear message
+import tempfile
+cwd = os.getcwd()
+tmpd = tempfile.mkdtemp()
+try:
+    os.chdir(tmpd)
+    agent.write_cull_failsafe_bundle(rep_fs, "September 20, 2026")
+    # write_cull_failsafe_bundle chdirs into review/ itself
+    check(os.path.exists("qa_report.md"), "failsafe writes review/qa_report.md")
+    qr = open("qa_report.md", encoding="utf-8").read()
+    check("excessive exclusions" in qr and "FAIL" in qr,
+          "failsafe QA report FAILs with clear message")
+    check("EXCLUDED [CONTRADICTED]" in qr, "exclusion details in failsafe bundle")
+    check(os.path.exists("REVIEW_SUMMARY.md"), "failsafe writes review/REVIEW_SUMMARY.md")
+finally:
+    os.chdir(cwd)
+
+# 21h: stories with no _fact_check metadata are kept (fact-checker disabled path)
+reset_flags()
+plain = mk_article("Unfactchecked story", "https://reuters.com/plain")
+v3, p3, rep3 = agent.cull_unverifiable_stories(
+    fc_article("Lead", "https://reuters.com/lead2", "HIGH", mag=9.0),
+    {"business": [plain], "everyday": [], "middle_east": []})
+check(len(rep3["exclusions"]) == 0 and len(p3["business"]) == 1,
+      "story without _fact_check metadata is kept")
 
 
 # ─── SUMMARY ─────────────────────────────────────────────────────────────────
