@@ -1,5 +1,14 @@
 # SIGNAL Agent — Changelog
 
+## v12.7 (2026-09-26) — Monday publication
+
+- SIGNAL moves from Tuesday 08:00 GST to **Monday 08:00 GST** (Instagram poll:
+  83% of readers prefer Monday morning). Issue-date logic now resolves to the
+  Monday of publication: Sunday runs -> upcoming Monday, Monday -> same day,
+  Tue-Sat -> most recent Monday. PUBLICATION_DATE must be a Monday.
+  Template copy updated ("Every Monday"). The Sunday 17:00 GST review run is
+  unchanged.
+
 ## v12.6.1 (2026-09-26) — Masthead tagline
 
 - Tagline under the SIGNAL masthead tightened: "Your weekly AI intelligence
