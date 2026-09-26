@@ -2501,12 +2501,13 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
         banned_hits = []
         opener_hits = []
         status_hits = []
+        redundancy_hits = []
         for art, data in analysis_pairs:
             if not isinstance(data, dict):
                 continue
             title = (art.get("title") or "")[:50]
-            # 18) scan the merged why_it_matters stake line for banned phrases
-            for field in ("why_it_matters",):
+            # 18) scan the why_you_care opener for banned phrases
+            for field in ("why_you_care",):
                 text = (data.get(field) or "").lower()
                 for phrase in BANNED_WHY_IT_MATTERS_PHRASES:
                     if phrase in text:
@@ -2527,7 +2528,7 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
                                   (art.get("summary") or ""))
             analysis_status_text = " ".join(
                 str(data.get(f) or "") for f in
-                ("headline", "tldr", "what_happened"))
+                ("headline", "why_you_care", "what_happened"))
             src_level = _status_level(source_status_text)
             ana_level = _status_level(analysis_status_text)
             if (src_level is not None and ana_level is not None
@@ -2535,11 +2536,19 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
                 status_hits.append(
                     f"{title}… [source: '{STATUS_PRECISION_LEVELS[src_level]}' "
                     f"-> analysis: '{STATUS_PRECISION_LEVELS[ana_level]}']")
+            # 22) opener/headline redundancy: the why_you_care opener must add
+            # new information, not restate the headline — advisory WARN only.
+            opener_words = set(_tokens(data.get("why_you_care") or ""))
+            if len(opener_words) >= 4:
+                head_words = set(_tokens(data.get("headline") or ""))
+                overlap = len(opener_words & head_words) / len(opener_words)
+                if overlap >= 0.6:
+                    redundancy_hits.append(f"{title}… [opener restates headline]")
         if banned_hits:
             checks.append(("FAIL", f"v12.1 Editorial: {len(banned_hits)} banned phrase(s): " +
                            "; ".join(banned_hits[:3])))
         else:
-            checks.append(("PASS", "v12.1 Editorial: no banned 'why it matters' phrases"))
+            checks.append(("PASS", "v12.4 Editorial: no banned phrases in openers"))
         if opener_hits:
             checks.append(("FAIL", f"v12.1 Leader-action: {len(opener_hits)} banned opener(s): " +
                            "; ".join(opener_hits[:3])))
@@ -2550,6 +2559,11 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
                            "; ".join(status_hits[:3])))
         else:
             checks.append(("PASS", "v12.1 Status precision: no status upgrades detected"))
+        if redundancy_hits:
+            checks.append(("WARN", f"v12.4 Redundancy: {len(redundancy_hits)} opener(s) restate the headline: " +
+                           "; ".join(redundancy_hits[:3])))
+        else:
+            checks.append(("PASS", "v12.4 Redundancy: openers add new information"))
     else:
         checks.append(("WARN", "v12.1 Editorial: analysis pairs not supplied — checks 18/19/20 skipped"))
 
@@ -2625,10 +2639,9 @@ def analyze_article(article, audience="business"):
 
     if audience == "business" or audience == "viral":
         schema_hint = """{
-  "headline": "punchy 6-10 word headline (no period)",
-  "tldr": "ONE crisp sentence summary, max 22 words",
-  "what_happened": "18-26 words: include the specific WHO, WHAT, and a concrete NUMBER, name, or date if available, no period",
-  "why_it_matters": "ONE stake line, max 24 words, no period -- why this matters AND the concrete business impact (cost, revenue, competition, or risk) for a MENA leader",
+  "headline": "punchy 6-10 word news headline (no period) -- WHAT happened",
+  "why_you_care": "ONE bold opener line, max 24 words, no period -- WHY THE READER SHOULD CARE: the implication or stake for a MENA leader. Must NOT restate the headline; give the 'so what', never the 'what'",
+  "what_happened": "18-26 words of concrete details NOT already in the headline -- terms, numbers, timeline, context. No period",
   "leader_action": "max 16 words, action verb first, no period -- MUST be SPECIFIC and UNIQUE to THIS story"
 }"""
         rules = ("Audience: senior business leaders. No jargon. No acronyms unless universally known. "
@@ -2639,11 +2652,14 @@ def analyze_article(article, audience="business"):
                  "actual tool/product to pilot, the precise metric to measure, or a concrete first step. "
                  "NEVER reuse the generic template 'Brief your [X] team' — vary the verb and the action across stories. "
                  "NEVER use generic phrases like 'Evaluate AI tools' or 'Consider implications'. "
+                 "NO REPETITION (critical): headline, why_you_care, and what_happened must each add NEW "
+                 "information -- the opener states the 'so what' and must never restate the headline; the "
+                 "body adds concrete details absent from the headline. "
                  "FAITHFULNESS (critical): use ONLY facts present in the title/summary provided. NEVER invent a "
                  "dollar figure, percentage, date, or claim that is not in the source text. The headline MUST be "
                  "consistent with the TL;DR and must describe the SAME event as the source — do not generalize a "
                  "specific story into a different, bigger claim. "
-                 "BANNED PHRASES (never use in why_it_matters): 'could reshape the landscape', "
+                 "BANNED PHRASES (never use in why_you_care): 'could reshape the landscape', "
                  "'enhances efficiency', 'improves productivity', 'increased scrutiny', 'a game-changer', "
                  "'significant implications', 'enhance investor confidence'. Use concrete specifics instead. "
                  "LEADER-ACTION OPENERS (never start leader_action with): Assess, Explore, Consider, Monitor, "
@@ -2948,10 +2964,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     font-size: 14.5px; color: var(--ink); margin: 0 0 10px;
     line-height: 1.5; font-weight: 400;
   }}
+  .card .card-angle {{
+    font-size: 14.5px; color: var(--ink); margin: 0 0 10px;
+    line-height: 1.5; font-weight: 400;
+  }}
   .card .card-body {{
     font-size: 13.5px; color: var(--ink-2); margin: 0 0 10px; line-height: 1.6;
   }}
-  .card .card-stake, .card .card-action {{
+  .card .card-action {{
     font-size: 13px; line-height: 1.6; margin: 0 0 8px; color: var(--ink);
   }}
   .card .card-action {{ margin-bottom: 12px; }}
@@ -3204,9 +3224,8 @@ def render_viral_block(article, data):
     return f"""
     <div class="card viral">
       <div class="card-title">{_h(str(data.get('headline', article['title'])))}</div>
-      <p class="card-tldr"><strong>{_h(str(data.get('tldr', '')))}</strong></p>
+      <p class="card-angle"><strong>Why you care:</strong> {_h(str(data.get('why_you_care', '')))}</p>
       <p class="card-body">{_h(str(data.get('what_happened', '')))}</p>
-      <p class="card-stake"><strong>Why it matters:</strong> {_h(str(data.get('why_it_matters', '')))}</p>
       <p class="card-action"><strong>Leader action:</strong> {_h(str(data.get('leader_action', '')))}</p>
       <a class="source-link" href="{_h(article['link'], quote=True)}" target="_blank" rel="noopener">Read full story → {_h(article['source'])}</a>
     </div>"""
@@ -3219,9 +3238,8 @@ def render_business_card(article, data):
     return f"""
     <div class="card">
       <div class="card-title">{_h(str(data.get('headline', article['title'])))}</div>
-      <p class="card-tldr"><strong>{_h(str(data.get('tldr', '')))}</strong></p>
+      <p class="card-angle"><strong>Why you care:</strong> {_h(str(data.get('why_you_care', '')))}</p>
       <p class="card-body">{_h(str(data.get('what_happened', '')))}</p>
-      <p class="card-stake"><strong>Why it matters:</strong> {_h(str(data.get('why_it_matters', '')))}</p>
       <p class="card-action"><strong>Leader action:</strong> {_h(str(data.get('leader_action', '')))}</p>
       <a class="source-link" href="{_h(article['link'], quote=True)}" target="_blank" rel="noopener">Read full story → {_h(article['source'])}</a>
     </div>"""
@@ -3446,16 +3464,16 @@ def generate_take_suggestions(viral_pair, biz_pairs, me_items):
         if not data.get("_analysis_failed"):
             entries.append(("VIRAL LEAD",
                             data.get("headline", art["title"]),
-                            data.get("tldr", ""),
-                            data.get("why_it_matters", "")))
+                            data.get("what_happened", ""),
+                            data.get("why_you_care", "")))
     for art, data in (biz_pairs or []):
         data = data or {}
         if data.get("_analysis_failed"):
             continue
         entries.append(("BUSINESS STORY",
                         data.get("headline", art["title"]),
-                        data.get("tldr", ""),
-                        data.get("why_it_matters", "")))
+                        data.get("what_happened", ""),
+                        data.get("why_you_care", "")))
     me_headlines = []
     for art, data in (me_items or []):
         data = data or {}
@@ -3471,8 +3489,8 @@ def generate_take_suggestions(viral_pair, biz_pairs, me_items):
         return None
 
     digest = "\n".join(
-        f"[{kind}] {headline}\n  Summary: {summary}\n  Why it matters: {impact}"
-        for kind, headline, summary, impact in entries
+        f"[{kind}] {headline}\n  Summary: {summary}\n  Why you care: {angle}"
+        for kind, headline, summary, angle in entries
     )[:6000]
 
     prompt = f"""You draft TAKE SUGGESTIONS for Hasan, the author of SIGNAL, a weekly AI
@@ -4225,9 +4243,9 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     # 13) v10: social derivative outlines (one LLM call, saved for human review)
     brief = [f"SIGNAL #{issue_number_str} — {today}"]
     if viral:
-        brief.append(f"VIRAL: {viral['title']} — {viral_data.get('tldr', '')[:200]}")
+        brief.append(f"VIRAL: {viral['title']} — {viral_data.get('why_you_care', '')[:200]}")
     for art, data in biz_pairs + eve_pairs:
-        brief.append(f"STORY: {art['title']} — {(data or {}).get('tldr', '')[:140]}")
+        brief.append(f"STORY: {art['title']} — {((data or {}).get('why_you_care', '') or (data or {}).get('tldr', ''))[:140]}")
     derivatives = generate_social_derivatives("\n".join(brief))
     with open("social_derivatives.json", "w", encoding="utf-8") as f:
         json.dump(derivatives, f, indent=2)
