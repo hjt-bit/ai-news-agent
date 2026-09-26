@@ -1,5 +1,29 @@
 # SIGNAL Agent — Changelog
 
+## v12.6 (2026-09-26) — Self-correction loop for mushy openers
+
+The v12.5 CI run proved the gap: the tightened prompt still produced
+"signals a major investment ... impacting competitive positioning" and QA
+check 18 correctly FAILed it — but the draft Hasan reviews would still show
+the mush. Flagging wasn't fixing.
+
+### Changed
+- **Bounded self-correction:** after analysis, viral/business openers are
+  scanned for banned phrases and abstract nouns. A violating opener triggers
+  exactly ONE surgical LLM rewrite of that single field (other fields
+  untouched); the candidate is re-validated before acceptance. If the rewrite
+  is still unusable, the original stays and QA flags it — fail-closed.
+- **No extra cost when clean:** conforming openers skip the rewrite call
+  entirely.
+- **Prompt/prompt-drift fix:** the analyzer's BANNED PHRASES list is now
+  generated from BANNED_OPENER_PHRASES (they had drifted apart); check 23
+  shares the ABSTRACT_OPENER_NOUNS constant.
+- **Observability:** RUN_FLAGS["opener_rewrites"] surfaced in the review
+  summary's run-flags section.
+- **Tests:** 10 new v12.6 checks (violation detector, successful rewrite,
+  failed-rewrite fallback, no-call-when-clean, prompt/constant parity).
+  250 checks green.
+
 ## v12.5 (2026-09-26) — Concrete openers: killing corporate mush
 
 Hasan's follow-up on the v12.4 preview: the new "Why you care" opener was
