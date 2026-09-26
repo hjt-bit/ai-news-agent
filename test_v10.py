@@ -1088,6 +1088,79 @@ with mock.patch.dict(os.environ, {"KIT_API_KEY": "k"}):
         _urlreq.urlopen = orig_urlopen
 
 
+# ─── v12.3 TESTS — merged story anatomy ────────────────────────────────
+# The 4-label grid (What happened / Why it matters / Business impact /
+# Leader action) becomes briefing prose: bold TLDR opener, flowing body,
+# ONE stake line (business impact folded into why_it_matters), leader action.
+
+# 23a: analyzer prompt no longer asks for business_impact; the stake line is merged
+captured_prompts = []
+_orig_create = FakeCompletions.create
+def _spy_create(self, **kwargs):
+    captured_prompts.append(" ".join(m.get("content", "") for m in kwargs.get("messages", [])))
+    return _orig_create(self, **kwargs)
+FakeCompletions.create = _spy_create
+try:
+    agent.analyze_article(mk_article("BizCo launches AI suite", "https://x.com/biz"), audience="business")
+finally:
+    FakeCompletions.create = _orig_create
+biz_prompt = next(t for t in captured_prompts if "tight, scannable newsletter cards" in t)
+check('"business_impact"' not in biz_prompt,
+      "v12.3 analyzer schema no longer requests business_impact")
+check("business impact" in biz_prompt.lower() and "why_it_matters" in biz_prompt,
+      "v12.3 why_it_matters carries the merged stake line")
+
+# 23b: renderers use the new anatomy
+card_data = {"headline": "TestCo raises $10M",
+             "tldr": "TestCo raised $10M to expand across the Gulf",
+             "what_happened": "TestCo closed a $10M round led by Gulf Capital on Tuesday",
+             "why_it_matters": "Signals Gulf VCs doubling down on AI infrastructure spend",
+             "leader_action": "Shortlist TestCo for your Q4 AI infrastructure pilot"}
+art23 = mk_article("TestCo raises $10M", "https://x.com/t23")
+vh = agent.render_viral_block(art23, card_data)
+check('<p class="card-tldr"><strong>TestCo raised $10M' in vh,
+      "v12.3 viral card opens with bold TLDR")
+check('<p class="card-body">TestCo closed a $10M round' in vh,
+      "v12.3 viral card renders what_happened as flowing prose")
+check("<strong>Why it matters:</strong>" in vh,
+      "v12.3 viral card has a single stake line")
+check("<strong>Leader action:</strong>" in vh,
+      "v12.3 viral card keeps the leader action")
+check("Business impact" not in vh and "meta-grid" not in vh,
+      "v12.3 viral card drops the old 4-label grid")
+bh = agent.render_business_card(art23, card_data)
+check('<p class="card-tldr"><strong>' in bh and "<strong>Why it matters:</strong>" in bh
+      and "Business impact" not in bh and "meta-grid" not in bh,
+      "v12.3 business card uses the new anatomy")
+eve_data = {"headline": "Fun AI toy", "tldr": "A friendly robot pet for the family",
+            "in_plain_english": "A robot pet that learns tricks from your kids",
+            "why_you_care": "The kids will actually put the tablets down",
+            "what_to_do": "Join the preorder waitlist today"}
+eh = agent.render_everyday_card(art23, eve_data)
+check("<strong>Why you care:</strong>" in eh and "<strong>What to do:</strong>" in eh
+      and "meta-grid" not in eh,
+      "v12.3 everyday card uses the new anatomy")
+
+# 23c: check 18 scans the merged stake line only; a legacy business_impact key is ignored
+reset_flags()
+art23b = mk_article("TestCo raises funding", "https://reuters.com/23c")
+data_legacy = {"why_it_matters": "Cuts onboarding time by 30 percent",
+               "business_impact": "this could reshape the landscape",  # banned phrase, legacy field: ignored
+               "leader_action": "Pilot TestCo in one team this quarter",
+               "headline": "TestCo raises funding", "tldr": "TestCo raised money",
+               "what_happened": "TestCo raised $10M"}
+_, checks_leg = agent.run_qa_checks(art23b, {"business": [art23b], "everyday": [], "middle_east": []},
+                                   None, None, analysis_pairs=[(art23b, data_legacy)])
+check(any(s == "PASS" and "no banned" in m for s, m in checks_leg),
+      "v12.3 check 18 ignores a legacy business_impact field")
+data_merged_bad = dict(data_legacy, why_it_matters="This could reshape the landscape for startups")
+del data_merged_bad["business_impact"]
+_, checks_mb = agent.run_qa_checks(art23b, {"business": [art23b], "everyday": [], "middle_east": []},
+                                  None, None, analysis_pairs=[(art23b, data_merged_bad)])
+check(any(s == "FAIL" and "banned phrase" in m for s, m in checks_mb),
+      "v12.3 check 18 still FAILs on a banned phrase in the merged stake line")
+
+
 # ─── SUMMARY ─────────────────────────────────────────────────────────────────
 print("=" * 60)
 print(f"  RESULT: {passed} passed, {failed} failed")
