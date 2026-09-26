@@ -2894,7 +2894,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SIGNAL // AI Intelligence Briefing - Issue #{issue_number} - {date}</title>
-<meta name="description" content="SIGNAL Issue #{issue_number} — Your weekly AI intelligence briefing. The stories that matter, in five minutes flat.">
+<meta name="description" content="SIGNAL Issue #{issue_number} — The AI stories that matter, in five minutes flat.">
 <meta property="og:type" content="article">
 <meta property="og:title" content="SIGNAL #{issue_number} — AI Intelligence Briefing">
 <meta property="og:description" content="The AI stories that matter this week, in five minutes flat. Curated for leaders and curious minds.">
@@ -3257,7 +3257,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       <span>{date}</span>
     </div>
     <h1>SIGN<span class="accent">A</span>L</h1>
-    <p class="tagline">Your weekly AI intelligence briefing — the stories that matter,<br>in five minutes flat.</p>
+    <p class="tagline">The AI stories that matter, in five minutes flat.</p>
     <p class="promise">Curated for leaders &amp; curious minds · Every Tuesday · Dubai 08:00 GST</p>
     <p class="byline">{author_photo_html}By <strong>{author_name}</strong> &mdash; {author_role}<br><span class="byline-tag">{author_tagline}</span></p>
     <p class="social-links">{social_links_html}</p>
