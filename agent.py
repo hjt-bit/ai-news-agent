@@ -1,5 +1,5 @@
 """
-SIGNAL -- AI Weekly Intelligence Briefing Agent (v12)
+SIGNAL -- AI Weekly Intelligence Briefing Agent (v10)
 ----------------------------------------------------
 Pipeline:
   1. FETCH      -> pull the last 7 days of articles from trusted RSS feeds
@@ -24,7 +24,7 @@ import urllib.error
 import urllib.parse
 from html import escape as _h
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from time import mktime
 from openai import OpenAI
 
@@ -96,6 +96,11 @@ SOCIAL_LINKS = {
 #                            creation (see create_beehiiv_draft_post). Sending /
 #                            scheduling / publishing ALWAYS stays human.
 #   BEEHIIV_PUBLICATION_ID — beehiiv publication id (pub_...), required for drafts.
+#   KIT_API_KEY            — Kit (ex-ConvertKit) v4 API key (Kit dashboard →
+#                            Settings → Developer). v12.2 implements DRAFT-ONLY
+#                            broadcast creation (see create_kit_broadcast_draft).
+#                            send_at is hardcoded to null — sending / scheduling
+#                            ALWAYS stays human in the Kit dashboard.
 #   SERPER_API_KEY         — Serper search API key for the fact-checker (replaces
 #                            the bot-blocked DuckDuckGo scraper). Unset = search
 #                            skipped, stories marked UNVERIFIED (never crash).
@@ -104,6 +109,7 @@ BEEHIIV_API_KEY = os.environ.get("BEEHIIV_API_KEY")
 BEEHIIV_PUBLICATION_ID = os.environ.get("BEEHIIV_PUBLICATION_ID", "")
 SERPER_API_KEY = os.environ.get("SERPER_API_KEY", "")
 LINKEDIN_ACCESS_TOKEN = os.environ.get("LINKEDIN_ACCESS_TOKEN")
+KIT_API_KEY = os.environ.get("KIT_API_KEY")
 
 # ── v9: AI-Relevance Filter + Story Ranker + Fact Checker ─────────────────────
 AI_RELEVANCE_THRESHOLD = 6       # Min score (0-10) to pass relevance filter
@@ -111,6 +117,60 @@ MAGNITUDE_VIRAL_THRESHOLD = 8.0  # Score above which story MUST be considered fo
 FACT_CHECK_ENABLED = True        # Toggle fact-checking (disable for faster dev runs)
 FACT_CHECK_MIN_CONFIDENCE = "MEDIUM"  # v10: ENFORCED in QA check 13. LOW=warn only; MEDIUM=LOW stories block publish.
 MAX_SEARCH_PER_STORY = 3        # Max web searches per story for fact-checking
+
+# ── v12.1: code-enforced editorial rules (QA checks 18/19/20) ────────────────
+BANNED_WHY_IT_MATTERS_PHRASES = (
+    "could reshape the landscape",
+    "enhances efficiency",
+    "improves productivity",
+    "increased scrutiny",
+    "a game-changer",
+    "significant implications",
+    "enhance investor confidence",
+)
+BANNED_LEADER_ACTION_OPENERS = (
+    "assess", "explore", "consider", "monitor",
+    "stay informed", "keep an eye on", "evaluate opportunities",
+)
+# Ordered from weakest to strongest claim; any stronger claim than the source
+# supports is a "status upgrade" violation.
+STATUS_PRECISION_LEVELS = (
+    "rumored", "reportedly considering", "in talks",
+    "announced", "confirmed", "launched",
+)
+# Words that signal a claim stronger than "in talks"/"reportedly considering".
+STATUS_UPGRADE_SIGNALS = ("announced", "launched", "confirmed", "signed", "closed", "completed")
+
+def _status_level(text):
+    """Highest STATUS_PRECISION_LEVELS index present in text, or None.
+
+    Used by QA check 20: the source text sets the status ceiling and the
+    analysis may not claim a stronger (higher-index) status. Comparison is
+    grounded in the six approved distinctions, never in loose keyword
+    heuristics.
+    """
+    t = (text or "").lower()
+    level = None
+    for i, marker in enumerate(STATUS_PRECISION_LEVELS):
+        if marker in t:
+            level = i
+    return level
+
+
+_ABBREV_TOKENS = ("U.S.", "U.K.", "U.A.E.", "e.g.", "i.e.", "vs.",
+                  "Mr.", "Ms.", "Mrs.", "Dr.", "No.", "St.", "Sr.", "Jr.")
+
+def _count_sentences(text):
+    """Count sentences in text, tolerating common abbreviations.
+
+    Splits on runs of . ! ? after blanking abbreviation dots so "U.S." or
+    "e.g." don't inflate the count. Used to enforce the 2-3 sentence rule
+    for HASAN_TAKE_FINAL.
+    """
+    t = text or ""
+    for ab in _ABBREV_TOKENS:
+        t = t.replace(ab, ab.replace(".", ""))
+    return sum(1 for part in re.split(r"[.!?]+", t) if part.strip())
 
 # =========================================================
 # v10 GUARDRAILS — review gate, prompt-injection hardening, fail-closed flags
@@ -139,6 +199,77 @@ _RUN_NOW = None
 def _now():
     """Run timestamp; falls back to datetime.now() outside generate_newsletter()."""
     return _RUN_NOW or datetime.now()
+
+
+# ── v12.1: Tuesday-of-publication issue date (Asia/Dubai) ─────────────────────
+# The SIGNAL issue is published Tuesday 08:00 GST (Asia/Dubai time). The
+# scheduled review run happens Sunday 17:00 GST and the publish run happens
+# before Tuesday morning — both must resolve to the SAME Tuesday, which is
+# also the date baked into filenames and the rendered issue header.
+_DUBAI_TZ = timezone(timedelta(hours=4))  # Asia/Dubai has no DST: fixed offset is exact
+_ISSUE_DATE = None  # cached per run (v12.1: same midnight-drift rationale as _RUN_NOW)
+
+def _parse_explicit_date(value):
+    """Validate an explicit publication date for PUBLICATION_DATE.
+
+    Must be strict YYYY-MM-DD and fall on a Tuesday (SIGNAL publishes
+    Tuesday 08:00 GST). Returns the date. Raises ValueError with a clear
+    message for malformed input or non-Tuesday dates.
+    """
+    raw = (value or "").strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
+        raise ValueError(
+            f"PUBLICATION_DATE must be YYYY-MM-DD (got {value!r}); "
+            f"e.g. PUBLICATION_DATE=2026-09-22")
+    try:
+        d = datetime.strptime(raw, "%Y-%m-%d").date()
+    except (ValueError, TypeError, AttributeError):
+        raise ValueError(
+            f"PUBLICATION_DATE must be YYYY-MM-DD (got {value!r}); "
+            f"e.g. PUBLICATION_DATE=2026-09-22")
+    if d.weekday() != 1:  # Mon=0..Sun=6; Tuesday=1
+        raise ValueError(
+            f"PUBLICATION_DATE must be a Tuesday (got {raw}, a {d.strftime('%A')}); "
+            f"SIGNAL publishes on Tuesdays")
+    return d
+
+
+def _issue_date(now=None):
+    """Date of the Tuesday of publication, Asia/Dubai time (cached per run).
+
+    An explicit PUBLICATION_DATE env var (YYYY-MM-DD, must be a Tuesday)
+    takes precedence — it pins the issue date so delayed reruns produce the
+    SAME filenames/URLs/issue number. Invalid explicit dates raise
+    ValueError immediately (fail fast, never silently misdate an issue).
+    Without it, the run timestamp resolves: Sun/Mon runs -> the UPCOMING
+    Tuesday; Tue -> same Tuesday; Wed-Sat runs -> the most recent Tuesday.
+    The optional `now` parameter (datetime or date) exists for tests.
+    """
+    global _ISSUE_DATE
+    if _ISSUE_DATE is None:
+        explicit = os.environ.get("PUBLICATION_DATE", "").strip()
+        if explicit:
+            _ISSUE_DATE = _parse_explicit_date(explicit)
+        else:
+            current = now if now is not None else datetime.now(_DUBAI_TZ)
+            d = current.date() if isinstance(current, datetime) else current
+            # Days from this weekday (Mon=0..Sun=6) to the publication Tuesday.
+            # Sun/Mon runs -> the UPCOMING Tuesday; Wed-Sat runs -> most recent Tuesday.
+            delta = (1 - d.weekday()) % 7
+            if delta > 2:
+                delta -= 7
+            _ISSUE_DATE = d + timedelta(days=delta)
+    return _ISSUE_DATE
+
+
+def _issue_date_str():
+    """YYYY_MM_DD form of the issue date (for filenames/URLs)."""
+    return _issue_date().strftime("%Y_%m_%d")
+
+
+def _issue_date_display():
+    """'September 22, 2026' form of the issue date (for the rendered issue)."""
+    return _issue_date().strftime("%B %d, %Y")
 
 
 # ── Prompt-injection hardening (v10) ──────────────────────────────────────────
@@ -2124,7 +2255,8 @@ def backfill_picks(picks, viral_article, scored_articles, notes):
 # =========================================================
 # 5d. AUTOMATED QA SELF-CHECK (runs before every publish)
 # =========================================================
-def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None):
+def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
+                  analysis_pairs=None, publish=False):
     """
     Automated pre-publish QA. Validates the assembled issue against a checklist
     and writes qa_report.md. Returns (passed, checks) where `checks` is a list of
@@ -2134,6 +2266,10 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None):
     cull-aware — sections shrunk by QA exclusions WARN instead of FAILing, and
     check 13 reports the exclusions instead of re-FAILing culled stories.
     When cull_report is None the legacy (pre-cull) semantics apply.
+
+    v12.1: `analysis_pairs` is an optional list of (article, analysis_dict)
+    tuples for the code-enforced editorial checks (18/19/20). When None, those
+    checks are skipped with a WARN.
     """
     print(f"\n{'='*60}")
     print(f"STEP 6: QA SELF-CHECK (pre-publish validation)")
@@ -2358,6 +2494,82 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None):
     else:
         checks.append(("PASS", "v10 Relevance: filter completed without errors"))
 
+    # 18) v12.1: banned "why it matters" phrases — code-enforced editorial rule
+    # 19) v12.1: leader-action openers — code-enforced editorial rule
+    # 20) v12.1: status-word precision — never upgrade the source's status
+    if analysis_pairs:
+        banned_hits = []
+        opener_hits = []
+        status_hits = []
+        for art, data in analysis_pairs:
+            if not isinstance(data, dict):
+                continue
+            title = (art.get("title") or "")[:50]
+            # 18) scan why_it_matters + business_impact for banned phrases
+            for field in ("why_it_matters", "business_impact"):
+                text = (data.get(field) or "").lower()
+                for phrase in BANNED_WHY_IT_MATTERS_PHRASES:
+                    if phrase in text:
+                        banned_hits.append(f"{title}… [{field}: '{phrase}']")
+                        break
+            # 19) leader_action must not start with a banned opener
+            action = (data.get("leader_action") or "").strip().lower()
+            for opener in BANNED_LEADER_ACTION_OPENERS:
+                if action.startswith(opener):
+                    opener_hits.append(f"{title}… ['{opener}']")
+                    break
+            # 20) status precision: the source text sets the status ceiling via
+            # the six approved distinctions (STATUS_PRECISION_LEVELS, weakest
+            # to strongest). The analysis may not claim a stronger status
+            # than the source supports — a proven upgrade is publish-
+            # blocking (FAIL), not a warning.
+            source_status_text = ((art.get("title") or "") + " " +
+                                  (art.get("summary") or ""))
+            analysis_status_text = " ".join(
+                str(data.get(f) or "") for f in
+                ("headline", "tldr", "what_happened"))
+            src_level = _status_level(source_status_text)
+            ana_level = _status_level(analysis_status_text)
+            if (src_level is not None and ana_level is not None
+                    and ana_level > src_level):
+                status_hits.append(
+                    f"{title}… [source: '{STATUS_PRECISION_LEVELS[src_level]}' "
+                    f"-> analysis: '{STATUS_PRECISION_LEVELS[ana_level]}']")
+        if banned_hits:
+            checks.append(("FAIL", f"v12.1 Editorial: {len(banned_hits)} banned phrase(s): " +
+                           "; ".join(banned_hits[:3])))
+        else:
+            checks.append(("PASS", "v12.1 Editorial: no banned 'why it matters' phrases"))
+        if opener_hits:
+            checks.append(("FAIL", f"v12.1 Leader-action: {len(opener_hits)} banned opener(s): " +
+                           "; ".join(opener_hits[:3])))
+        else:
+            checks.append(("PASS", "v12.1 Leader-action: all openers decisive"))
+        if status_hits:
+            checks.append(("FAIL", f"v12.1 Status precision: {len(status_hits)} status upgrade(s): " +
+                           "; ".join(status_hits[:3])))
+        else:
+            checks.append(("PASS", "v12.1 Status precision: no status upgrades detected"))
+    else:
+        checks.append(("WARN", "v12.1 Editorial: analysis pairs not supplied — checks 18/19/20 skipped"))
+
+    # 21) v12.1: Hasan's Take gate. An untouched placeholder WARNs in review
+    # mode (Hasan writes the take during review) but FAILs with publish=True.
+    # A supplied-but-invalid take (not exactly 2-3 sentences) FAILs in both
+    # modes — it blocks publishing and shows red at review so Hasan fixes
+    # it before the publish run.
+    take_mode = RUN_FLAGS.get("take_mode", "placeholder")
+    if take_mode == "placeholder":
+        if publish:
+            checks.append(("FAIL", "v12.1 Hasan's Take: placeholder untouched — write the take (HASAN_TAKE_FINAL) before publishing"))
+        else:
+            checks.append(("WARN", "v12.1 Hasan's Take: placeholder untouched — write the take at review (HASAN_TAKE_FINAL)"))
+    elif take_mode == "invalid":
+        take_error = RUN_FLAGS.get("take_error") or "must be exactly 2-3 sentences"
+        checks.append(("FAIL", f"v12.1 Hasan's Take: invalid final take ({take_error}) — fix HASAN_TAKE_FINAL before publishing"))
+    else:
+        checks.append(("PASS", "v12.1 Hasan's Take: final take supplied (2-3 sentences)"))
+
     # Tally
     fails = [m for s, m in checks if s == "FAIL"]
     warns = [m for s, m in checks if s == "WARN"]
@@ -2431,7 +2643,18 @@ def analyze_article(article, audience="business"):
                  "FAITHFULNESS (critical): use ONLY facts present in the title/summary provided. NEVER invent a "
                  "dollar figure, percentage, date, or claim that is not in the source text. The headline MUST be "
                  "consistent with the TL;DR and must describe the SAME event as the source — do not generalize a "
-                 "specific story into a different, bigger claim.")
+                 "specific story into a different, bigger claim. "
+                 "BANNED PHRASES (never use in why_it_matters or business_impact): 'could reshape the landscape', "
+                 "'enhances efficiency', 'improves productivity', 'increased scrutiny', 'a game-changer', "
+                 "'significant implications', 'enhance investor confidence'. Use concrete specifics instead. "
+                 "LEADER-ACTION OPENERS (never start leader_action with): Assess, Explore, Consider, Monitor, "
+                 "'Stay informed', 'Keep an eye on', 'Evaluate opportunities' — start with a decisive verb naming a "
+                 "concrete first step. "
+                 "STATUS PRECISION (critical): use the exact status the source supports — 'in talks' for "
+                 "unconfirmed negotiations, 'reportedly considering' for single-source reports, 'announced' for "
+                 "company statements, 'launched' for available products, 'confirmed' for verified facts, 'rumored' "
+                 "for weak sourcing. NEVER upgrade a status (e.g. do not write 'launched' for a story that is only "
+                 "'in talks').")
     elif audience == "middle_east":
         schema_hint = """{
   "headline": "punchy 6-10 word headline (no period)",
@@ -2915,12 +3138,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </div>
     <h1>SIGN<span class="accent">A</span>L</h1>
     <p class="tagline">Your weekly AI intelligence briefing — the stories that matter,<br>in five minutes flat.</p>
-    <p class="promise">Curated for leaders &amp; curious minds · Every Monday · Dubai 08:00 GST</p>
+    <p class="promise">Curated for leaders &amp; curious minds · Every Tuesday · Dubai 08:00 GST</p>
     <p class="byline">{author_photo_html}By <strong>{author_name}</strong> &mdash; {author_role}<br><span class="byline-tag">{author_tagline}</span></p>
     <p class="social-links">{social_links_html}</p>
   </div>
   <div class="subscribe-strip">
-    <div class="copy"><strong>Never miss an issue.</strong> Join SIGNAL — free, every Monday.</div>
+    <div class="copy"><strong>Never miss an issue.</strong> Join SIGNAL — free, every Tuesday.</div>
     <a class="cta-mini" href="{signup_url}" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
     {beehiiv_strip_btn}
   </div>
@@ -3060,12 +3283,26 @@ def render_tip_block(tip):
 def get_hasan_take(viral_article, viral_data):
     """Return the 'Hasan's Take' slot content for this issue.
 
-    TAKE_MODE="placeholder" (default): returns a placeholder marker. Hasan
-    writes his take during human review (the review bundle flags it loudly).
-    A future TAKE_MODE="draft" may auto-draft 2-4 sentences here for Hasan to
-    edit; the draft MUST pass the same faithfulness/empty-output guards as
-    analyze_article (an empty take fails QA, never renders blank).
+    v12.1: Hasan's final take can be supplied via the HASAN_TAKE_FINAL
+    environment variable. It MUST be exactly 2-3 sentences (enforced by
+    _count_sentences); anything else returns mode="invalid" with a clear
+    error, and QA check 21 FAILs so the issue cannot publish with a
+    malformed take. When set and valid, the take is used verbatim as the
+    final take. Otherwise TAKE_MODE="placeholder" returns a placeholder
+    marker and Hasan writes his take during human review (the review bundle
+    flags it loudly). Publishing is BLOCKED while the placeholder is
+    untouched (see QA check 21).
     """
+    final = os.environ.get("HASAN_TAKE_FINAL", "").strip()
+    if final:
+        n = _count_sentences(final)
+        if n not in (2, 3):
+            return {"mode": "invalid", "text": final,
+                    "headline": "Hasan's Take",
+                    "error": (f"HASAN_TAKE_FINAL has {n} sentence(s); "
+                              f"exactly 2-3 sentences required")}
+        return {"mode": "final", "text": final,
+                "headline": "Hasan's Take"}
     if TAKE_MODE == "placeholder":
         return {"mode": "placeholder", "text": None,
                 "headline": "Hasan's take (to be written at review)"}
@@ -3085,7 +3322,19 @@ def render_take_block(take):
     </div>
     <div class="card take-placeholder">
       <p class="take-note"><strong>Hasan's take (to be written at review).</strong></p>
-      <p class="take-hint">Replace this block with 2&ndash;4 sentences of opinion on the viral lead before publishing.</p>
+      <p class="take-hint">Replace this block with 2&ndash;3 sentences of opinion on the viral lead before publishing.</p>
+    </div>"""
+    if take.get("mode") == "invalid":
+        return f"""
+    <div class="section-header">
+      <span class="index">01b //</span>
+      <h2>Hasan's Take</h2>
+      <span class="rule"></span>
+    </div>
+    <div class="card take-placeholder">
+      <p class="take-note"><strong>Invalid take supplied &mdash; fix before publishing.</strong></p>
+      <p class="take-hint">{_h(str(take.get('error', 'must be 2-3 sentences')))}</p>
+      <p class="take-text">{_h(str(take.get('text', '')))}</p>
     </div>"""
     return f"""
     <div class="section-header">
@@ -3328,7 +3577,7 @@ def _write_take_suggestions_md(suggestions, path, issue_number_str, today):
 def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pairs, me_items, tip, take=None):
     """Write a short TL;DR LinkedIn post that drives readers to the full HTML issue."""
     print("\n  Exporting LinkedIn post (TL;DR mode)...")
-    issue_url = f"{PAGES_BASE_URL}/newsletters/newsletter_{_now().strftime('%Y_%m_%d')}.html"
+    issue_url = f"{PAGES_BASE_URL}/newsletters/newsletter_{_issue_date_str()}.html"
     lines = []
 
     # ── Hook line (above the fold) ──
@@ -3386,7 +3635,7 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
 
     # ── Subscribe CTAs ──
     if BEEHIIV_URL:
-        lines.append(f"Get SIGNAL in your inbox every Monday (free): {BEEHIIV_URL}")
+        lines.append(f"Get SIGNAL in your inbox every Tuesday (free): {BEEHIIV_URL}")
     if SIGNUP_URL:
         lines.append(f"Follow on LinkedIn: {SIGNUP_URL}")
     lines.append("")
@@ -3398,7 +3647,7 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
     lines.append("")
     lines.append("#AI #ArtificialIntelligence #AINews #GenerativeAI #MachineLearning")
 
-    fname = f"linkedin_post_{_now().strftime('%Y_%m_%d')}.md"
+    fname = f"linkedin_post_{_issue_date_str()}.md"
     with open(fname, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     print(f"  LinkedIn post written -> {fname}")
@@ -3415,7 +3664,7 @@ def export_beehiiv_email(date_str, issue_number, viral_pair, biz_pairs, eve_pair
     for subject line and preview text, followed by the email body.
     """
     print("\n  Exporting Beehiiv email post...")
-    issue_url = f"{PAGES_BASE_URL}/newsletters/newsletter_{_now().strftime('%Y_%m_%d')}.html"
+    issue_url = f"{PAGES_BASE_URL}/newsletters/newsletter_{_issue_date_str()}.html"
     lines = []
 
     # ── Front-matter (subject + preview) ──
@@ -3480,7 +3729,7 @@ def export_beehiiv_email(date_str, issue_number, viral_pair, biz_pairs, eve_pair
     lines.append("")
     lines.append("_Represents my own views and not those of my employer._")
 
-    fname = f"email_post_{_now().strftime('%Y_%m_%d')}.md"
+    fname = f"email_post_{_issue_date_str()}.md"
     with open(fname, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     print(f"  Beehiiv email post written -> {fname}")
@@ -3579,6 +3828,91 @@ def maybe_create_beehiiv_draft(html, issue_number_str, today):
 
 
 # =========================================================
+# 9c. KIT BROADCAST DRAFT — API v4 (v12.2, DRAFT-ONLY)
+# =========================================================
+# Kit API v4 (docs: https://developers.kit.com):
+#   POST https://api.kit.com/v4/broadcasts
+#   Headers: X-Kit-Api-Key: <KIT_API_KEY>, Content-Type: application/json
+#   Body: { subject (required), content (raw HTML), preview_text,
+#           public: false (draft stays out of the public archive until the
+#           human enables it at schedule time),
+#           send_at: null (DRAFT — not scheduled, not sent) }
+#
+# SAFETY RULE (absolute): send_at is HARDCODED to null and public to false.
+# This code never sends, never schedules, never publishes to the archive.
+# Sending / scheduling / archiving stays a human action in the Kit dashboard.
+# Do not add a send_at timestamp without a separate human-approval gate.
+#
+# Degrades gracefully: missing env var -> warning + skip; HTTP errors ->
+# warning + skip. Never raises, never logs secrets.
+KIT_API_BASE = "https://api.kit.com/v4"
+
+def create_kit_broadcast_draft(subject, html, preview_text=""):
+    """Create the rendered newsletter as a DRAFT broadcast in Kit (API v4).
+
+    DRAFT-ONLY: send_at=null and public=false are hardcoded below. Returns
+    the created broadcast id (str) on success, or None when skipped/failed.
+    Never raises.
+    """
+    api_key = os.environ.get("KIT_API_KEY", "").strip()
+    if not api_key:
+        print("  \u26a0 Kit broadcast draft skipped: KIT_API_KEY not set.")
+        return None
+    try:
+        payload = {
+            "subject": subject,
+            "content": html,          # raw HTML per Kit API v4
+            "preview_text": preview_text,
+            "public": False,          # DRAFT-ONLY. Human enables archive at schedule time.
+            "send_at": None,          # DRAFT-ONLY. Never a timestamp.
+        }
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            f"{KIT_API_BASE}/broadcasts",
+            data=data,
+            headers={
+                "X-Kit-Api-Key": api_key,  # never logged
+                "Content-Type": "application/json",
+                "User-Agent": "SIGNAL-newsletter-agent/1.0",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            code = getattr(resp, "status", 200)
+            raw = resp.read().decode("utf-8", errors="ignore") or "{}"
+        body = json.loads(raw)
+        if code in (200, 201, 202):
+            node = body.get("data") if isinstance(body, dict) else None
+            # Kit v4 nests the broadcast under data.broadcast in some shapes.
+            if isinstance(node, dict) and isinstance(node.get("broadcast"), dict):
+                node = node["broadcast"]
+            broadcast_id = node.get("id") if isinstance(node, dict) else None
+            print(f"  \u2713 Kit broadcast draft created (id: {broadcast_id or 'unknown'}) "
+                  f"\u2014 DRAFT only, NOT sent.")
+            return broadcast_id
+        print(f"  \u26a0 Kit broadcast draft returned HTTP {code} \u2014 draft NOT created.")
+        return None
+    except urllib.error.HTTPError as e:
+        print(f"  \u26a0 Kit broadcast draft failed: HTTP {e.code} \u2014 draft NOT created.")
+        return None
+    except Exception as e:
+        print(f"  \u26a0 Kit broadcast draft failed ({type(e).__name__}) \u2014 draft NOT created.")
+        return None
+
+
+def maybe_create_kit_draft(html, issue_number_str, today):
+    """v12.2 pipeline step: create the rendered issue as a Kit DRAFT broadcast.
+
+    Runs after the review bundle is written (both review and publish modes).
+    Skipped gracefully with a warning when KIT_API_KEY is absent. Returns the
+    Kit broadcast id or None.
+    """
+    subject = f"SIGNAL #{issue_number_str} \u2014 AI, decoded for MENA leaders ({today})"
+    preview = "Five minutes. The AI stories that matter."
+    return create_kit_broadcast_draft(subject, html, preview_text=preview)
+
+
+# =========================================================
 # MAIN
 # =========================================================
 def parse_args(argv=None):
@@ -3603,8 +3937,9 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     publish=True: PUBLISH MODE — writes final files to the repo root. Aborts
     (no output kept) if QA reports any FAIL.
     """
-    global _RUN_NOW
+    global _RUN_NOW, _ISSUE_DATE
     _RUN_NOW = datetime.now()  # single timestamp for the whole run (v10: no midnight drift)
+    _ISSUE_DATE = None  # v12.1: Tuesday-of-publication date, recomputed fresh each run
     for key, val in RUN_FLAGS.items():
         if isinstance(val, bool):
             RUN_FLAGS[key] = False
@@ -3671,7 +4006,7 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
             print("Aborted.")
             return
 
-    today = _now().strftime("%B %d, %Y")
+    today = _issue_date_display()  # v12.1: Tuesday of publication (Asia/Dubai), not run time
 
     # 5e) Tip of the Week (generated early so QA can verify it isn't a repeat)
     tip = generate_tip_of_week()
@@ -3754,6 +4089,8 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
 
     # 6g) v10: "Hasan's Take" slot — placeholder until written at human review.
     take = get_hasan_take(viral, viral_data)
+    RUN_FLAGS["take_mode"] = take.get("mode", "placeholder")  # v12.1: for QA check 21
+    RUN_FLAGS["take_error"] = take.get("error", "")  # v12.1: surfaced by check 21 on invalid takes
     take_html = render_take_block(take)
 
     # 7) v10: all outputs land in out_dir. Review mode -> review/ (NEVER published).
@@ -3768,44 +4105,12 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     # 8) Automated QA self-check (v10: runs AFTER analysis+render so it can see
     #    failed analyses, hollow renders, and QA-flagged runs; writes qa_report.md)
     qa_passed, qa_checks = run_qa_checks(viral, picks, tip, podcast_report,
-                                         cull_report=cull_report)
+                                         cull_report=cull_report,
+                                         analysis_pairs=([(viral, viral_data)] if viral else []) + biz_pairs + eve_pairs + me_items,
+                                         publish=publish)
     if not qa_passed and not publish:
         print("\n  ⚠ QA reported FAIL item(s) — see qa_report.md in the review bundle. "
               "Not publishing (review mode).")
-
-    # 6) Analyze viral story
-    viral_html = ""
-    viral_data = {}
-    if viral:
-        print("\nWriting viral lead...")
-        viral_data = analyze_article(viral, "viral")
-        viral_html = f"""
-        <div class="section-header">
-          <span class="index">01 //</span>
-          <h2>The Viral Lead</h2>
-          <span class="rule"></span>
-        </div>
-        {render_viral_block(viral, viral_data)}
-        """
-
-    # 7) Business cards
-    print("\nWriting business cards...")
-    biz_html = "".join(
-        render_business_card(art, analyze_article(art, "business"))
-        for art in picks["business"]
-    )
-
-    # 8) Middle East cards
-    print("\nWriting Middle East section...")
-    me_items = [(art, analyze_article(art, "middle_east")) for art in picks["middle_east"]]
-    me_html = render_middle_east_block(me_items)
-
-    # 9) Everyday cards
-    print("\nWriting everyday cards...")
-    eve_html = "".join(
-        render_everyday_card(art, analyze_article(art, "everyday"))
-        for art in picks["everyday"]
-    )
 
     # 10) Tip of the Week (already generated above for QA)
     tip_html = render_tip_block(tip)
@@ -3816,8 +4121,8 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
         print(f"  ⚠⚠ Issue number FORCED to #{issue_number:03d} (one-off --force-issue)")
         RUN_FLAGS["forced_overrides"].append(f"force-issue={force_issue}")
     else:
-        ISSUE_001_DATE = datetime(2026, 5, 10)
-        delta_days = (_now() - ISSUE_001_DATE).days
+        ISSUE_001_DATE = datetime(2026, 5, 10).date()
+        delta_days = (_issue_date() - ISSUE_001_DATE).days
         issue_number = max(1, ((delta_days + 3) // 7) + 1)
     issue_number_str = f"{issue_number:03d}"
 
@@ -3836,7 +4141,7 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
         beehiiv_main_btn = ""
 
     # Build canonical issue URL and OG image
-    issue_url = f"{PAGES_BASE_URL}/newsletters/newsletter_{_now().strftime('%Y_%m_%d')}.html"
+    issue_url = f"{PAGES_BASE_URL}/newsletters/newsletter_{_issue_date_str()}.html"
     # Static branded OG image (replace with a per-issue generated image later if desired)
     og_image_url = f"{PAGES_BASE_URL}/assets/signal_og_card.png"
 
@@ -3866,7 +4171,7 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     email_capture_html = ''
     if BEEHIIV_URL:
         email_capture_html = f'''<div class="email-capture">
-      <p class="ec-headline">Get SIGNAL in your inbox every Monday</p>
+      <p class="ec-headline">Get SIGNAL in your inbox every Tuesday</p>
       <p class="ec-sub">Five minutes. The AI stories that matter. Free, forever.</p>
       <a class="ec-button" href="{BEEHIIV_URL}" target="_blank" rel="noopener">Subscribe by email</a>
     </div>'''
@@ -3900,7 +4205,7 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
         return
 
     # 10) Render the HTML issue
-    fname = f"newsletter_{_now().strftime('%Y_%m_%d')}.html"
+    fname = f"newsletter_{_issue_date_str()}.html"
     with open(fname, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"\n  ✓ Rendered {fname}")
@@ -3944,6 +4249,11 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     #      Runs after the review bundle; skipped with a warning when the
     #      Beehiiv secrets are absent. Never blocks the run on failure.
     maybe_create_beehiiv_draft(html, issue_number_str, today)
+
+    # 14c) v12.2: Kit DRAFT broadcast creation (draft-only — sending stays human).
+    #      Runs after the review bundle; skipped with a warning when KIT_API_KEY
+    #      is absent. Never blocks the run on failure.
+    maybe_create_kit_draft(html, issue_number_str, today)
 
     # 15) Final banner — unmistakable.
     print("\n" + "=" * 60)
