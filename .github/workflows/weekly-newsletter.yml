@@ -1,4 +1,4 @@
-name: Weekly AI Newsletter (v12)
+name: Weekly AI Newsletter (v12.1)
 
 # REVIEW-BY-DEFAULT: scheduled runs generate a review bundle and STOP.
 # Nothing is committed or published without a human. A manual run with
@@ -7,7 +7,7 @@ name: Weekly AI Newsletter (v12)
 # the QA-gate step below refuses to commit unless qa_report.md says PASS.
 on:
   schedule:
-    - cron: '0 13 * * 0'   # Sun 13:00 UTC = 17:00 Dubai (GST, UTC+4) — ready overnight, no Monday morning rush
+    - cron: '0 13 * * 0'   # Sun 13:00 UTC = 17:00 Dubai (GST, UTC+4) — review bundle ready Sunday evening; publish targets Tuesday 08:00 GST
   workflow_dispatch:
     inputs:
       publish:
@@ -15,6 +15,14 @@ on:
         required: false
         default: 'false'
         type: boolean
+      publication_date:
+        description: 'Explicit issue publication date (YYYY-MM-DD, must be a Tuesday). Empty = auto-resolve from the run date (Sun/Mon → upcoming Tue; Wed–Sat → most recent Tue).'
+        required: false
+        default: ''
+      hasan_take_final:
+        description: "Hasan's final take, used verbatim (must be exactly 2–3 sentences). Empty = placeholder for review."
+        required: false
+        default: ''
 
 permissions:
   contents: write           # allow the publish path to commit the reviewed newsletter
@@ -49,6 +57,10 @@ jobs:
           SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
           BEEHIIV_API_KEY: ${{ secrets.BEEHIIV_API_KEY }}
           BEEHIIV_PUBLICATION_ID: ${{ secrets.BEEHIIV_PUBLICATION_ID }}
+          KIT_API_KEY: ${{ secrets.KIT_API_KEY }}
+          AUTHOR_PHOTO_URL: https://hjt-bit.github.io/ai-news-agent/assets/hasan-headshot.jpg
+          PUBLICATION_DATE: ${{ inputs.publication_date }}
+          HASAN_TAKE_FINAL: ${{ inputs.hasan_take_final }}
         run: python agent.py
 
       - name: Upload review bundle
@@ -66,6 +78,10 @@ jobs:
           SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
           BEEHIIV_API_KEY: ${{ secrets.BEEHIIV_API_KEY }}
           BEEHIIV_PUBLICATION_ID: ${{ secrets.BEEHIIV_PUBLICATION_ID }}
+          KIT_API_KEY: ${{ secrets.KIT_API_KEY }}
+          AUTHOR_PHOTO_URL: https://hjt-bit.github.io/ai-news-agent/assets/hasan-headshot.jpg
+          PUBLICATION_DATE: ${{ inputs.publication_date }}
+          HASAN_TAKE_FINAL: ${{ inputs.hasan_take_final }}
         run: python agent.py --publish
 
       - name: QA gate — refuse to commit unless QA passed
