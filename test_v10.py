@@ -419,6 +419,22 @@ take_html2 = agent.render_take_block(written)
 check("<b>opinion</b>" not in take_html2 and "&lt;b&gt;" in take_html2,
       "written take text is escaped")
 
+# v12.2: take header uses the full byline name; byline photo must not stretch
+import os as _os
+_os.environ["HASAN_TAKE_FINAL"] = "First sentence here. Second sentence here."
+try:
+    take_f = agent.get_hasan_take(mk_article("V", "https://x.com/v"), {})
+    check(take_f.get("headline") == "Hasan Jad's Take", "final take headline uses full name")
+    html_f = agent.render_take_block(take_f)
+    check("Hasan Jad's Take" in html_f and "Hasan's Take</h2>" not in html_f.replace("Hasan Jad's Take</h2>", ""),
+          "rendered take header uses full name")
+finally:
+    del _os.environ["HASAN_TAKE_FINAL"]
+take_p = agent.get_hasan_take(mk_article("V", "https://x.com/v"), {})
+check(take_p.get("headline") == "Hasan Jad's take (to be written at review)",
+      "placeholder take headline uses full name")
+check("object-fit: cover" in agent.HTML_TEMPLATE, "byline photo uses object-fit: cover (no stretch)")
+
 # ─── TEST 13: Social derivatives schema ─────────────────────────────────────
 banner("v10 TEST 13 — Social derivatives (structured JSON outlines)")
 deriv = agent.generate_social_derivatives("SIGNAL #001 — brief text")
