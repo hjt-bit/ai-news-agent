@@ -47,7 +47,7 @@ class FakeCompletions:
         elif "editor of SIGNAL" in text:
             return FakeResponse('{"business": [0, 1, 2], "everyday": [3, 4, 5], "middle_east": []}')
         elif "tight, scannable newsletter cards" in text:
-            return FakeResponse('{"headline": "Test Headline", "tldr": "Test summary", "what_happened": "Something happened", "why_it_matters": "It matters because", "business_impact": "Impact on business", "leader_action": "Take this action"}')
+            return FakeResponse('{"headline": "Test Headline", "why_you_care": "The angle readers care about", "what_happened": "Something happened", "leader_action": "Take this action"}')
         elif "NOVEL, non-obvious AI tip" in text:
             # v10 schema: title/tool_name/url/one_liner/how_to/why_now
             return FakeResponse('{"title": "Test Tip", "tool_name": "TestTool", "url": "https://example.com/tool", "one_liner": "A great tip", "how_to": "Step 1, Step 2", "why_now": "Because reasons"}')
@@ -792,24 +792,22 @@ check(len(rep3["exclusions"]) == 0 and len(p3["business"]) == 1,
 
 # ─── v12.1 TESTS — code-enforced editorial QA (checks 18/19/20/21) ──────────
 
-# 22a: banned phrases detected in why_it_matters
+# 22a: banned phrases detected in the why_you_care opener (v12.4 field)
 reset_flags()
 art_bp = mk_article("TestCo raises funding", "https://reuters.com/bp1")
-data_bp = {"why_it_matters": "This could reshape the landscape for startups",
-           "business_impact": "Clear revenue impact for incumbents",
+data_bp = {"why_you_care": "This could reshape the landscape for startups",
            "leader_action": "Pilot TestCo in one team this quarter",
-           "headline": "TestCo raises funding", "tldr": "TestCo raised money", "what_happened": "TestCo raised $10M"}
+           "headline": "TestCo raises funding", "what_happened": "TestCo raised $10M"}
 _, checks_bp = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
                                    None, None, analysis_pairs=[(art_bp, data_bp)])
 check(any(s == "FAIL" and "banned phrase" in m for s, m in checks_bp),
-      "check 18 FAILs on banned 'why it matters' phrase")
+      "check 18 FAILs on banned phrase in the opener")
 
 # 22b: clean copy passes check 18
 reset_flags()
-data_clean = {"why_it_matters": "Cuts onboarding time by 30 percent",
-              "business_impact": "Clear revenue impact for incumbents",
+data_clean = {"why_you_care": "Cuts onboarding time by 30 percent",
               "leader_action": "Pilot TestCo in one team this quarter",
-              "headline": "TestCo raises funding", "tldr": "TestCo raised money", "what_happened": "TestCo raised $10M"}
+              "headline": "TestCo raises funding", "what_happened": "TestCo raised $10M"}
 _, checks_clean = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
                                       None, None, analysis_pairs=[(art_bp, data_clean)])
 check(any(s == "PASS" and "no banned" in m for s, m in checks_clean),
@@ -1088,12 +1086,13 @@ with mock.patch.dict(os.environ, {"KIT_API_KEY": "k"}):
         _urlreq.urlopen = orig_urlopen
 
 
-# ─── v12.3 TESTS — merged story anatomy ────────────────────────────────
-# The 4-label grid (What happened / Why it matters / Business impact /
-# Leader action) becomes briefing prose: bold TLDR opener, flowing body,
-# ONE stake line (business impact folded into why_it_matters), leader action.
+# ─── v12.4 TESTS — zero-redundancy story anatomy ─────────────────────────
+# Each line earns its place: headline (WHAT) → bold "Why you care" opener
+# (SO WHAT, never restates the headline) → body (details absent from the
+# headline) → leader action. The summary-style tldr is retired from
+# business/viral cards; the opener unifies with the everyday card's voice.
 
-# 23a: analyzer prompt no longer asks for business_impact; the stake line is merged
+# 24a: analyzer prompt — why_you_care opener + anti-restatement rule, no tldr
 captured_prompts = []
 _orig_create = FakeCompletions.create
 def _spy_create(self, **kwargs):
@@ -1105,60 +1104,82 @@ try:
 finally:
     FakeCompletions.create = _orig_create
 biz_prompt = next(t for t in captured_prompts if "tight, scannable newsletter cards" in t)
-check('"business_impact"' not in biz_prompt,
-      "v12.3 analyzer schema no longer requests business_impact")
-check("business impact" in biz_prompt.lower() and "why_it_matters" in biz_prompt,
-      "v12.3 why_it_matters carries the merged stake line")
+check('"why_you_care"' in biz_prompt,
+      "v12.4 analyzer schema requests the why_you_care opener")
+check('"tldr"' not in biz_prompt and '"why_it_matters"' not in biz_prompt
+      and '"business_impact"' not in biz_prompt,
+      "v12.4 analyzer schema drops tldr/why_it_matters/business_impact")
+check("NO REPETITION" in biz_prompt,
+      "v12.4 analyzer prompt carries the anti-restatement rule")
 
-# 23b: renderers use the new anatomy
+# 24b: renderer anatomy — opener, body, action; nothing else
 card_data = {"headline": "TestCo raises $10M",
-             "tldr": "TestCo raised $10M to expand across the Gulf",
+             "why_you_care": "Gulf VCs are doubling down on AI infrastructure spend",
              "what_happened": "TestCo closed a $10M round led by Gulf Capital on Tuesday",
-             "why_it_matters": "Signals Gulf VCs doubling down on AI infrastructure spend",
              "leader_action": "Shortlist TestCo for your Q4 AI infrastructure pilot"}
-art23 = mk_article("TestCo raises $10M", "https://x.com/t23")
-vh = agent.render_viral_block(art23, card_data)
-check('<p class="card-tldr"><strong>TestCo raised $10M' in vh,
-      "v12.3 viral card opens with bold TLDR")
+art24 = mk_article("TestCo raises $10M", "https://x.com/t24")
+vh = agent.render_viral_block(art24, card_data)
+check('<p class="card-angle"><strong>Why you care:</strong>' in vh,
+      "v12.4 viral card opens with the bold Why-you-care opener")
 check('<p class="card-body">TestCo closed a $10M round' in vh,
-      "v12.3 viral card renders what_happened as flowing prose")
-check("<strong>Why it matters:</strong>" in vh,
-      "v12.3 viral card has a single stake line")
+      "v12.4 viral card renders the body as flowing prose")
 check("<strong>Leader action:</strong>" in vh,
-      "v12.3 viral card keeps the leader action")
-check("Business impact" not in vh and "meta-grid" not in vh,
-      "v12.3 viral card drops the old 4-label grid")
-bh = agent.render_business_card(art23, card_data)
-check('<p class="card-tldr"><strong>' in bh and "<strong>Why it matters:</strong>" in bh
-      and "Business impact" not in bh and "meta-grid" not in bh,
-      "v12.3 business card uses the new anatomy")
-eve_data = {"headline": "Fun AI toy", "tldr": "A friendly robot pet for the family",
-            "in_plain_english": "A robot pet that learns tricks from your kids",
-            "why_you_care": "The kids will actually put the tablets down",
-            "what_to_do": "Join the preorder waitlist today"}
-eh = agent.render_everyday_card(art23, eve_data)
-check("<strong>Why you care:</strong>" in eh and "<strong>What to do:</strong>" in eh
-      and "meta-grid" not in eh,
-      "v12.3 everyday card uses the new anatomy")
+      "v12.4 viral card keeps the leader action")
+check("card-tldr" not in vh and "Why it matters" not in vh and "meta-grid" not in vh,
+      "v12.4 viral card drops tldr / stake-line / grid remnants")
+bh = agent.render_business_card(art24, card_data)
+check('<p class="card-angle"><strong>Why you care:</strong>' in bh and "card-tldr" not in bh,
+      "v12.4 business card uses the new anatomy")
 
-# 23c: check 18 scans the merged stake line only; a legacy business_impact key is ignored
+# 24c: check 18 scans the opener; legacy fields are ignored
 reset_flags()
-art23b = mk_article("TestCo raises funding", "https://reuters.com/23c")
-data_legacy = {"why_it_matters": "Cuts onboarding time by 30 percent",
-               "business_impact": "this could reshape the landscape",  # banned phrase, legacy field: ignored
-               "leader_action": "Pilot TestCo in one team this quarter",
-               "headline": "TestCo raises funding", "tldr": "TestCo raised money",
-               "what_happened": "TestCo raised $10M"}
-_, checks_leg = agent.run_qa_checks(art23b, {"business": [art23b], "everyday": [], "middle_east": []},
-                                   None, None, analysis_pairs=[(art23b, data_legacy)])
-check(any(s == "PASS" and "no banned" in m for s, m in checks_leg),
-      "v12.3 check 18 ignores a legacy business_impact field")
-data_merged_bad = dict(data_legacy, why_it_matters="This could reshape the landscape for startups")
-del data_merged_bad["business_impact"]
-_, checks_mb = agent.run_qa_checks(art23b, {"business": [art23b], "everyday": [], "middle_east": []},
-                                  None, None, analysis_pairs=[(art23b, data_merged_bad)])
-check(any(s == "FAIL" and "banned phrase" in m for s, m in checks_mb),
-      "v12.3 check 18 still FAILs on a banned phrase in the merged stake line")
+art24b = mk_article("TestCo raises funding", "https://reuters.com/24c")
+data_bad_opener = {"why_you_care": "This could reshape the landscape for startups",
+                   "why_it_matters": "legacy field, ignored",
+                   "headline": "TestCo raises funding", "what_happened": "TestCo raised $10M",
+                   "leader_action": "Pilot TestCo in one team this quarter"}
+_, checks_bo = agent.run_qa_checks(art24b, {"business": [art24b], "everyday": [], "middle_east": []},
+                                   None, None, analysis_pairs=[(art24b, data_bad_opener)])
+check(any(s == "FAIL" and "banned phrase" in m for s, m in checks_bo),
+      "v12.4 check 18 FAILs on a banned phrase in the opener")
+reset_flags()
+data_clean_opener = dict(data_bad_opener, why_you_care="Cuts model training costs by a third")
+_, checks_co = agent.run_qa_checks(art24b, {"business": [art24b], "everyday": [], "middle_east": []},
+                                  None, None, analysis_pairs=[(art24b, data_clean_opener)])
+check(any(s == "PASS" and "no banned" in m for s, m in checks_co),
+      "v12.4 check 18 PASSes on a clean opener")
+
+# 24d: redundancy WARN — opener restating the headline vs a fresh opener
+reset_flags()
+art24c = mk_article("Anthropic Signs $11.6 Billion Cloud Deal with Akamai", "https://x.com/24d")
+data_repeat = {"why_you_care": "Anthropic signs $11.6 billion cloud deal with Akamai",
+               "headline": "Anthropic Signs $11.6 Billion Cloud Deal with Akamai",
+               "what_happened": "Seven-year agreement for cloud services",
+               "leader_action": "Benchmark cloud renewals this quarter"}
+_, checks_rp = agent.run_qa_checks(art24c, {"business": [art24c], "everyday": [], "middle_east": []},
+                                  None, None, analysis_pairs=[(art24c, data_repeat)])
+check(any(s == "WARN" and "restate" in m for s, m in checks_rp),
+      "v12.4 redundancy check WARNs when the opener restates the headline")
+reset_flags()
+data_fresh = dict(data_repeat,
+                  why_you_care="Cloud pricing power is shifting to AI labs — expect tougher renewals")
+_, checks_fr = agent.run_qa_checks(art24c, {"business": [art24c], "everyday": [], "middle_east": []},
+                                  None, None, analysis_pairs=[(art24c, data_fresh)])
+check(any(s == "PASS" and "Redundancy" in m for s, m in checks_fr),
+      "v12.4 redundancy check PASSes on a fresh opener")
+
+# 24e: status precision now covers the opener
+reset_flags()
+art24d = mk_article("TestCo in talks to acquire StartupX", "https://reuters.com/24e",
+                    summary="TestCo is reportedly in talks to acquire StartupX, sources say.")
+data_up = {"why_you_care": "TestCo launched the acquisition of StartupX",
+           "headline": "TestCo in talks to acquire StartupX",
+           "what_happened": "TestCo is in talks to acquire StartupX per sources",
+           "leader_action": "Map exposure to StartupX"}
+_, checks_up = agent.run_qa_checks(art24d, {"business": [art24d], "everyday": [], "middle_east": []},
+                                   None, None, analysis_pairs=[(art24d, data_up)])
+check(any(s == "FAIL" and "Status precision" in m for s, m in checks_up),
+      "v12.4 status precision catches an upgrade inside the opener")
 
 
 # ─── SUMMARY ─────────────────────────────────────────────────────────────────
