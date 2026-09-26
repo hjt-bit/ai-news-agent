@@ -215,10 +215,10 @@ def _now():
     return _RUN_NOW or datetime.now()
 
 
-# ── v12.1: Tuesday-of-publication issue date (Asia/Dubai) ─────────────────────
-# The SIGNAL issue is published Tuesday 08:00 GST (Asia/Dubai time). The
+# ── v12.1: Monday-of-publication issue date (Asia/Dubai) ─────────────────────
+# The SIGNAL issue is published Monday 08:00 GST (Asia/Dubai time). The
 # scheduled review run happens Sunday 17:00 GST and the publish run happens
-# before Tuesday morning — both must resolve to the SAME Tuesday, which is
+# before Monday morning — both must resolve to the SAME Monday, which is
 # also the date baked into filenames and the rendered issue header.
 _DUBAI_TZ = timezone(timedelta(hours=4))  # Asia/Dubai has no DST: fixed offset is exact
 _ISSUE_DATE = None  # cached per run (v12.1: same midnight-drift rationale as _RUN_NOW)
@@ -226,37 +226,37 @@ _ISSUE_DATE = None  # cached per run (v12.1: same midnight-drift rationale as _R
 def _parse_explicit_date(value):
     """Validate an explicit publication date for PUBLICATION_DATE.
 
-    Must be strict YYYY-MM-DD and fall on a Tuesday (SIGNAL publishes
-    Tuesday 08:00 GST). Returns the date. Raises ValueError with a clear
-    message for malformed input or non-Tuesday dates.
+    Must be strict YYYY-MM-DD and fall on a Monday (SIGNAL publishes
+    Monday 08:00 GST). Returns the date. Raises ValueError with a clear
+    message for malformed input or non-Monday dates.
     """
     raw = (value or "").strip()
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
         raise ValueError(
             f"PUBLICATION_DATE must be YYYY-MM-DD (got {value!r}); "
-            f"e.g. PUBLICATION_DATE=2026-09-22")
+            f"e.g. PUBLICATION_DATE=2026-09-28")
     try:
         d = datetime.strptime(raw, "%Y-%m-%d").date()
     except (ValueError, TypeError, AttributeError):
         raise ValueError(
             f"PUBLICATION_DATE must be YYYY-MM-DD (got {value!r}); "
-            f"e.g. PUBLICATION_DATE=2026-09-22")
-    if d.weekday() != 1:  # Mon=0..Sun=6; Tuesday=1
+            f"e.g. PUBLICATION_DATE=2026-09-28")
+    if d.weekday() != 0:  # Mon=0..Sun=6; Monday=0
         raise ValueError(
-            f"PUBLICATION_DATE must be a Tuesday (got {raw}, a {d.strftime('%A')}); "
-            f"SIGNAL publishes on Tuesdays")
+            f"PUBLICATION_DATE must be a Monday (got {raw}, a {d.strftime('%A')}); "
+            f"SIGNAL publishes on Mondays")
     return d
 
 
 def _issue_date(now=None):
-    """Date of the Tuesday of publication, Asia/Dubai time (cached per run).
+    """Date of the Monday of publication, Asia/Dubai time (cached per run).
 
-    An explicit PUBLICATION_DATE env var (YYYY-MM-DD, must be a Tuesday)
+    An explicit PUBLICATION_DATE env var (YYYY-MM-DD, must be a Monday)
     takes precedence — it pins the issue date so delayed reruns produce the
     SAME filenames/URLs/issue number. Invalid explicit dates raise
     ValueError immediately (fail fast, never silently misdate an issue).
-    Without it, the run timestamp resolves: Sun/Mon runs -> the UPCOMING
-    Tuesday; Tue -> same Tuesday; Wed-Sat runs -> the most recent Tuesday.
+    Without it, the run timestamp resolves: Sun -> the UPCOMING
+    Monday; Mon -> same Monday; Tue-Sat runs -> the most recent Monday.
     The optional `now` parameter (datetime or date) exists for tests.
     """
     global _ISSUE_DATE
@@ -267,9 +267,9 @@ def _issue_date(now=None):
         else:
             current = now if now is not None else datetime.now(_DUBAI_TZ)
             d = current.date() if isinstance(current, datetime) else current
-            # Days from this weekday (Mon=0..Sun=6) to the publication Tuesday.
-            # Sun/Mon runs -> the UPCOMING Tuesday; Wed-Sat runs -> most recent Tuesday.
-            delta = (1 - d.weekday()) % 7
+            # Days from this weekday (Mon=0..Sun=6) to the publication Monday.
+            # Sun runs -> the UPCOMING Monday; Mon -> same Monday; Tue-Sat runs -> most recent Monday.
+            delta = (0 - d.weekday()) % 7
             if delta > 2:
                 delta -= 7
             _ISSUE_DATE = d + timedelta(days=delta)
@@ -3258,12 +3258,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </div>
     <h1>SIGN<span class="accent">A</span>L</h1>
     <p class="tagline">The AI stories that matter, in five minutes flat.</p>
-    <p class="promise">Curated for leaders &amp; curious minds · Every Tuesday · Dubai 08:00 GST</p>
+    <p class="promise">Curated for leaders &amp; curious minds · Every Monday · Dubai 08:00 GST</p>
     <p class="byline">{author_photo_html}By <strong>{author_name}</strong> &mdash; {author_role}<br><span class="byline-tag">{author_tagline}</span></p>
     <p class="social-links">{social_links_html}</p>
   </div>
   <div class="subscribe-strip">
-    <div class="copy"><strong>Never miss an issue.</strong> Join SIGNAL — free, every Tuesday.</div>
+    <div class="copy"><strong>Never miss an issue.</strong> Join SIGNAL — free, every Monday.</div>
     <a class="cta-mini" href="{signup_url}" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
     {beehiiv_strip_btn}
   </div>
@@ -3748,7 +3748,7 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
 
     # ── Subscribe CTAs ──
     if BEEHIIV_URL:
-        lines.append(f"Get SIGNAL in your inbox every Tuesday (free): {BEEHIIV_URL}")
+        lines.append(f"Get SIGNAL in your inbox every Monday (free): {BEEHIIV_URL}")
     if SIGNUP_URL:
         lines.append(f"Follow on LinkedIn: {SIGNUP_URL}")
     lines.append("")
@@ -4052,7 +4052,7 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     """
     global _RUN_NOW, _ISSUE_DATE
     _RUN_NOW = datetime.now()  # single timestamp for the whole run (v10: no midnight drift)
-    _ISSUE_DATE = None  # v12.1: Tuesday-of-publication date, recomputed fresh each run
+    _ISSUE_DATE = None  # v12.1: Monday-of-publication date, recomputed fresh each run
     for key, val in RUN_FLAGS.items():
         if isinstance(val, bool):
             RUN_FLAGS[key] = False
@@ -4119,7 +4119,7 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
             print("Aborted.")
             return
 
-    today = _issue_date_display()  # v12.1: Tuesday of publication (Asia/Dubai), not run time
+    today = _issue_date_display()  # v12.1: Monday of publication (Asia/Dubai), not run time
 
     # 5e) Tip of the Week (generated early so QA can verify it isn't a repeat)
     tip = generate_tip_of_week()
@@ -4285,7 +4285,7 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     email_capture_html = ''
     if BEEHIIV_URL:
         email_capture_html = f'''<div class="email-capture">
-      <p class="ec-headline">Get SIGNAL in your inbox every Tuesday</p>
+      <p class="ec-headline">Get SIGNAL in your inbox every Monday</p>
       <p class="ec-sub">Five minutes. The AI stories that matter. Free, forever.</p>
       <a class="ec-button" href="{BEEHIIV_URL}" target="_blank" rel="noopener">Subscribe by email</a>
     </div>'''
