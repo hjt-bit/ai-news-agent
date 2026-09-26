@@ -119,7 +119,7 @@ FACT_CHECK_MIN_CONFIDENCE = "MEDIUM"  # v10: ENFORCED in QA check 13. LOW=warn o
 MAX_SEARCH_PER_STORY = 3        # Max web searches per story for fact-checking
 
 # ── v12.1: code-enforced editorial rules (QA checks 18/19/20) ────────────────
-BANNED_WHY_IT_MATTERS_PHRASES = (
+BANNED_OPENER_PHRASES = (
     "could reshape the landscape",
     "enhances efficiency",
     "improves productivity",
@@ -127,6 +127,15 @@ BANNED_WHY_IT_MATTERS_PHRASES = (
     "a game-changer",
     "significant implications",
     "enhance investor confidence",
+    "signals a major",
+    "competitive positioning",
+    "highlights the importance",
+    "underscores the need",
+    "reflects growing interest",
+    "marks a significant step",
+    "demonstrates the potential",
+    "growing importance of",
+    "rapidly evolving",
 )
 BANNED_LEADER_ACTION_OPENERS = (
     "assess", "explore", "consider", "monitor",
@@ -2502,6 +2511,7 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
         opener_hits = []
         status_hits = []
         redundancy_hits = []
+        abstract_hits = []
         for art, data in analysis_pairs:
             if not isinstance(data, dict):
                 continue
@@ -2509,7 +2519,7 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
             # 18) scan the why_you_care opener for banned phrases
             for field in ("why_you_care",):
                 text = (data.get(field) or "").lower()
-                for phrase in BANNED_WHY_IT_MATTERS_PHRASES:
+                for phrase in BANNED_OPENER_PHRASES:
                     if phrase in text:
                         banned_hits.append(f"{title}… [{field}: '{phrase}']")
                         break
@@ -2544,6 +2554,13 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
                 overlap = len(opener_words & head_words) / len(opener_words)
                 if overlap >= 0.6:
                     redundancy_hits.append(f"{title}… [opener restates headline]")
+            # 23) opener concreteness: abstract nouns (landscape, ecosystem,
+            # positioning, paradigm) as the payload read as filler — the opener
+            # must carry a concrete anchor. Advisory WARN only.
+            opener_text = (data.get("why_you_care") or "").lower()
+            if any(n in opener_text for n in
+                   ("landscape", "ecosystem", "positioning", "paradigm", "playing field")):
+                abstract_hits.append(f"{title}… [abstract opener]")
         if banned_hits:
             checks.append(("FAIL", f"v12.1 Editorial: {len(banned_hits)} banned phrase(s): " +
                            "; ".join(banned_hits[:3])))
@@ -2564,6 +2581,11 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
                            "; ".join(redundancy_hits[:3])))
         else:
             checks.append(("PASS", "v12.4 Redundancy: openers add new information"))
+        if abstract_hits:
+            checks.append(("WARN", f"v12.5 Concreteness: {len(abstract_hits)} opener(s) lean abstract: " +
+                           "; ".join(abstract_hits[:3])))
+        else:
+            checks.append(("PASS", "v12.5 Concreteness: openers carry concrete stakes"))
     else:
         checks.append(("WARN", "v12.1 Editorial: analysis pairs not supplied — checks 18/19/20 skipped"))
 
@@ -2640,7 +2662,11 @@ def analyze_article(article, audience="business"):
     if audience == "business" or audience == "viral":
         schema_hint = """{
   "headline": "punchy 6-10 word news headline (no period) -- WHAT happened",
-  "why_you_care": "ONE bold opener line, max 24 words, no period -- WHY THE READER SHOULD CARE: the implication or stake for a MENA leader. Must NOT restate the headline; give the 'so what', never the 'what'",
+  "why_you_care": "ONE bold opener line, max 24 words, no period -- WHY THE READER SHOULD CARE. "
+                 "Formula: [what changed] means [specific consequence] for [named actor]. MUST contain a "
+                 "concrete anchor: a dollar figure, a named company/country/customer group, or a specific "
+                 "cost/revenue/risk -- never bare abstract nouns (landscape, ecosystem, positioning, paradigm) "
+                 "as the payload. Give the 'so what', never the 'what'; must NOT restate the headline",
   "what_happened": "18-26 words of concrete details NOT already in the headline -- terms, numbers, timeline, context. No period",
   "leader_action": "max 16 words, action verb first, no period -- MUST be SPECIFIC and UNIQUE to THIS story"
 }"""
