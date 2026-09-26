@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import types
+from datetime import date, datetime
 
 # ─── Fake OpenAI (stubbed BEFORE importing agent_v10) ─────────────────────────
 
@@ -771,6 +772,304 @@ v3, p3, rep3 = agent.cull_unverifiable_stories(
     {"business": [plain], "everyday": [], "middle_east": []})
 check(len(rep3["exclusions"]) == 0 and len(p3["business"]) == 1,
       "story without _fact_check metadata is kept")
+
+
+# ─── v12.1 TESTS — code-enforced editorial QA (checks 18/19/20/21) ──────────
+
+# 22a: banned phrases detected in why_it_matters
+reset_flags()
+art_bp = mk_article("TestCo raises funding", "https://reuters.com/bp1")
+data_bp = {"why_it_matters": "This could reshape the landscape for startups",
+           "business_impact": "Clear revenue impact for incumbents",
+           "leader_action": "Pilot TestCo in one team this quarter",
+           "headline": "TestCo raises funding", "tldr": "TestCo raised money", "what_happened": "TestCo raised $10M"}
+_, checks_bp = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
+                                   None, None, analysis_pairs=[(art_bp, data_bp)])
+check(any(s == "FAIL" and "banned phrase" in m for s, m in checks_bp),
+      "check 18 FAILs on banned 'why it matters' phrase")
+
+# 22b: clean copy passes check 18
+reset_flags()
+data_clean = {"why_it_matters": "Cuts onboarding time by 30 percent",
+              "business_impact": "Clear revenue impact for incumbents",
+              "leader_action": "Pilot TestCo in one team this quarter",
+              "headline": "TestCo raises funding", "tldr": "TestCo raised money", "what_happened": "TestCo raised $10M"}
+_, checks_clean = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
+                                      None, None, analysis_pairs=[(art_bp, data_clean)])
+check(any(s == "PASS" and "no banned" in m for s, m in checks_clean),
+      "check 18 PASSes on clean copy")
+
+# 22c: banned leader-action opener detected
+reset_flags()
+data_opener = {"why_it_matters": "Cuts onboarding time",
+               "business_impact": "Revenue impact",
+               "leader_action": "Consider piloting TestCo soon",
+               "headline": "TestCo raises", "tldr": "Raised money", "what_happened": "Raised $10M"}
+_, checks_op = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
+                                   None, None, analysis_pairs=[(art_bp, data_opener)])
+check(any(s == "FAIL" and "banned opener" in m for s, m in checks_op),
+      "check 19 FAILs on banned leader-action opener")
+
+# 22d: decisive opener passes check 19
+reset_flags()
+_, checks_op2 = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
+                                    None, None, analysis_pairs=[(art_bp, data_clean)])
+check(any(s == "PASS" and "openers decisive" in m for s, m in checks_op2),
+      "check 19 PASSes on decisive opener")
+
+# 22e: status upgrade detected (source "in talks", analysis claims "announced") → FAIL
+reset_flags()
+art_status = mk_article("TestCo in talks to acquire StartupX", "https://reuters.com/st1",
+                        summary="TestCo is reportedly in talks to acquire StartupX, sources say.")
+data_status = {"why_it_matters": "Consolidation signal",
+               "business_impact": "Competitive pressure",
+               "leader_action": "Map exposure to StartupX",
+               "headline": "TestCo launches acquisition of StartupX",
+               "tldr": "TestCo acquired StartupX", "what_happened": "TestCo announced it has closed the deal"}
+_, checks_st = agent.run_qa_checks(art_status, {"business": [art_status], "everyday": [], "middle_east": []},
+                                   None, None, analysis_pairs=[(art_status, data_status)])
+check(any(s == "FAIL" and "Status precision" in m for s, m in checks_st),
+      "check 20 FAILs on status upgrade (in talks -> announced)")
+
+# 22f: matching status passes check 20
+reset_flags()
+data_status_ok = {"why_it_matters": "Consolidation signal",
+                  "business_impact": "Competitive pressure",
+                  "leader_action": "Map exposure to StartupX",
+                  "headline": "TestCo in talks to acquire StartupX",
+                  "tldr": "TestCo reportedly considering StartupX deal",
+                  "what_happened": "TestCo is in talks to acquire StartupX per sources"}
+_, checks_st2 = agent.run_qa_checks(art_status, {"business": [art_status], "everyday": [], "middle_east": []},
+                                    None, None, analysis_pairs=[(art_status, data_status_ok)])
+check(any(s == "PASS" and "no status upgrades" in m for s, m in checks_st2),
+      "check 20 PASSes when analysis matches source status")
+
+# 22g: placeholder take WARNs in review mode, FAILs in publish mode
+reset_flags()
+agent.RUN_FLAGS["take_mode"] = "placeholder"
+_, checks_take_rev = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
+                                         None, None, publish=False)
+check(any(s == "WARN" and "Hasan's Take" in m for s, m in checks_take_rev),
+      "check 21 WARNs on placeholder take in review mode")
+reset_flags()
+agent.RUN_FLAGS["take_mode"] = "placeholder"
+_, checks_take_pub = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
+                                         None, None, publish=True)
+check(any(s == "FAIL" and "Hasan's Take" in m for s, m in checks_take_pub),
+      "check 21 FAILs on placeholder take in publish mode")
+
+# 22h: HASAN_TAKE_FINAL env var produces final take
+reset_flags()
+os.environ["HASAN_TAKE_FINAL"] = "This is my take. It has two sentences."
+take_final = agent.get_hasan_take(art_bp, {})
+check(take_final.get("mode") == "final" and "my take" in take_final.get("text", ""),
+      "HASAN_TAKE_FINAL env var produces final take mode")
+del os.environ["HASAN_TAKE_FINAL"]
+take_ph = agent.get_hasan_take(art_bp, {})
+check(take_ph.get("mode") == "placeholder",
+      "without env var, take falls back to placeholder")
+
+# 22i: module constants contain all approved banned phrases/openers
+check(len(agent.BANNED_WHY_IT_MATTERS_PHRASES) == 7,
+      "7 banned phrases in module constant")
+check(len(agent.BANNED_LEADER_ACTION_OPENERS) == 7,
+      "7 banned openers in module constant")
+check("could reshape the landscape" in agent.BANNED_WHY_IT_MATTERS_PHRASES,
+      "banned phrase constant has expected entry")
+check("keep an eye on" in agent.BANNED_LEADER_ACTION_OPENERS,
+      "banned opener constant has expected entry")
+
+
+# ─── v12.1 TESTS — Tuesday-of-publication issue date + take sentence rule ───
+
+# 23a: _parse_explicit_date accepts a valid Tuesday
+reset_flags()
+agent._ISSUE_DATE = None
+check(agent._parse_explicit_date("2026-09-22") == date(2026, 9, 22),
+      "_parse_explicit_date accepts a valid Tuesday")
+
+# 23b: _parse_explicit_date rejects malformed dates with a clear error
+for bad in ["2026/09/22", "22-09-2026", "not-a-date", "", "2026-13-01", "2026-09-2"]:
+    try:
+        agent._parse_explicit_date(bad)
+        check(False, f"_parse_explicit_date rejects malformed {bad!r}")
+    except ValueError as e:
+        check("YYYY-MM-DD" in str(e), f"_parse_explicit_date rejects malformed {bad!r}")
+
+# 23c: _parse_explicit_date rejects valid non-Tuesday dates
+for non_tue, day in [("2026-09-23", "Wednesday"), ("2026-09-21", "Monday"),
+                     ("2026-09-20", "Sunday"), ("2026-09-26", "Saturday")]:
+    try:
+        agent._parse_explicit_date(non_tue)
+        check(False, f"_parse_explicit_date rejects non-Tuesday {non_tue}")
+    except ValueError as e:
+        check("Tuesday" in str(e) and day in str(e),
+              f"_parse_explicit_date rejects non-Tuesday {non_tue} ({day})")
+
+# 23d: explicit PUBLICATION_DATE is preferred, pins reruns, drives formats
+reset_flags()
+saved_pub = os.environ.pop("PUBLICATION_DATE", None)
+try:
+    os.environ["PUBLICATION_DATE"] = "2026-09-22"
+    agent._ISSUE_DATE = None
+    check(agent._issue_date() == date(2026, 9, 22) and agent._issue_date().weekday() == 1,
+          "explicit PUBLICATION_DATE Tuesday becomes the issue date")
+    check(agent._issue_date_str() == "2026_09_22",
+          "_issue_date_str() is YYYY_MM_DD")
+    check(agent._issue_date_display() == "September 22, 2026",
+          "_issue_date_display() is 'Month DD, YYYY'")
+    # delayed reruns on different run dates keep the same pinned issue date
+    for run_day in [datetime(2026, 9, 20), datetime(2026, 9, 27), datetime(2026, 10, 5)]:
+        agent._ISSUE_DATE = None
+        check(agent._issue_date(now=run_day) == date(2026, 9, 22),
+              f"delayed rerun on {run_day.date()} keeps pinned issue date")
+    # invalid explicit date fails fast with a clear error
+    os.environ["PUBLICATION_DATE"] = "2026-09-23"  # a Wednesday
+    agent._ISSUE_DATE = None
+    try:
+        agent._issue_date()
+        check(False, "invalid PUBLICATION_DATE raises on _issue_date()")
+    except ValueError as e:
+        check("Tuesday" in str(e), "invalid PUBLICATION_DATE raises clear Tuesday error")
+finally:
+    if saved_pub is not None:
+        os.environ["PUBLICATION_DATE"] = saved_pub
+    else:
+        os.environ.pop("PUBLICATION_DATE", None)
+    agent._ISSUE_DATE = None
+
+# 23e: without PUBLICATION_DATE, run-day resolution (Sun/Mon -> upcoming Tue,
+# Tue -> same Tue, Wed-Sat -> most recent Tue). 2026-09-22 is a Tuesday.
+saved_pub = os.environ.pop("PUBLICATION_DATE", None)
+try:
+    for label, run_dt, expected in [
+        ("Sunday", datetime(2026, 9, 20), date(2026, 9, 22)),
+        ("Monday", datetime(2026, 9, 21), date(2026, 9, 22)),
+        ("Tuesday", datetime(2026, 9, 22), date(2026, 9, 22)),
+        ("Wednesday", datetime(2026, 9, 23), date(2026, 9, 22)),
+        ("Thursday", datetime(2026, 9, 24), date(2026, 9, 22)),
+        ("Friday", datetime(2026, 9, 25), date(2026, 9, 22)),
+        ("Saturday", datetime(2026, 9, 26), date(2026, 9, 22)),
+    ]:
+        agent._ISSUE_DATE = None
+        got = agent._issue_date(now=run_dt)
+        check(got == expected and got.weekday() == 1,
+              f"{label} run resolves to Tuesday {expected}")
+finally:
+    if saved_pub is not None:
+        os.environ["PUBLICATION_DATE"] = saved_pub
+    agent._ISSUE_DATE = None
+
+# 23f: _issue_date accepts a plain date for `now` too
+agent._ISSUE_DATE = None
+check(agent._issue_date(now=date(2026, 9, 21)) == date(2026, 9, 22),
+      "_issue_date(now=date) resolves like datetime input")
+agent._ISSUE_DATE = None
+
+# 23g: HASAN_TAKE_FINAL must be exactly 2-3 sentences
+saved_take = os.environ.pop("HASAN_TAKE_FINAL", None)
+try:
+    os.environ["HASAN_TAKE_FINAL"] = "This is one sentence"
+    check(agent.get_hasan_take(art_bp, {}).get("mode") == "invalid",
+          "1-sentence final take is marked invalid")
+    os.environ["HASAN_TAKE_FINAL"] = "First. Second."
+    check(agent.get_hasan_take(art_bp, {}).get("mode") == "final",
+          "2-sentence final take is accepted")
+    os.environ["HASAN_TAKE_FINAL"] = "First. Second. Third."
+    check(agent.get_hasan_take(art_bp, {}).get("mode") == "final",
+          "3-sentence final take is accepted")
+    os.environ["HASAN_TAKE_FINAL"] = "First. Second. Third. Fourth."
+    t4 = agent.get_hasan_take(art_bp, {})
+    check(t4.get("mode") == "invalid" and "4 sentence" in t4.get("error", ""),
+          "4-sentence final take is marked invalid with clear error")
+    os.environ["HASAN_TAKE_FINAL"] = "The U.S. deal matters. Gulf funds should pay attention."
+    check(agent.get_hasan_take(art_bp, {}).get("mode") == "final",
+          "abbreviations (U.S.) don't inflate the sentence count")
+finally:
+    if saved_take is not None:
+        os.environ["HASAN_TAKE_FINAL"] = saved_take
+    else:
+        os.environ.pop("HASAN_TAKE_FINAL", None)
+
+# 23h: check 21 FAILs on an invalid take in BOTH review and publish modes
+reset_flags()
+agent.RUN_FLAGS["take_mode"] = "invalid"
+agent.RUN_FLAGS["take_error"] = "HASAN_TAKE_FINAL has 1 sentence(s); exactly 2-3 sentences required"
+_, checks_inv_rev = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
+                                        None, None, publish=False)
+check(any(s == "FAIL" and "Hasan's Take" in m for s, m in checks_inv_rev),
+      "check 21 FAILs on invalid take in review mode")
+_, checks_inv_pub = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
+                                        None, None, publish=True)
+check(any(s == "FAIL" and "Hasan's Take" in m for s, m in checks_inv_pub),
+      "check 21 FAILs on invalid take in publish mode")
+agent.RUN_FLAGS["take_mode"] = "placeholder"
+agent.RUN_FLAGS.pop("take_error", None)
+reset_flags()
+
+# 23i: check 20 does not fire when the analysis status is weaker than the source
+reset_flags()
+data_weaker = {"why_it_matters": "Consolidation signal",
+               "business_impact": "Competitive pressure",
+               "leader_action": "Map exposure to StartupX",
+               "headline": "TestCo reportedly considering StartupX deal",
+               "tldr": "TestCo is in talks per sources",
+               "what_happened": "Talks are reportedly ongoing"}
+art_announced = mk_article("TestCo announced StartupX acquisition", "https://reuters.com/st2",
+                           summary="TestCo announced it will acquire StartupX.")
+_, checks_weaker = agent.run_qa_checks(art_announced, {"business": [art_announced], "everyday": [], "middle_east": []},
+                                       None, None, analysis_pairs=[(art_announced, data_weaker)])
+check(any(s == "PASS" and "no status upgrades" in m for s, m in checks_weaker),
+      "check 20 PASSes when analysis status is weaker than source (no false upgrade)")
+
+
+# ─── TEST 24 (v12.2): Kit broadcast draft — draft-only payload, graceful skip ──
+banner("v12.2 TEST 24 — Kit broadcast draft creation (hermetic, draft-only)")
+kit_calls = []
+class _KitResp:
+    status = 201
+    def read(self): return json.dumps({"data": {"broadcast": {"id": "bcast_456"}}}).encode("utf-8")
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+def _kit_urlopen(req, timeout=10):
+    kit_calls.append(req)
+    return _KitResp()
+# 24a: skipped gracefully when the secret is absent
+_kit_saved = os.environ.pop("KIT_API_KEY", None)
+try:
+    check(agent.create_kit_broadcast_draft("T", "<p>x</p>") is None, "absent KIT_API_KEY -> None, no crash")
+finally:
+    if _kit_saved is not None: os.environ["KIT_API_KEY"] = _kit_saved
+# 24b: draft-only payload when the secret is present
+with mock.patch.dict(os.environ, {"KIT_API_KEY": "test-kit-key"}):
+    _urlreq.urlopen = _kit_urlopen
+    try:
+        bcast_id = agent.create_kit_broadcast_draft("SIGNAL #020 — Test", "<p>body</p>", preview_text="prev")
+    finally:
+        _urlreq.urlopen = orig_urlopen
+check(bcast_id == "bcast_456", "returns created broadcast id (nested data.broadcast shape)")
+check(len(kit_calls) == 1, "exactly one HTTP call made")
+_kreq = kit_calls[0]
+check(_kreq.full_url == "https://api.kit.com/v4/broadcasts", "Kit v4 broadcasts endpoint")
+check(_kreq.get_method() == "POST", "draft created with POST")
+_kpayload = json.loads(_kreq.data.decode("utf-8"))
+check(_kpayload.get("send_at") is None, "send_at is null (never scheduled)")
+check("scheduled_at" not in _kpayload, "no scheduled_at (never auto-scheduled)")
+check(_kpayload.get("public") is False, "public is false (archive stays human-gated)")
+check(_kpayload.get("subject") == "SIGNAL #020 — Test", "subject passed through")
+check(_kpayload.get("preview_text") == "prev", "preview_text passed through")
+_kheaders = {_k.lower(): v for _k, v in _kreq.header_items()}
+check(_kheaders.get("x-kit-api-key") == "test-kit-key", "X-Kit-Api-Key header sent")
+check("test-kit-key" not in json.dumps(_kpayload), "API key never appears in the payload")
+# 24c: HTTP failure degrades gracefully, never raises
+def _kit_fail_urlopen(req, timeout=10):
+    raise urllib.request.HTTPError(req.full_url, 401, "Unauthorized", {}, None)
+with mock.patch.dict(os.environ, {"KIT_API_KEY": "k"}):
+    _urlreq.urlopen = _kit_fail_urlopen
+    try:
+        check(agent.create_kit_broadcast_draft("T", "<p>x</p>") is None, "HTTP 401 -> None, no crash")
+    finally:
+        _urlreq.urlopen = orig_urlopen
 
 
 # ─── SUMMARY ─────────────────────────────────────────────────────────────────
