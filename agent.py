@@ -3240,7 +3240,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   }}
   .byline {{ text-align: center; color: var(--muted); font-size: 14px; margin: 8px 0 0; }}
   .byline-photo {{ width: 44px; height: 44px; object-fit: cover; border-radius: 50%; vertical-align: middle; margin-right: 8px; }}
-  .byline-tag {{ font-size: 12.5px; }}
+  .byline-name {{ white-space: nowrap; }}
+  .byline-brand {{ display: block; font-weight: 600; color: var(--text); font-size: 15px; margin-top: 4px; white-space: nowrap; }}
+  .byline-tag {{ display: block; font-size: 12.5px; margin-top: 2px; }}
   .social-links {{ text-align: center; font-size: 13px; margin: 8px 0 0; }}
   .social-links a {{ color: #00D4FF; margin: 0 6px; text-decoration: none; }}
   .take-placeholder {{ border-left: 3px solid #f59e0b; background: rgba(245,158,11,.06); }}
@@ -3259,7 +3261,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <h1>SIGN<span class="accent">A</span>L</h1>
     <p class="tagline">The AI stories that matter, in five minutes flat.</p>
     <p class="promise">Curated for leaders &amp; curious minds · Every Monday · Dubai 08:00 GST</p>
-    <p class="byline">{author_photo_html}By <strong>{author_name}</strong> &mdash; {author_role}<br><span class="byline-tag">{author_tagline}</span></p>
+    <p class="byline">{author_photo_html}<span class="byline-name">By <strong>{author_name}</strong></span><span class="byline-brand">{author_role}</span><span class="byline-tag">{author_tagline}</span></p>
     <p class="social-links">{social_links_html}</p>
   </div>
   <div class="subscribe-strip">
