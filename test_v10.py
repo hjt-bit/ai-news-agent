@@ -898,13 +898,13 @@ check("keep an eye on" in agent.BANNED_LEADER_ACTION_OPENERS,
       "banned opener constant has expected entry")
 
 
-# ─── v12.1 TESTS — Tuesday-of-publication issue date + take sentence rule ───
+# ─── v12.1 TESTS — Monday-of-publication issue date + take sentence rule ───
 
-# 23a: _parse_explicit_date accepts a valid Tuesday
+# 23a: _parse_explicit_date accepts a valid Monday
 reset_flags()
 agent._ISSUE_DATE = None
-check(agent._parse_explicit_date("2026-09-22") == date(2026, 9, 22),
-      "_parse_explicit_date accepts a valid Tuesday")
+check(agent._parse_explicit_date("2026-09-28") == date(2026, 9, 28),
+      "_parse_explicit_date accepts a valid Monday")
 
 # 23b: _parse_explicit_date rejects malformed dates with a clear error
 for bad in ["2026/09/22", "22-09-2026", "not-a-date", "", "2026-13-01", "2026-09-2"]:
@@ -914,41 +914,41 @@ for bad in ["2026/09/22", "22-09-2026", "not-a-date", "", "2026-13-01", "2026-09
     except ValueError as e:
         check("YYYY-MM-DD" in str(e), f"_parse_explicit_date rejects malformed {bad!r}")
 
-# 23c: _parse_explicit_date rejects valid non-Tuesday dates
-for non_tue, day in [("2026-09-23", "Wednesday"), ("2026-09-21", "Monday"),
-                     ("2026-09-20", "Sunday"), ("2026-09-26", "Saturday")]:
+# 23c: _parse_explicit_date rejects valid non-Monday dates
+for non_mon, day in [("2026-09-29", "Tuesday"), ("2026-09-27", "Sunday"),
+                     ("2026-09-26", "Saturday"), ("2026-09-22", "Tuesday")]:
     try:
-        agent._parse_explicit_date(non_tue)
-        check(False, f"_parse_explicit_date rejects non-Tuesday {non_tue}")
+        agent._parse_explicit_date(non_mon)
+        check(False, f"_parse_explicit_date rejects non-Monday {non_mon}")
     except ValueError as e:
-        check("Tuesday" in str(e) and day in str(e),
-              f"_parse_explicit_date rejects non-Tuesday {non_tue} ({day})")
+        check("Monday" in str(e) and day in str(e),
+              f"_parse_explicit_date rejects non-Monday {non_mon} ({day})")
 
 # 23d: explicit PUBLICATION_DATE is preferred, pins reruns, drives formats
 reset_flags()
 saved_pub = os.environ.pop("PUBLICATION_DATE", None)
 try:
-    os.environ["PUBLICATION_DATE"] = "2026-09-22"
+    os.environ["PUBLICATION_DATE"] = "2026-09-28"
     agent._ISSUE_DATE = None
-    check(agent._issue_date() == date(2026, 9, 22) and agent._issue_date().weekday() == 1,
-          "explicit PUBLICATION_DATE Tuesday becomes the issue date")
-    check(agent._issue_date_str() == "2026_09_22",
+    check(agent._issue_date() == date(2026, 9, 28) and agent._issue_date().weekday() == 0,
+          "explicit PUBLICATION_DATE Monday becomes the issue date")
+    check(agent._issue_date_str() == "2026_09_28",
           "_issue_date_str() is YYYY_MM_DD")
-    check(agent._issue_date_display() == "September 22, 2026",
+    check(agent._issue_date_display() == "September 28, 2026",
           "_issue_date_display() is 'Month DD, YYYY'")
     # delayed reruns on different run dates keep the same pinned issue date
-    for run_day in [datetime(2026, 9, 20), datetime(2026, 9, 27), datetime(2026, 10, 5)]:
+    for run_day in [datetime(2026, 9, 27), datetime(2026, 10, 4), datetime(2026, 10, 11)]:
         agent._ISSUE_DATE = None
-        check(agent._issue_date(now=run_day) == date(2026, 9, 22),
+        check(agent._issue_date(now=run_day) == date(2026, 9, 28),
               f"delayed rerun on {run_day.date()} keeps pinned issue date")
     # invalid explicit date fails fast with a clear error
-    os.environ["PUBLICATION_DATE"] = "2026-09-23"  # a Wednesday
+    os.environ["PUBLICATION_DATE"] = "2026-09-29"  # a Tuesday
     agent._ISSUE_DATE = None
     try:
         agent._issue_date()
         check(False, "invalid PUBLICATION_DATE raises on _issue_date()")
     except ValueError as e:
-        check("Tuesday" in str(e), "invalid PUBLICATION_DATE raises clear Tuesday error")
+        check("Monday" in str(e), "invalid PUBLICATION_DATE raises clear Monday error")
 finally:
     if saved_pub is not None:
         os.environ["PUBLICATION_DATE"] = saved_pub
@@ -956,23 +956,23 @@ finally:
         os.environ.pop("PUBLICATION_DATE", None)
     agent._ISSUE_DATE = None
 
-# 23e: without PUBLICATION_DATE, run-day resolution (Sun/Mon -> upcoming Tue,
-# Tue -> same Tue, Wed-Sat -> most recent Tue). 2026-09-22 is a Tuesday.
+# 23e: without PUBLICATION_DATE, run-day resolution (Sun -> upcoming Mon,
+# Mon -> same Mon, Tue-Sat -> most recent Mon). 2026-09-28 is a Monday.
 saved_pub = os.environ.pop("PUBLICATION_DATE", None)
 try:
     for label, run_dt, expected in [
-        ("Sunday", datetime(2026, 9, 20), date(2026, 9, 22)),
-        ("Monday", datetime(2026, 9, 21), date(2026, 9, 22)),
-        ("Tuesday", datetime(2026, 9, 22), date(2026, 9, 22)),
-        ("Wednesday", datetime(2026, 9, 23), date(2026, 9, 22)),
-        ("Thursday", datetime(2026, 9, 24), date(2026, 9, 22)),
-        ("Friday", datetime(2026, 9, 25), date(2026, 9, 22)),
-        ("Saturday", datetime(2026, 9, 26), date(2026, 9, 22)),
+        ("Sunday", datetime(2026, 9, 27), date(2026, 9, 28)),
+        ("Monday", datetime(2026, 9, 28), date(2026, 9, 28)),
+        ("Tuesday", datetime(2026, 9, 29), date(2026, 9, 28)),
+        ("Wednesday", datetime(2026, 9, 30), date(2026, 9, 28)),
+        ("Thursday", datetime(2026, 10, 1), date(2026, 9, 28)),
+        ("Friday", datetime(2026, 10, 2), date(2026, 9, 28)),
+        ("Saturday", datetime(2026, 10, 3), date(2026, 10, 5)),
     ]:
         agent._ISSUE_DATE = None
         got = agent._issue_date(now=run_dt)
-        check(got == expected and got.weekday() == 1,
-              f"{label} run resolves to Tuesday {expected}")
+        check(got == expected and got.weekday() == 0,
+              f"{label} run resolves to Monday {expected}")
 finally:
     if saved_pub is not None:
         os.environ["PUBLICATION_DATE"] = saved_pub
@@ -980,7 +980,7 @@ finally:
 
 # 23f: _issue_date accepts a plain date for `now` too
 agent._ISSUE_DATE = None
-check(agent._issue_date(now=date(2026, 9, 21)) == date(2026, 9, 22),
+check(agent._issue_date(now=date(2026, 9, 27)) == date(2026, 9, 28),
       "_issue_date(now=date) resolves like datetime input")
 agent._ISSUE_DATE = None
 
