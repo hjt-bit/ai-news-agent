@@ -437,6 +437,10 @@ take_p = agent.get_hasan_take(mk_article("V", "https://x.com/v"), {})
 check(take_p.get("headline") == "Hasan Jad's take (to be written at review)",
       "placeholder take headline uses full name")
 check("object-fit: cover" in agent.HTML_TEMPLATE, "byline photo uses object-fit: cover (no stretch)")
+# v12.7.1: byline brand line is its own non-wrapping block (never splits mid-phrase on mobile)
+check('class="byline-brand"' in agent.HTML_TEMPLATE, "byline brand line is a dedicated element")
+check("byline-brand" in agent.HTML_TEMPLATE and "white-space: nowrap" in agent.HTML_TEMPLATE,
+      "byline brand line cannot wrap mid-phrase")
 
 # ─── TEST 13: Social derivatives schema ─────────────────────────────────────
 banner("v10 TEST 13 — Social derivatives (structured JSON outlines)")
