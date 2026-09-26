@@ -2505,8 +2505,8 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
             if not isinstance(data, dict):
                 continue
             title = (art.get("title") or "")[:50]
-            # 18) scan why_it_matters + business_impact for banned phrases
-            for field in ("why_it_matters", "business_impact"):
+            # 18) scan the merged why_it_matters stake line for banned phrases
+            for field in ("why_it_matters",):
                 text = (data.get(field) or "").lower()
                 for phrase in BANNED_WHY_IT_MATTERS_PHRASES:
                     if phrase in text:
@@ -2628,8 +2628,7 @@ def analyze_article(article, audience="business"):
   "headline": "punchy 6-10 word headline (no period)",
   "tldr": "ONE crisp sentence summary, max 22 words",
   "what_happened": "18-26 words: include the specific WHO, WHAT, and a concrete NUMBER, name, or date if available, no period",
-  "why_it_matters": "max 16 words, no period",
-  "business_impact": "max 16 words, no period, focus on cost/revenue/competition/risk",
+  "why_it_matters": "ONE stake line, max 24 words, no period -- why this matters AND the concrete business impact (cost, revenue, competition, or risk) for a MENA leader",
   "leader_action": "max 16 words, action verb first, no period -- MUST be SPECIFIC and UNIQUE to THIS story"
 }"""
         rules = ("Audience: senior business leaders. No jargon. No acronyms unless universally known. "
@@ -2644,7 +2643,7 @@ def analyze_article(article, audience="business"):
                  "dollar figure, percentage, date, or claim that is not in the source text. The headline MUST be "
                  "consistent with the TL;DR and must describe the SAME event as the source — do not generalize a "
                  "specific story into a different, bigger claim. "
-                 "BANNED PHRASES (never use in why_it_matters or business_impact): 'could reshape the landscape', "
+                 "BANNED PHRASES (never use in why_it_matters): 'could reshape the landscape', "
                  "'enhances efficiency', 'improves productivity', 'increased scrutiny', 'a game-changer', "
                  "'significant implications', 'enhance investor confidence'. Use concrete specifics instead. "
                  "LEADER-ACTION OPENERS (never start leader_action with): Assess, Explore, Consider, Monitor, "
@@ -2946,9 +2945,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     display: inline-block;
   }}
   .card .card-tldr {{
-    font-size: 14px; color: var(--ink-2); margin-bottom: 14px;
+    font-size: 14.5px; color: var(--ink); margin: 0 0 10px;
     line-height: 1.5; font-weight: 400;
   }}
+  .card .card-body {{
+    font-size: 13.5px; color: var(--ink-2); margin: 0 0 10px; line-height: 1.6;
+  }}
+  .card .card-stake, .card .card-action {{
+    font-size: 13px; line-height: 1.6; margin: 0 0 8px; color: var(--ink);
+  }}
+  .card .card-action {{ margin-bottom: 12px; }}
   .card .meta-grid {{
     display: grid; grid-template-columns: auto 1fr; gap: 4px 12px;
     font-size: 12.5px; line-height: 1.6;
@@ -3198,12 +3204,10 @@ def render_viral_block(article, data):
     return f"""
     <div class="card viral">
       <div class="card-title">{_h(str(data.get('headline', article['title'])))}</div>
-      <div class="meta-grid">
-        <span class="label">What happened</span><span class="value">{_h(str(data.get('what_happened', '')))}</span>
-        <span class="label">Why it matters</span><span class="value">{_h(str(data.get('why_it_matters', '')))}</span>
-        <span class="label">Business impact</span><span class="value">{_h(str(data.get('business_impact', '')))}</span>
-        <span class="label">Leader action</span><span class="value">{_h(str(data.get('leader_action', '')))}</span>
-      </div>
+      <p class="card-tldr"><strong>{_h(str(data.get('tldr', '')))}</strong></p>
+      <p class="card-body">{_h(str(data.get('what_happened', '')))}</p>
+      <p class="card-stake"><strong>Why it matters:</strong> {_h(str(data.get('why_it_matters', '')))}</p>
+      <p class="card-action"><strong>Leader action:</strong> {_h(str(data.get('leader_action', '')))}</p>
       <a class="source-link" href="{_h(article['link'], quote=True)}" target="_blank" rel="noopener">Read full story → {_h(article['source'])}</a>
     </div>"""
 
@@ -3215,12 +3219,10 @@ def render_business_card(article, data):
     return f"""
     <div class="card">
       <div class="card-title">{_h(str(data.get('headline', article['title'])))}</div>
-      <div class="meta-grid">
-        <span class="label">What happened</span><span class="value">{_h(str(data.get('what_happened', '')))}</span>
-        <span class="label">Why it matters</span><span class="value">{_h(str(data.get('why_it_matters', '')))}</span>
-        <span class="label">Business impact</span><span class="value">{_h(str(data.get('business_impact', '')))}</span>
-        <span class="label">Leader action</span><span class="value">{_h(str(data.get('leader_action', '')))}</span>
-      </div>
+      <p class="card-tldr"><strong>{_h(str(data.get('tldr', '')))}</strong></p>
+      <p class="card-body">{_h(str(data.get('what_happened', '')))}</p>
+      <p class="card-stake"><strong>Why it matters:</strong> {_h(str(data.get('why_it_matters', '')))}</p>
+      <p class="card-action"><strong>Leader action:</strong> {_h(str(data.get('leader_action', '')))}</p>
       <a class="source-link" href="{_h(article['link'], quote=True)}" target="_blank" rel="noopener">Read full story → {_h(article['source'])}</a>
     </div>"""
 
@@ -3232,11 +3234,10 @@ def render_everyday_card(article, data):
     return f"""
     <div class="card">
       <div class="card-title">{_h(str(data.get('headline', article['title'])))}</div>
-      <div class="meta-grid">
-        <span class="label">In plain English</span><span class="value">{_h(str(data.get('in_plain_english', '')))}</span>
-        <span class="label">Why you care</span><span class="value">{_h(str(data.get('why_you_care', '')))}</span>
-        <span class="label">What to do</span><span class="value">{_h(str(data.get('what_to_do', '')))}</span>
-      </div>
+      <p class="card-tldr"><strong>{_h(str(data.get('tldr', '')))}</strong></p>
+      <p class="card-body">{_h(str(data.get('in_plain_english', '')))}</p>
+      <p class="card-stake"><strong>Why you care:</strong> {_h(str(data.get('why_you_care', '')))}</p>
+      <p class="card-action"><strong>What to do:</strong> {_h(str(data.get('what_to_do', '')))}</p>
       <a class="source-link" href="{_h(article['link'], quote=True)}" target="_blank" rel="noopener">Read full story → {_h(article['source'])}</a>
     </div>"""
 
@@ -3446,7 +3447,7 @@ def generate_take_suggestions(viral_pair, biz_pairs, me_items):
             entries.append(("VIRAL LEAD",
                             data.get("headline", art["title"]),
                             data.get("tldr", ""),
-                            data.get("business_impact", "")))
+                            data.get("why_it_matters", "")))
     for art, data in (biz_pairs or []):
         data = data or {}
         if data.get("_analysis_failed"):
@@ -3454,7 +3455,7 @@ def generate_take_suggestions(viral_pair, biz_pairs, me_items):
         entries.append(("BUSINESS STORY",
                         data.get("headline", art["title"]),
                         data.get("tldr", ""),
-                        data.get("business_impact", "")))
+                        data.get("why_it_matters", "")))
     me_headlines = []
     for art, data in (me_items or []):
         data = data or {}
@@ -3470,7 +3471,7 @@ def generate_take_suggestions(viral_pair, biz_pairs, me_items):
         return None
 
     digest = "\n".join(
-        f"[{kind}] {headline}\n  Summary: {summary}\n  Business impact: {impact}"
+        f"[{kind}] {headline}\n  Summary: {summary}\n  Why it matters: {impact}"
         for kind, headline, summary, impact in entries
     )[:6000]
 
