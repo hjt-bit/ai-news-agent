@@ -3119,7 +3119,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .masthead h1 {{ font-size: 38px; }}
   }}
   .byline {{ text-align: center; color: var(--muted); font-size: 14px; margin: 8px 0 0; }}
-  .byline-photo {{ width: 44px; height: 44px; border-radius: 50%; vertical-align: middle; margin-right: 8px; }}
+  .byline-photo {{ width: 44px; height: 44px; object-fit: cover; border-radius: 50%; vertical-align: middle; margin-right: 8px; }}
   .byline-tag {{ font-size: 12.5px; }}
   .social-links {{ text-align: center; font-size: 13px; margin: 8px 0 0; }}
   .social-links a {{ color: #00D4FF; margin: 0 6px; text-decoration: none; }}
@@ -3298,14 +3298,14 @@ def get_hasan_take(viral_article, viral_data):
         n = _count_sentences(final)
         if n not in (2, 3):
             return {"mode": "invalid", "text": final,
-                    "headline": "Hasan's Take",
+                    "headline": "Hasan Jad's Take",
                     "error": (f"HASAN_TAKE_FINAL has {n} sentence(s); "
                               f"exactly 2-3 sentences required")}
         return {"mode": "final", "text": final,
-                "headline": "Hasan's Take"}
+                "headline": "Hasan Jad's Take"}
     if TAKE_MODE == "placeholder":
         return {"mode": "placeholder", "text": None,
-                "headline": "Hasan's take (to be written at review)"}
+                "headline": "Hasan Jad's take (to be written at review)"}
     raise ValueError(f"Unknown TAKE_MODE: {TAKE_MODE!r}")
 
 
@@ -3317,18 +3317,18 @@ def render_take_block(take):
         return """
     <div class="section-header">
       <span class="index">01b //</span>
-      <h2>Hasan's Take</h2>
+      <h2>Hasan Jad's Take</h2>
       <span class="rule"></span>
     </div>
     <div class="card take-placeholder">
-      <p class="take-note"><strong>Hasan's take (to be written at review).</strong></p>
+      <p class="take-note"><strong>Hasan Jad's take (to be written at review).</strong></p>
       <p class="take-hint">Replace this block with 2&ndash;3 sentences of opinion on the viral lead before publishing.</p>
     </div>"""
     if take.get("mode") == "invalid":
         return f"""
     <div class="section-header">
       <span class="index">01b //</span>
-      <h2>Hasan's Take</h2>
+      <h2>Hasan Jad's Take</h2>
       <span class="rule"></span>
     </div>
     <div class="card take-placeholder">
@@ -3339,7 +3339,7 @@ def render_take_block(take):
     return f"""
     <div class="section-header">
       <span class="index">01b //</span>
-      <h2>Hasan's Take</h2>
+      <h2>Hasan Jad's Take</h2>
       <span class="rule"></span>
     </div>
     <div class="card take">
@@ -3622,9 +3622,9 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
     # v10: Hasan's Take
     if take:
         if take.get("mode") == "placeholder":
-            lines.append("Hasan's Take — written at review (see the review bundle).")
+            lines.append("Hasan Jad's Take — written at review (see the review bundle).")
         elif take.get("text"):
-            lines.append(f"Hasan's Take — {take['text'][:140]}")
+            lines.append(f"Hasan Jad's Take — {take['text'][:140]}")
     lines.append("")
 
     # ── CTA: Read the full issue ──
@@ -3709,9 +3709,9 @@ def export_beehiiv_email(date_str, issue_number, viral_pair, biz_pairs, eve_pair
     # v10: Hasan's Take
     if take:
         if take.get("mode") == "placeholder":
-            lines.append("- **Hasan's Take** — written at review (see the full issue).")
+            lines.append("- **Hasan Jad's Take** — written at review (see the full issue).")
         elif take.get("text"):
-            lines.append(f"- **Hasan's Take** — {take['text'][:140]}")
+            lines.append(f"- **Hasan Jad's Take** — {take['text'][:140]}")
     lines.append("")
 
     # ── Big CTA button ──
