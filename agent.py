@@ -137,6 +137,10 @@ BANNED_OPENER_PHRASES = (
     "growing importance of",
     "rapidly evolving",
 )
+ABSTRACT_OPENER_NOUNS = (
+    "landscape", "ecosystem", "positioning", "paradigm", "playing field",
+)
+
 BANNED_LEADER_ACTION_OPENERS = (
     "assess", "explore", "consider", "monitor",
     "stay informed", "keep an eye on", "evaluate opportunities",
@@ -198,6 +202,7 @@ RUN_FLAGS = {
     "forced_overrides": [],        # CLI overrides used this run (loudly logged)
     "render_hollow": False,        # rendered HTML missing expected content
     "take_suggestions_failed": False,  # take-suggestion draft angles failed (non-blocking)
+    "opener_rewrites": 0,  # v12.6: mushy openers surgically rewritten before render
 }
 
 REVIEW_DIR = "review"   # review-mode outputs land here; never auto-published
@@ -2558,8 +2563,7 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
             # positioning, paradigm) as the payload read as filler — the opener
             # must carry a concrete anchor. Advisory WARN only.
             opener_text = (data.get("why_you_care") or "").lower()
-            if any(n in opener_text for n in
-                   ("landscape", "ecosystem", "positioning", "paradigm", "playing field")):
+            if any(n in opener_text for n in ABSTRACT_OPENER_NOUNS):
                 abstract_hits.append(f"{title}… [abstract opener]")
         if banned_hits:
             checks.append(("FAIL", f"v12.1 Editorial: {len(banned_hits)} banned phrase(s): " +
@@ -2685,9 +2689,9 @@ def analyze_article(article, audience="business"):
                  "dollar figure, percentage, date, or claim that is not in the source text. The headline MUST be "
                  "consistent with the TL;DR and must describe the SAME event as the source — do not generalize a "
                  "specific story into a different, bigger claim. "
-                 "BANNED PHRASES (never use in why_you_care): 'could reshape the landscape', "
-                 "'enhances efficiency', 'improves productivity', 'increased scrutiny', 'a game-changer', "
-                 "'significant implications', 'enhance investor confidence'. Use concrete specifics instead. "
+                 "BANNED PHRASES (never use in why_you_care): "
+                 + ", ".join(f"'{p}'" for p in BANNED_OPENER_PHRASES)
+                 + ". Use concrete specifics instead. "
                  "LEADER-ACTION OPENERS (never start leader_action with): Assess, Explore, Consider, Monitor, "
                  "'Stay informed', 'Keep an eye on', 'Evaluate opportunities' — start with a decisive verb naming a "
                  "concrete first step. "
@@ -2750,6 +2754,70 @@ Use the specific facts in the summary above. If the summary contains numbers, na
         print(f"  \u2717 Analysis FAILED for '{article['title'][:60]}': {e}")
         RUN_FLAGS["analysis_failures"] += 1
         return {"_analysis_failed": True, "error": str(e)[:200]}
+
+def _opener_violations(data):
+    """v12.6: banned-phrase or abstract-noun violations in a why_you_care opener."""
+    opener = (data.get("why_you_care") or "")
+    low = opener.lower()
+    hits = [p for p in BANNED_OPENER_PHRASES if p in low]
+    if any(n in low for n in ABSTRACT_OPENER_NOUNS):
+        hits.append("abstract-noun opener")
+    return hits
+
+
+def rewrite_opener(article, data):
+    """v12.6: surgical rewrite of ONE mushy/abstract opener.
+
+    Returns the replacement opener string, or None when the rewrite is
+    still unusable — the original stays and QA flags it for Hasan.
+    Bounded: exactly one extra LLM call, only for violating openers.
+    """
+    violations = _opener_violations(data)
+    if not violations:
+        return data.get("why_you_care")
+    prompt = (
+        "You write ONE field of a newsletter card: the bold 'Why you care' opener.\n"
+        f"Story: {article['title']}\n"
+        f"Summary: {(article.get('summary') or '')[:600]}\n"
+        f"Headline on the card: {data.get('headline', '')}\n"
+        f"Rejected opener: {data.get('why_you_care', '')}\n"
+        f"Why it was rejected: {'; '.join(violations)}\n"
+        "Rewrite ONLY the opener. Formula: [what changed] means [specific consequence] "
+        "for [named actor]. It MUST contain a concrete anchor: a dollar figure, a named "
+        "company/country/customer group, or a specific cost/revenue/risk. Max 24 words, "
+        "no period. Never restate the headline. Never use these phrases: "
+        + ", ".join(f"'{p}'" for p in BANNED_OPENER_PHRASES) + ".\n"
+        'Return JSON: {"why_you_care": "..."}'
+    )
+    try:
+        resp = client.chat.completions.create(
+            model=MODEL,
+            temperature=TEMPERATURE,
+            messages=[{"role": "system", "content": SYSTEM_GUARD},
+                {"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+        )
+        candidate = (json.loads(resp.choices[0].message.content).get("why_you_care") or "").strip()
+        if candidate and not _opener_violations({"why_you_care": candidate}):
+            RUN_FLAGS["opener_rewrites"] += 1
+            print(f"  \u2713 opener rewritten for '{article['title'][:50]}'")
+            return candidate
+        print(f"  \u2717 opener rewrite still unusable for '{article['title'][:50]}' — keeping original for QA")
+    except Exception as e:
+        print(f"  \u2717 opener rewrite failed for '{article['title'][:50]}': {e}")
+    return None
+
+
+def _sharpen_pair(art, data, audience):
+    """v12.6: one bounded self-correction for mushy openers (viral/business)."""
+    if not isinstance(data, dict) or data.get("_analysis_failed"):
+        return data
+    if not _opener_violations(data):
+        return data
+    new_opener = rewrite_opener(art, data)
+    if new_opener:
+        data = dict(data, why_you_care=new_opener)
+    return data
 
 # =========================================================
 # 6b. TIP OF THE WEEK
@@ -4087,7 +4155,7 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     viral_data = {}
     if viral:
         print("\nWriting viral lead...")
-        viral_data = _analyze_once(viral, "viral")
+        viral_data = _sharpen_pair(viral, _analyze_once(viral, "viral"), "viral")
         viral_html = f"""
         <div class="section-header">
           <span class="index">01 //</span>
@@ -4099,7 +4167,8 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
 
     # 6b) Business cards
     print("\nWriting business cards...")
-    biz_pairs = [(art, _analyze_once(art, "business")) for art in picks["business"]]
+    biz_pairs = [(art, _sharpen_pair(art, _analyze_once(art, "business"), "business"))
+                 for art in picks["business"]]
     biz_html = "".join(render_business_card(art, data) for art, data in biz_pairs)
 
     # 6c) Middle East section
@@ -4340,6 +4409,7 @@ def _write_review_summary(out_dir, publish, qa_passed, qa_checks, issue_number_s
         f"- Fact-check degraded: {RUN_FLAGS['fact_check_degraded']}",
         f"- Render hollow: {RUN_FLAGS['render_hollow']}",
         f"- Take suggestions failed: {RUN_FLAGS['take_suggestions_failed']}",
+        f"- Opener rewrites: {RUN_FLAGS['opener_rewrites']}",
         f"- Forced overrides: {', '.join(RUN_FLAGS['forced_overrides']) or 'none'}",
         "",
         "## Human actions required",
