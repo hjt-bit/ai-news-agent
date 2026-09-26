@@ -1,5 +1,13 @@
 # SIGNAL Agent — Changelog
 
+## v12.6.1 (2026-09-26) — Masthead tagline
+
+- Tagline under the SIGNAL masthead tightened: "Your weekly AI intelligence
+  briefing — the stories that matter, in five minutes flat." → "The AI
+  stories that matter, in five minutes flat." (Killed the "AI intelligence"
+  redundancy and the awkward forced line break; cadence already covered by
+  the promise line.)
+
 ## v12.6 (2026-09-26) — Self-correction loop for mushy openers
 
 The v12.5 CI run proved the gap: the tightened prompt still produced
