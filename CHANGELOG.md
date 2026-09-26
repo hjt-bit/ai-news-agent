@@ -1,5 +1,29 @@
 # SIGNAL Agent — Changelog
 
+## v12.3 (2026-09-26) — Merged story anatomy: briefing prose replaces the 4-label grid
+
+Hasan's review of the #020 preview: the per-story grid (What happened / Why it
+matters / Business impact / Leader action) read like a form, and "Why it
+matters" + "Business impact" asked the same question twice for this audience.
+
+### Changed
+- **One stake line:** `business_impact` is merged into `why_it_matters` — a
+  single bolded line (max 24 words) carrying why the story matters AND its
+  concrete business impact (cost, revenue, competition, or risk) for a MENA
+  leader. The analyzer schema no longer requests `business_impact`.
+- **Briefing prose, not labels:** story cards now render as Headline →
+  bold TLDR opener (the 22-word TLDR the analyzer already wrote, now rendered
+  on every card) → flowing `what_happened` body → **Why it matters:** →
+  **Leader action:** → source link. The `meta-grid` label/value grid is gone
+  from viral, business, and everyday cards (the everyday card maps its
+  in_plain_english / why_you_care / what_to_do fields onto the same anatomy).
+- **QA check 18** scans only the merged `why_it_matters` stake line for
+  banned phrases; a legacy `business_impact` key in analysis data is ignored.
+- **Take-suggestions digest** labels the impact line "Why it matters:".
+- **Tests:** 11 new v12.3 checks (analyzer prompt contract via captured
+  prompt, renderer anatomy for all three card types, check-18 merge
+  behavior). 232 checks green.
+
 ## v12.2 (2026-09-26) — Kit migration: draft-only broadcast creation
 
 Beehiiv's post-creation API is gated behind the $96/mo Max plan, so the
