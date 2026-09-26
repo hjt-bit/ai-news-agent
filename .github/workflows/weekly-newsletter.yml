@@ -7,7 +7,7 @@ name: Weekly AI Newsletter (v12.1)
 # the QA-gate step below refuses to commit unless qa_report.md says PASS.
 on:
   schedule:
-    - cron: '0 13 * * 0'   # Sun 13:00 UTC = 17:00 Dubai (GST, UTC+4) — review bundle ready Sunday evening; publish targets Tuesday 08:00 GST
+    - cron: '0 13 * * 0'   # Sun 13:00 UTC = 17:00 Dubai (GST, UTC+4) — review bundle ready Sunday evening; publish targets Monday 08:00 GST
   workflow_dispatch:
     inputs:
       publish:
@@ -16,7 +16,7 @@ on:
         default: 'false'
         type: boolean
       publication_date:
-        description: 'Explicit issue publication date (YYYY-MM-DD, must be a Tuesday). Empty = auto-resolve from the run date (Sun/Mon → upcoming Tue; Wed–Sat → most recent Tue).'
+        description: 'Explicit issue publication date (YYYY-MM-DD, must be a Monday). Empty = auto-resolve from the run date (Sun/Mon → upcoming Tue; Wed–Sat → most recent Tue).'
         required: false
         default: ''
       hasan_take_final:
