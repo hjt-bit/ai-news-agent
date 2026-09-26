@@ -1,5 +1,38 @@
 # SIGNAL Agent — Changelog
 
+## v12.4 (2026-09-26) — Zero-redundancy story anatomy: "Why you care" opener
+
+Hasan's review of the v12.3 preview: the headline, the bold TLDR, and the body
+paragraph all said the same thing three times. The TLDR was prompted as "a
+summary", so it could not help but restate.
+
+### Changed
+- **Every line earns its place.** Business/viral cards are now: Headline
+  (WHAT happened) → **Why you care:** bold opener (the "so what" — implication
+  or stake for a MENA leader, must never restate the headline) → body
+  (concrete details absent from the headline) → **Leader action:** → source
+  link. The summary-style `tldr` is retired from business/viral cards; the
+  `why_it_matters` field is renamed `why_you_care`, unifying the schema with
+  the Consumer Signals card Hasan liked.
+- **"Why you care" over "Why it matters":** second-person, reader-first voice
+  (Axios's "Why it matters" is copied by half the internet); pairs naturally
+  with "Leader action" (you-care → you-do) and keeps the whole issue in one
+  voice.
+- **Analyzer prompt:** new `NO REPETITION` rule — headline, opener, and body
+  must each add new information; the opener gives the angle, the body gives
+  details.
+- **QA check 18** scans the opener for banned phrases; **check 20** (status
+  precision) now covers the opener too, so a status upgrade hiding in the
+  bold line is publish-blocking.
+- **New QA check 22 (advisory WARN):** flags openers whose content-word
+  overlap with the headline hits 60%+ ("opener restates headline") — catches
+  lazy restatements without blocking publish.
+- **Take-suggestions digest** and **social briefs** now use the opener/body
+  instead of the retired summary.
+- **Tests:** v12.3 block replaced with 12 v12.4 checks (prompt contract via
+  captured prompt, renderer anatomy, check-18 on the opener, redundancy
+  WARN/PASS, status precision in the opener). 234 checks green.
+
 ## v12.3 (2026-09-26) — Merged story anatomy: briefing prose replaces the 4-label grid
 
 Hasan's review of the #020 preview: the per-story grid (What happened / Why it
