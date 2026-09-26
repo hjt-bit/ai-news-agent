@@ -31,7 +31,8 @@ class FakeResponse:
         self.choices = [FakeChoice(content)]
 
 # Optional per-test overrides for the fake LLM
-RAISE_ON = None          # set to a prompt substring to simulate an LLM failure
+RAISE_ON = None
+REWRITE_OPENER_RESPONSE = "fallback opener"          # set to a prompt substring to simulate an LLM failure
 REL_SCORES = {}         # article-index -> relevance score for the relevance filter
 
 class FakeCompletions:
@@ -48,6 +49,8 @@ class FakeCompletions:
             return FakeResponse('{"business": [0, 1, 2], "everyday": [3, 4, 5], "middle_east": []}')
         elif "tight, scannable newsletter cards" in text:
             return FakeResponse('{"headline": "Test Headline", "why_you_care": "The angle readers care about", "what_happened": "Something happened", "leader_action": "Take this action"}')
+        elif "Rewrite ONLY the opener" in text:
+            return FakeResponse(json.dumps({"why_you_care": REWRITE_OPENER_RESPONSE}))
         elif "NOVEL, non-obvious AI tip" in text:
             # v10 schema: title/tool_name/url/one_liner/how_to/why_now
             return FakeResponse('{"title": "Test Tip", "tool_name": "TestTool", "url": "https://example.com/tool", "one_liner": "A great tip", "how_to": "Step 1, Step 2", "why_now": "Because reasons"}')
@@ -1234,6 +1237,75 @@ check(any(s == "PASS" and "Concreteness" in m for s, m in checks_sharp),
 check(not any(s in ("FAIL", "WARN") and ("banned phrase" in m or "restate" in m or "Concreteness" in m)
               for s, m in checks_sharp),
       "v12.5 sharp opener triggers no editorial FAIL/WARN")
+
+
+# ─── v12.6 TESTS — self-correction loop for mushy openers ─────────────
+# A violating opener triggers exactly one surgical rewrite; a still-bad
+# rewrite keeps the original so QA flags it for Hasan.
+
+# 26a: violation detector
+check(agent._opener_violations({"why_you_care": "This signals a major shift in the industry"}) != [],
+      "v12.6 detector flags a banned mush phrase")
+check(agent._opener_violations({"why_you_care": "The AI ecosystem enters a new paradigm"}) != [],
+      "v12.6 detector flags abstract nouns")
+check(agent._opener_violations({"why_you_care": "AI labs just became cloud price-setters for Gulf firms"}) == [],
+      "v12.6 detector passes a concrete opener")
+
+# 26b: successful rewrite replaces the opener
+reset_flags()
+REWRITE_OPENER_RESPONSE = "AI labs just became cloud price-setters — Gulf firms face tougher Q4 renewals"
+art26 = mk_article("Anthropic Signs $11.6 Billion Cloud Deal with Akamai", "https://x.com/26")
+data26 = {"why_you_care": "This partnership signals a major investment in cloud infrastructure",
+          "headline": "Anthropic Signs $11.6 Billion Cloud Deal with Akamai",
+          "what_happened": "Anthropic will pay Akamai $11.6 billion over seven years",
+          "leader_action": "Benchmark cloud renewals this quarter"}
+sharp = agent._sharpen_pair(art26, dict(data26), "business")
+check(sharp["why_you_care"] == REWRITE_OPENER_RESPONSE,
+      "v12.6 surgical rewrite replaces a mushy opener")
+check(agent.RUN_FLAGS["opener_rewrites"] == 1,
+      "v12.6 rewrite increments the opener_rewrites flag")
+check(sharp["headline"] == data26["headline"] and sharp["leader_action"] == data26["leader_action"],
+      "v12.6 rewrite leaves other card fields untouched")
+
+# 26c: still-bad rewrite keeps the original for QA to flag
+reset_flags()
+REWRITE_OPENER_RESPONSE = "This marks a significant step for the ecosystem"
+stuck = agent._sharpen_pair(art26, dict(data26), "business")
+check(stuck["why_you_care"] == data26["why_you_care"],
+      "v12.6 keeps the original when the rewrite is still unusable")
+check(agent.RUN_FLAGS["opener_rewrites"] == 0,
+      "v12.6 no rewrite counted when the candidate fails validation")
+
+# 26d: clean openers skip the LLM entirely
+reset_flags()
+calls = []
+_oc3 = FakeCompletions.create
+def _spy3(self, **kwargs):
+    calls.append(1)
+    return _oc3(self, **kwargs)
+FakeCompletions.create = _spy3
+try:
+    agent._sharpen_pair(art26, {"why_you_care": "AI labs just became cloud price-setters for Gulf firms",
+                               "headline": "h", "what_happened": "w", "leader_action": "a"}, "business")
+finally:
+    FakeCompletions.create = _oc3
+check(calls == [], "v12.6 no LLM call when the opener is already clean")
+
+# 26e: prompt's banned list matches the constant (no drift)
+reset_flags()
+captured_q = []
+_oc4 = FakeCompletions.create
+def _spy4(self, **kwargs):
+    captured_q.append(" ".join(m.get("content", "") for m in kwargs.get("messages", [])))
+    return _oc4(self, **kwargs)
+FakeCompletions.create = _spy4
+try:
+    agent.analyze_article(mk_article("BizCo launches AI suite", "https://x.com/biz"), audience="business")
+finally:
+    FakeCompletions.create = _oc4
+biz_q = next(t for t in captured_q if "tight, scannable newsletter cards" in t)
+check(all(p in biz_q for p in agent.BANNED_OPENER_PHRASES),
+      "v12.6 prompt banned list matches the module constant")
 
 
 # ─── SUMMARY ─────────────────────────────────────────────────────────────────
