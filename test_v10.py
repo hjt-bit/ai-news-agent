@@ -884,12 +884,13 @@ check(take_ph.get("mode") == "placeholder",
       "without env var, take falls back to placeholder")
 
 # 22i: module constants contain all approved banned phrases/openers
-check(len(agent.BANNED_WHY_IT_MATTERS_PHRASES) == 7,
-      "7 banned phrases in module constant")
+check(len(agent.BANNED_OPENER_PHRASES) == 16,
+      "16 banned opener phrases in module constant")
 check(len(agent.BANNED_LEADER_ACTION_OPENERS) == 7,
       "7 banned openers in module constant")
-check("could reshape the landscape" in agent.BANNED_WHY_IT_MATTERS_PHRASES,
-      "banned phrase constant has expected entry")
+check("could reshape the landscape" in agent.BANNED_OPENER_PHRASES and
+      "competitive positioning" in agent.BANNED_OPENER_PHRASES,
+      "banned opener constant has expected entries")
 check("keep an eye on" in agent.BANNED_LEADER_ACTION_OPENERS,
       "banned opener constant has expected entry")
 
@@ -1180,6 +1181,59 @@ _, checks_up = agent.run_qa_checks(art24d, {"business": [art24d], "everyday": []
                                    None, None, analysis_pairs=[(art24d, data_up)])
 check(any(s == "FAIL" and "Status precision" in m for s, m in checks_up),
       "v12.4 status precision catches an upgrade inside the opener")
+
+
+# ─── v12.5 TESTS — concrete openers, no corporate mush ─────────────────
+# The opener must carry a concrete anchor (number, named actor, specific
+# cost/revenue/risk). Mush phrases FAIL via check 18; abstract nouns WARN
+# via the new check 23.
+
+# 25a: prompt carries the concreteness formula
+captured_p = []
+_oc = FakeCompletions.create
+def _spy2(self, **kwargs):
+    captured_p.append(" ".join(m.get("content", "") for m in kwargs.get("messages", [])))
+    return _oc(self, **kwargs)
+FakeCompletions.create = _spy2
+try:
+    agent.analyze_article(mk_article("BizCo launches AI suite", "https://x.com/biz"), audience="business")
+finally:
+    FakeCompletions.create = _oc
+biz_p = next(t for t in captured_p if "tight, scannable newsletter cards" in t)
+check("concrete anchor" in biz_p,
+      "v12.5 analyzer prompt requires a concrete anchor in the opener")
+check("Formula:" in biz_p and "specific consequence" in biz_p,
+      "v12.5 opener spec uses the consequence formula")
+
+# 25b: mush phrases FAIL check 18 (the live Anthropic opener pattern)
+reset_flags()
+art25 = mk_article("Anthropic Signs $11.6 Billion Cloud Deal with Akamai", "https://x.com/25")
+data_mush = {"why_you_care": "This partnership signals a major investment in cloud infrastructure, impacting competitive positioning in AI services",
+             "headline": "Anthropic Signs $11.6 Billion Cloud Deal with Akamai",
+             "what_happened": "Anthropic will pay Akamai $11.6 billion over seven years",
+             "leader_action": "Benchmark your cloud renewals against AI-lab rates before Q4"}
+_, checks_mush = agent.run_qa_checks(art25, {"business": [art25], "everyday": [], "middle_east": []},
+                                    None, None, analysis_pairs=[(art25, data_mush)])
+check(any(s == "FAIL" and "banned phrase" in m for s, m in checks_mush),
+      "v12.5 check 18 FAILs on corporate-mush opener")
+
+# 25c: abstract nouns WARN via check 23; anchored opener passes clean
+reset_flags()
+data_abs = dict(data_mush, why_you_care="The AI ecosystem is entering a new paradigm for enterprises")
+_, checks_abs = agent.run_qa_checks(art25, {"business": [art25], "everyday": [], "middle_east": []},
+                                   None, None, analysis_pairs=[(art25, data_abs)])
+check(any(s == "WARN" and "Concreteness" in m for s, m in checks_abs),
+      "v12.5 check 23 WARNs on an abstract-noun opener")
+reset_flags()
+data_sharp = dict(data_mush,
+                  why_you_care="AI labs just became cloud price-setters — Gulf enterprises face tougher Q4 renewals")
+_, checks_sharp = agent.run_qa_checks(art25, {"business": [art25], "everyday": [], "middle_east": []},
+                                      None, None, analysis_pairs=[(art25, data_sharp)])
+check(any(s == "PASS" and "Concreteness" in m for s, m in checks_sharp),
+      "v12.5 check 23 PASSes on an anchored opener")
+check(not any(s in ("FAIL", "WARN") and ("banned phrase" in m or "restate" in m or "Concreteness" in m)
+              for s, m in checks_sharp),
+      "v12.5 sharp opener triggers no editorial FAIL/WARN")
 
 
 # ─── SUMMARY ─────────────────────────────────────────────────────────────────
