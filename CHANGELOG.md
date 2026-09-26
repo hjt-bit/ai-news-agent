@@ -1,5 +1,12 @@
 # SIGNAL Agent — Changelog
 
+## v12.7.1 (2026-09-26) — Byline stacking
+
+- Masthead byline restructured into stacked lines: photo + "By Hasan Jad",
+  then "AI, decoded for MENA leaders" as its own non-wrapping brand line, then
+  the tagline. The brand phrase can no longer split across two lines on narrow
+  screens.
+
 ## v12.7 (2026-09-26) — Monday publication
 
 - SIGNAL moves from Tuesday 08:00 GST to **Monday 08:00 GST** (Instagram poll:
