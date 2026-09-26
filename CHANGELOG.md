@@ -1,5 +1,28 @@
 # SIGNAL Agent — Changelog
 
+## v12.5 (2026-09-26) — Concrete openers: killing corporate mush
+
+Hasan's follow-up on the v12.4 preview: the new "Why you care" opener was
+structurally right but could still lean generic ("signals a major investment
+in cloud infrastructure, impacting competitive positioning").
+
+### Changed
+- **Opener concreteness formula in the analyzer prompt:** [what changed]
+  means [specific consequence] for [named actor]. The opener MUST contain a
+  concrete anchor — a dollar figure, a named company/country/customer group,
+  or a specific cost/revenue/risk — never bare abstract nouns as the payload.
+- **Banned opener phrases doubled (8 → 16, check 18 FAIL):** "signals a
+  major", "competitive positioning", "highlights the importance",
+  "underscores the need", "reflects growing interest", "marks a significant
+  step", "demonstrates the potential", "growing importance of",
+  "rapidly evolving". Constant renamed BANNED_WHY_IT_MATTERS_PHRASES →
+  BANNED_OPENER_PHRASES to match its role.
+- **New QA check 23 (advisory WARN):** flags openers leaning on abstract
+  nouns (landscape, ecosystem, positioning, paradigm, playing field) without
+  a concrete payload.
+- **Tests:** 6 new v12.5 checks (prompt formula, mush FAIL, abstract WARN,
+  anchored opener clean). 240 checks green.
+
 ## v12.4 (2026-09-26) — Zero-redundancy story anatomy: "Why you care" opener
 
 Hasan's review of the v12.3 preview: the headline, the bold TLDR, and the body
