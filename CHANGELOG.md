@@ -1,5 +1,17 @@
 # SIGNAL Agent — Changelog
 
+## v12.8 (2026-09-27) — Gulf Watch strip
+
+- New "Gulf Watch" element at the top of "From the Region": a bird's-eye strip
+  with up to 2 KSA + 2 UAE one-liners (flag, headline, source link) drawn from
+  the wider regional pool — stories not already used in another track.
+- Deterministic KSA/UAE classifier (keyword hits, word-boundary matched, ties
+  resolve to KSA); story selector prioritizes KSA/UAE for the region track.
+- Gulf Watch items go through the same fact-check + verify-first cull as every
+  other story, and QA fails on duplicates with the main regional list.
+- Email teaser gains a "Gulf Watch" bullet; responsive two-column layout that
+  stacks on mobile.
+
 ## v12.7.1 (2026-09-26) — Byline stacking
 
 - Masthead byline restructured into stacked lines: photo + "By Hasan Jad",
