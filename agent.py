@@ -3460,8 +3460,8 @@ def render_middle_east_block(me_items, gulf_watch=None):
             '<div class="gulf-watch">'
             '<p class="gulf-watch-title">Gulf Watch <span>&mdash; KSA &amp; UAE at a glance</span></p>'
             '<div class="gulf-cols">'
-            + _gulf_col("&#x1f1f8;&#x1f1e6;", "Saudi Arabia", ksa)
-            + _gulf_col("&#x1f1e6;&#x1f1ea;", "UAE", uae)
+            + (_gulf_col("&#x1f1f8;&#x1f1e6;", "Saudi Arabia", ksa) if ksa else "")
+            + (_gulf_col("&#x1f1e6;&#x1f1ea;", "UAE", uae) if uae else "")
             + '</div></div>')
     items_html = ""
     for art, data in me_items:
@@ -3525,7 +3525,7 @@ def _email_gulf_watch(gulf_watch):
     uae = [a for a in gulf_watch if a.get("_gulf_country") == "UAE"]
     if not ksa and not uae:
         return ""
-    def _col(flag, name, arts):
+    def _col(flag, name, arts, full_width=False):
         items = "".join(
             f'<p style="margin:0 0 10px 0;font-family:{_EMAIL_FONT};font-size:13px;'
             f'line-height:1.5;">'
@@ -3534,8 +3534,9 @@ def _email_gulf_watch(gulf_watch):
             f'<span style="font-size:10px;letter-spacing:1px;color:#7b859a;">'
             f'{_h(a["source"])}</span></p>'
             for a in arts)
+        width = "100%" if full_width else "50%"
         return (
-            f'<td width="50%" valign="top" style="padding:6px 8px 0 8px;">'
+            f'<td width="{width}" valign="top" style="padding:6px 8px 0 8px;">'
             f'<p style="margin:0 0 8px 0;font-family:{_EMAIL_FONT};font-size:12px;'
             f'font-weight:bold;color:#050d1f;">{flag} {_h(name)}</p>{items}</td>')
     return (
@@ -3549,8 +3550,8 @@ def _email_gulf_watch(gulf_watch):
         f'</td></tr>'
         f'<tr><td style="padding:4px 8px 10px 8px;">'
         f'<table width="100%" cellpadding="0" cellspacing="0"><tr>'
-        f'{_col("&#x1f1f8;&#x1f1e6;", "Saudi Arabia", ksa)}'
-        f'{_col("&#x1f1e6;&#x1f1ea;", "UAE", uae)}'
+        f'{_col("&#x1f1f8;&#x1f1e6;", "Saudi Arabia", ksa, full_width=not uae) if ksa else ""}'
+        f'{_col("&#x1f1e6;&#x1f1ea;", "UAE", uae, full_width=not ksa) if uae else ""}'
         f'</tr></table></td></tr></table></td></tr>')
 
 def build_email_html(issue_number_str, today, viral=None, viral_data=None,
