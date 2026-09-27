@@ -46,7 +46,7 @@ MAX_PER_SOURCE = 2
 
 # Where to send readers when they click "Subscribe".
 SIGNUP_URL  = "https://www.linkedin.com/newsletters/signal-7459465103449468928/"
-BEEHIIV_URL = "https://signalweekly.beehiiv.com/?modal=signup"
+KIT_SIGNUP_URL = "https://signal-6.kit.com/5b9641497d"
 
 # GitHub Pages archive base (used to build the canonical link to each issue).
 PAGES_BASE_URL = "https://hjt-bit.github.io/ai-news-agent"
@@ -3981,8 +3981,8 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
     lines.append("")
 
     # ── Subscribe CTAs ──
-    if BEEHIIV_URL:
-        lines.append(f"Get SIGNAL in your inbox every Monday (free): {BEEHIIV_URL}")
+    if KIT_SIGNUP_URL:
+        lines.append(f"Get SIGNAL in your inbox every Monday (free): {KIT_SIGNUP_URL}")
     if SIGNUP_URL:
         lines.append(f"Follow on LinkedIn: {SIGNUP_URL}")
     lines.append("")
@@ -4476,13 +4476,13 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     issue_number_str = f"{issue_number:03d}"
 
     # Build Beehiiv buttons
-    if BEEHIIV_URL:
+    if KIT_SIGNUP_URL:
         beehiiv_strip_btn = (
-            f'<a class="cta-mini alt" href="{BEEHIIV_URL}" '
+            f'<a class="cta-mini alt" href="{KIT_SIGNUP_URL}" '
             f'target="_blank" rel="noopener">Subscribe by email</a>'
         )
         beehiiv_main_btn = (
-            f'<a class="button alt" href="{BEEHIIV_URL}" '
+            f'<a class="button alt" href="{KIT_SIGNUP_URL}" '
             f'target="_blank" rel="noopener">Subscribe by email</a>'
         )
     else:
@@ -4518,11 +4518,11 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
 
     # Build email capture box HTML
     email_capture_html = ''
-    if BEEHIIV_URL:
+    if KIT_SIGNUP_URL:
         email_capture_html = f'''<div class="email-capture">
       <p class="ec-headline">Get SIGNAL in your inbox every Monday</p>
       <p class="ec-sub">Five minutes. The AI stories that matter. Free, forever.</p>
-      <a class="ec-button" href="{BEEHIIV_URL}" target="_blank" rel="noopener">Subscribe by email</a>
+      <a class="ec-button" href="{KIT_SIGNUP_URL}" target="_blank" rel="noopener">Subscribe by email</a>
     </div>'''
 
     html = HTML_TEMPLATE.format(
