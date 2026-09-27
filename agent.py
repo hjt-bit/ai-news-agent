@@ -68,13 +68,6 @@ EXPORT_LINKEDIN = True
 #     python agent_v10.py --force-lead "anthropic" --force-issue 20
 # Both are off by default and loudly logged when used.
 
-# ── v10: "Hasan's Take" slot ──────────────────────────────────────────────────
-# "placeholder" (default): renders a clearly-marked block inviting Hasan to write
-# his take during human review. A future mode (e.g. "draft") may auto-draft a
-# take for Hasan to edit; any draft must pass the same faithfulness/empty-output
-# guards as analyze_article (an empty take fails QA, never renders blank).
-TAKE_MODE = "placeholder"
-
 # ── v10: Author byline / personal brand ───────────────────────────────────────
 # TODO(Hasan): fill these in before the rebrand launch. Rendered in the
 # newsletter masthead and footer (HTML-escaped).
@@ -2684,23 +2677,6 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
     else:
         checks.append(("WARN", "v12.1 Editorial: analysis pairs not supplied — checks 18/19/20 skipped"))
 
-    # 21) v12.1: Hasan's Take gate. An untouched placeholder WARNs in review
-    # mode (Hasan writes the take during review) but FAILs with publish=True.
-    # A supplied-but-invalid take (not exactly 2-3 sentences) FAILs in both
-    # modes — it blocks publishing and shows red at review so Hasan fixes
-    # it before the publish run.
-    take_mode = RUN_FLAGS.get("take_mode", "placeholder")
-    if take_mode == "placeholder":
-        if publish:
-            checks.append(("FAIL", "v12.1 Hasan's Take: placeholder untouched — write the take (HASAN_TAKE_FINAL) before publishing"))
-        else:
-            checks.append(("WARN", "v12.1 Hasan's Take: placeholder untouched — write the take at review (HASAN_TAKE_FINAL)"))
-    elif take_mode == "invalid":
-        take_error = RUN_FLAGS.get("take_error") or "must be exactly 2-3 sentences"
-        checks.append(("FAIL", f"v12.1 Hasan's Take: invalid final take ({take_error}) — fix HASAN_TAKE_FINAL before publishing"))
-    else:
-        checks.append(("PASS", "v12.1 Hasan's Take: final take supplied (2-3 sentences)"))
-
     # Tally
     fails = [m for s, m in checks if s == "FAIL"]
     warns = [m for s, m in checks if s == "WARN"]
@@ -3360,10 +3336,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .byline-tag {{ display: block; font-size: 12.5px; margin-top: 2px; }}
   .social-links {{ text-align: center; font-size: 13px; margin: 8px 0 0; }}
   .social-links a {{ color: #00D4FF; margin: 0 6px; text-decoration: none; }}
-  .take-placeholder {{ border-left: 3px solid #f59e0b; background: rgba(245,158,11,.06); }}
-  .take-note {{ font-size: 15px; margin: 0 0 6px; }}
-  .take-hint {{ font-size: 13px; color: var(--muted); margin: 0; }}
-  .take-text {{ font-size: 15.5px; line-height: 1.65; margin: 0; }}
 </style>
 </head>
 <body>
@@ -3387,7 +3359,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <!-- Email subscribe box (top) -->
   {email_capture_top}
   {viral_block}
-  {take_block}
   <!-- Share buttons (after viral lead) -->
   {share_bar}
   <div class="section-header">
@@ -3584,7 +3555,7 @@ def _email_gulf_watch(gulf_watch):
 
 def build_email_html(issue_number_str, today, viral=None, viral_data=None,
                      biz_pairs=None, eve_pairs=None, me_items=None,
-                     gulf_watch=None, tip=None, take=None):
+                     gulf_watch=None, tip=None):
     """v12.9: build the email-safe HTML version of the issue for Kit broadcasts."""
     body = []
     # Preheader (hidden preview snippet)
@@ -3623,19 +3594,6 @@ def build_email_html(issue_number_str, today, viral=None, viral_data=None,
              ("What happened", viral_data.get("what_happened", "")),
              ("Leader action", viral_data.get("leader_action", ""))],
             link=viral.get("link"), source=viral.get("source")))
-
-    # Hasan's Take
-    if take:
-        if take.get("mode") == "final" and take.get("text"):
-            body.append(_email_section("01b", "Hasan Jad's Take"))
-            body.append(_email_card(
-                "Hasan Jad's Take",
-                [("The take", take.get("text", ""))]))
-        elif take.get("mode") == "placeholder":
-            body.append(_email_section("01b", "Hasan Jad's Take"))
-            body.append(_email_card(
-                "Hasan Jad's take (to be written at review)",
-                [("Note", "The final take is added during Sunday-evening review.")]))
 
     # 02 Strategic Briefing
     biz_pairs = biz_pairs or []
@@ -3696,7 +3654,7 @@ def build_email_html(issue_number_str, today, viral=None, viral_data=None,
     body.append(
         f'<tr><td align="center" style="padding:26px 28px 30px 28px;">'
         f'<p style="margin:0 0 8px 0;font-family:{_EMAIL_FONT};font-size:12px;color:#4a5468;">'
-        f'<a href="{_h(PAGES_BASE_URL, quote=True)}/newsletters/" '
+        f'<a href="{_h(PAGES_BASE_URL, quote=True)}/" '
         f'style="color:#0e7490;text-decoration:none;font-weight:bold;">Browse the archive &rarr;</a></p>'
         f'<p style="margin:0;font-family:{_EMAIL_FONT};font-size:11px;color:#7b859a;'
         f'line-height:1.6;">&mdash; Hasan<br>'
@@ -3732,76 +3690,6 @@ def render_tip_block(tip):
       <div class="tip-what">{_h(str(tip.get('what', '')))}</div>
       <div class="tip-try"><strong>Try this:</strong> {_h(str(tip.get('try_this', '')))}</div>
       <a class="tip-link" href="{_h(link_url, quote=True)}" target="_blank" rel="noopener">{_h(str(tip.get('link_label', 'Explore')))}</a>
-    </div>"""
-
-
-# =========================================================
-# v10 — "HASAN'S TAKE" SLOT (scaffold)
-# =========================================================
-def get_hasan_take(viral_article, viral_data):
-    """Return the 'Hasan's Take' slot content for this issue.
-
-    v12.1: Hasan's final take can be supplied via the HASAN_TAKE_FINAL
-    environment variable. It MUST be exactly 2-3 sentences (enforced by
-    _count_sentences); anything else returns mode="invalid" with a clear
-    error, and QA check 21 FAILs so the issue cannot publish with a
-    malformed take. When set and valid, the take is used verbatim as the
-    final take. Otherwise TAKE_MODE="placeholder" returns a placeholder
-    marker and Hasan writes his take during human review (the review bundle
-    flags it loudly). Publishing is BLOCKED while the placeholder is
-    untouched (see QA check 21).
-    """
-    final = os.environ.get("HASAN_TAKE_FINAL", "").strip()
-    if final:
-        n = _count_sentences(final)
-        if n not in (2, 3):
-            return {"mode": "invalid", "text": final,
-                    "headline": "Hasan Jad's Take",
-                    "error": (f"HASAN_TAKE_FINAL has {n} sentence(s); "
-                              f"exactly 2-3 sentences required")}
-        return {"mode": "final", "text": final,
-                "headline": "Hasan Jad's Take"}
-    if TAKE_MODE == "placeholder":
-        return {"mode": "placeholder", "text": None,
-                "headline": "Hasan Jad's take (to be written at review)"}
-    raise ValueError(f"Unknown TAKE_MODE: {TAKE_MODE!r}")
-
-
-def render_take_block(take):
-    """Render the Hasan's Take slot right after the viral lead (v10)."""
-    if not take:
-        return ""
-    if take.get("mode") == "placeholder":
-        return """
-    <div class="section-header">
-      <span class="index">01b //</span>
-      <h2>Hasan Jad's Take</h2>
-      <span class="rule"></span>
-    </div>
-    <div class="card take-placeholder">
-      <p class="take-note"><strong>Hasan Jad's take (to be written at review).</strong></p>
-      <p class="take-hint">Replace this block with 2&ndash;3 sentences of opinion on the viral lead before publishing.</p>
-    </div>"""
-    if take.get("mode") == "invalid":
-        return f"""
-    <div class="section-header">
-      <span class="index">01b //</span>
-      <h2>Hasan Jad's Take</h2>
-      <span class="rule"></span>
-    </div>
-    <div class="card take-placeholder">
-      <p class="take-note"><strong>Invalid take supplied &mdash; fix before publishing.</strong></p>
-      <p class="take-hint">{_h(str(take.get('error', 'must be 2-3 sentences')))}</p>
-      <p class="take-text">{_h(str(take.get('text', '')))}</p>
-    </div>"""
-    return f"""
-    <div class="section-header">
-      <span class="index">01b //</span>
-      <h2>Hasan Jad's Take</h2>
-      <span class="rule"></span>
-    </div>
-    <div class="card take">
-      <p class="take-text">{_h(str(take.get('text', '')))}</p>
     </div>"""
 
 
@@ -4115,7 +4003,7 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
 # =========================================================
 # 9. BEEHIIV EMAIL EXPORT (v8)
 # =========================================================
-def export_beehiiv_email(date_str, issue_number, viral_pair, biz_pairs, eve_pairs, me_items, tip, take=None, gulf_watch=None):
+def export_beehiiv_email(date_str, issue_number, viral_pair, biz_pairs, eve_pairs, me_items, tip, gulf_watch=None):
     """Write a short branded email wrapper that drives readers to the full HTML issue.
 
     Output is a Markdown file (email_post_YYYY_MM_DD.md) with YAML-style front-matter
@@ -4168,12 +4056,6 @@ def export_beehiiv_email(date_str, issue_number, viral_pair, biz_pairs, eve_pair
         lines.append(f"- **Consumer Signals** — {h}")
     if tip:
         lines.append(f"- **Tip of the Week** — {tip.get('title', 'AI Tip')}")
-    # v10: Hasan's Take
-    if take:
-        if take.get("mode") == "placeholder":
-            lines.append("- **Hasan Jad's Take** — written at review (see the full issue).")
-        elif take.get("text"):
-            lines.append(f"- **Hasan Jad's Take** — {take['text'][:140]}")
     lines.append("")
 
     # ── Big CTA button ──
@@ -4364,7 +4246,7 @@ def create_kit_broadcast_draft(subject, html, preview_text=""):
 
 def maybe_create_kit_draft(issue_number_str, today, viral=None, viral_data=None,
                            biz_pairs=None, eve_pairs=None, me_items=None,
-                           gulf_watch=None, tip=None, take=None):
+                           gulf_watch=None, tip=None):
     """v12.2 pipeline step: create the issue as a Kit DRAFT broadcast.
 
     v12.9: sends the email-safe HTML build (table layout, inline styles) —
@@ -4379,7 +4261,7 @@ def maybe_create_kit_draft(issue_number_str, today, viral=None, viral_data=None,
     email_html = build_email_html(issue_number_str, today, viral=viral,
                                   viral_data=viral_data, biz_pairs=biz_pairs,
                                   eve_pairs=eve_pairs, me_items=me_items,
-                                  gulf_watch=gulf_watch, tip=tip, take=take)
+                                  gulf_watch=gulf_watch, tip=tip)
     return create_kit_broadcast_draft(subject, email_html, preview_text=preview)
 
 
@@ -4559,12 +4441,6 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
         RUN_FLAGS["render_hollow"] = True
         print(f"\n  ✗ HOLLOW RENDER — missing content for: {hollow}")
 
-    # 6g) v10: "Hasan's Take" slot — placeholder until written at human review.
-    take = get_hasan_take(viral, viral_data)
-    RUN_FLAGS["take_mode"] = take.get("mode", "placeholder")  # v12.1: for QA check 21
-    RUN_FLAGS["take_error"] = take.get("error", "")  # v12.1: surfaced by check 21 on invalid takes
-    take_html = render_take_block(take)
-
     # 7) v10: all outputs land in out_dir. Review mode -> review/ (NEVER published).
     out_dir = "." if publish else REVIEW_DIR
     os.makedirs(out_dir, exist_ok=True)
@@ -4655,7 +4531,6 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
         everyday_cards=eve_html,
         middle_east_block=me_html,
         viral_block=viral_html,
-        take_block=take_html,
         tip_block=tip_html,
         signup_url=SIGNUP_URL,
         **_author_context(),
@@ -4686,12 +4561,12 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     viral_pair = (viral, viral_data) if viral else None
     if EXPORT_LINKEDIN:
         export_linkedin_post(today, issue_number_str, viral_pair, biz_pairs, eve_pairs,
-                             me_items, tip, take=take)
+                             me_items, tip)
 
     # 12) Beehiiv email export
     if EXPORT_LINKEDIN:  # reuse same flag — if we export LinkedIn, we export email too
         export_beehiiv_email(today, issue_number_str, viral_pair, biz_pairs, eve_pairs,
-                             me_items, tip, take=take,
+                             me_items, tip,
                              gulf_watch=picks.get("gulf_watch", []))
 
     # 13) v10: social derivative outlines (one LLM call, saved for human review)
@@ -4715,7 +4590,7 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     # 14) v10: REVIEW_SUMMARY.md — the one file a human must read before publishing
     _write_review_summary(out_dir=".", publish=publish, qa_passed=qa_passed,
                           qa_checks=qa_checks, issue_number_str=issue_number_str,
-                          today=today, viral=viral, tip=tip, take=take,
+                          today=today, viral=viral, tip=tip,
                           files=sorted(os.listdir(".")))
 
     # 14b) v11: Beehiiv DRAFT creation (draft-only — sending stays human).
@@ -4731,7 +4606,7 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
                            viral_data=viral_data, biz_pairs=biz_pairs,
                            eve_pairs=eve_pairs, me_items=me_items,
                            gulf_watch=picks.get("gulf_watch", []),
-                           tip=tip, take=take)
+                           tip=tip)
 
     # 15) Final banner — unmistakable.
     print("\n" + "=" * 60)
@@ -4746,7 +4621,7 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
 
 
 def _write_review_summary(out_dir, publish, qa_passed, qa_checks, issue_number_str,
-                          today, viral, tip, take, files):
+                          today, viral, tip, files):
     """Write REVIEW_SUMMARY.md: the single file a human reads before publishing (v10)."""
     path = os.path.join(out_dir, "REVIEW_SUMMARY.md")
     fails = [m for s, m in qa_checks if s == "FAIL"]
@@ -4778,13 +4653,11 @@ def _write_review_summary(out_dir, publish, qa_passed, qa_checks, issue_number_s
         "",
         "## Human actions required",
     ]
-    if take and take.get("mode") == "placeholder":
-        lines.append("- [ ] WRITE HASAN'S TAKE: replace the placeholder block after the viral lead (2-4 sentences of opinion).")
     lines.append(f"- [ ] Verify viral lead: {viral['title'][:80] if viral else 'none'}")
     lines.append(f"- [ ] Sanity-check tip of the week: {tip.get('title', '')[:60] if tip else 'none'}")
     lines.append("- [ ] Review social_derivatives.json outlines before any social posting.")
     lines.append("- [ ] REVIEW TAKE SUGGESTIONS: read take_suggestions.md — pick angles, "
-                 "rewrite in your own voice (never publish suggestions verbatim).")
+                 "rewrite in your own voice for the LinkedIn post (never publish suggestions verbatim).")
     n_excluded = sum(1 for s, m in qa_checks if s == "WARN" and m.startswith("  EXCLUDED"))
     if n_excluded:
         lines.append(f"- [ ] REVIEW QA EXCLUSIONS: {n_excluded} stor(ies) were removed before render "
