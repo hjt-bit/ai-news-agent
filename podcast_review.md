@@ -1,6 +1,6 @@
 # SIGNAL — Podcast Review Log
 
-_Generated September 13, 2026. This file confirms which podcasts the agent read this week,
+_Generated September 27, 2026. This file confirms which podcasts the agent read this week,
 whether full transcripts were successfully fetched, and what topic signals were extracted._
 
 | Podcast | Episodes Found | Transcript Read | Transcript Length | Topics Extracted |
@@ -13,23 +13,23 @@ whether full transcripts were successfully fetched, and what topic signals were 
 
 ### All-In Podcast
 - Recent episodes detected:
-  - David Friedberg: AI Models are Training on YOUR DATA
-  - AI Kills Everybody or Doomer Psyop? OpenAI’s Math Breakthrough, Nike’s $200B Collapse
-  - Chamath: Your AI Data Is NOT SAFE
-  - Jason Calacanis: OpenAI's “Sentient AI” Hype Is Really an IPO Sales Pitch
-  - David Sacks: Trump’s Instincts on AI and Data Centers Are Right
+  - Jason Calacanis: Dario Seems to Be Sabotaging His Own IPO
+  - Chamath on Obama’s AI Warning: Follow the Money
+  - David Friedberg: Obama Doesn’t Understand AI and He’s Making Prosperity Political
+  - Anthropic IPO at Risk, Meta’s Muse Pop, Token Prices Fall, Open Source Gains Share, Alignment Fails
+  - Steve Hilton: California is Upside Down
 - Transcript fetched: No (0 chars)
 - Topic signals fed into story scoring:
-  - OpenAI data usage
-  - AI Doomsday scenarios
-  - Anthropic IPO impact
-  - OpenAI math breakthrough
-  - Nike S&P 100 removal
-  - Sentient AI hype
-  - AI data safety concerns
-  - Trump AI instincts
-  - AI models training data
-  - AI regulation discussions
+  - Anthropic IPO risk
+  - OpenAI IPO delay
+  - AI liability issues
+  - Open source AI growth
+  - Meta Muse Pop
+  - AI alignment challenges
+  - AI competition dynamics
+  - Dario IPO sabotage
+  - Obama AI warnings
+  - Political implications of AI
 
 ### Latent Space
 - No recent episodes detected in the lookback window.

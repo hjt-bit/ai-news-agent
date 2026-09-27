@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIGNAL // AI Intelligence Briefing - Issue #021 - September 28, 2026</title>
+<meta name="description" content="SIGNAL Issue #021 — The AI stories that matter, in five minutes flat.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="SIGNAL #021 — AI Intelligence Briefing">
+<meta property="og:description" content="The AI stories that matter this week, in five minutes flat. Curated for leaders and curious minds.">
+<meta property="og:url" content="https://hjt-bit.github.io/ai-news-agent/newsletters/newsletter_2026_09_28.html">
+<meta property="og:image" content="https://hjt-bit.github.io/ai-news-agent/assets/signal_og_card.png">
+<meta property="og:site_name" content="SIGNAL Weekly">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SIGNAL #021 — AI Intelligence Briefing">
+<meta name="twitter:description" content="The AI stories that matter this week, in five minutes flat.">
+<meta name="twitter:image" content="https://hjt-bit.github.io/ai-news-agent/assets/signal_og_card.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f7;
+    --paper: #ffffff;
+    --panel: #f3f6fb;
+    --line: #d9dfe9;
+    --line-bright: #b6bfd0;
+    --ink: #050d1f;
+    --ink-2: #1a2438;
+    --muted: #4a5468;
+    --muted-2: #7b859a;
+    --cyan: #0e7490;
+    --cyan-bright: #0891b2;
+    --violet: #6d28d9;
+    --highlight: #fff3a3;
+    --brand-navy: #0E1A2B;
+    --brand-navy-2: #16243a;
+    --title-band: #E8EEF7;
+    --tip-bg: #FDF6E3;
+    --tip-rule: #C49A2C;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    background-image:
+      radial-gradient(800px 400px at 50% -180px, rgba(14,116,144,0.10), transparent 60%),
+      radial-gradient(600px 350px at 95% 5%, rgba(109,40,217,0.06), transparent 65%);
+    color: var(--ink);
+    padding: 40px 16px;
+    line-height: 1.6;
+    font-size: 15px;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 700px;
+    margin: 0 auto;
+    background: var(--paper);
+    border: 1px solid var(--line-bright);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(5,13,31,0.05), 0 16px 50px rgba(5,13,31,0.10);
+  }
+  .masthead {
+    padding: 38px 44px 30px;
+    border-bottom: 3px solid #00D4FF;
+    background: linear-gradient(180deg, var(--brand-navy) 0%, var(--brand-navy-2) 100%);
+    color: #ffffff;
+    position: relative;
+  }
+  .masthead::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(600px 220px at 80% -40px, rgba(0,212,255,0.18), transparent 60%),
+      radial-gradient(420px 180px at 0% 100%, rgba(109,40,217,0.14), transparent 70%);
+    pointer-events: none;
+  }
+  .masthead > * { position: relative; z-index: 1; }
+  .masthead-top {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 2.4px;
+    color: rgba(255,255,255,0.62);
+    text-transform: uppercase; margin-bottom: 26px;
+  }
+  .masthead-top .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #00D4FF; margin-right: 8px; vertical-align: middle;
+    box-shadow: 0 0 10px rgba(0,212,255,0.8);
+  }
+  .masthead h1 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700; font-size: 54px; line-height: 1; letter-spacing: -1.8px;
+    margin: 0 0 14px; color: #ffffff;
+  }
+  .masthead h1 .accent { color: #00D4FF; }
+  .masthead .tagline {
+    font-size: 15.5px; color: rgba(255,255,255,0.92); font-weight: 500;
+    line-height: 1.45;
+  }
+  .masthead .promise {
+    margin-top: 10px;
+    font-size: 12.5px; color: rgba(255,255,255,0.62);
+    letter-spacing: 0.2px;
+  }
+  .subscribe-strip {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    justify-content: space-between;
+    padding: 14px 44px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    font-size: 13px; color: var(--ink-2);
+  }
+  .subscribe-strip .copy { flex: 1; min-width: 200px; }
+  .subscribe-strip .copy strong { color: var(--ink); }
+  .subscribe-strip a.cta-mini {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: #ffffff; background: var(--ink);
+    padding: 10px 18px; border-radius: 3px; text-decoration: none;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  .subscribe-strip a.cta-mini:hover { background: var(--cyan); transform: translateY(-1px); }
+  .subscribe-strip a.cta-mini::after { content: "->"; }
+  .subscribe-strip a.cta-mini.alt {
+    background: var(--cyan);
+  }
+  .subscribe-strip a.cta-mini.alt:hover { background: var(--violet); }
+  .section-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 28px 44px 10px; border-top: 1px solid var(--line);
+  }
+  .section-header .index {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 2.4px; color: var(--cyan);
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .section-header h2 {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 20px; font-weight: 700; margin: 0; color: var(--ink);
+    letter-spacing: -0.3px;
+  }
+  .section-header .rule {
+    flex: 1; height: 1px; background: var(--line);
+  }
+  .card {
+    margin: 0 44px 22px; padding: 22px 26px;
+    border: 1px solid var(--line); border-radius: 5px;
+    background: var(--paper);
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+  .card:hover {
+    border-color: var(--line-bright);
+    box-shadow: 0 2px 12px rgba(14,116,144,0.08);
+  }
+  .card .card-title {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 17px; font-weight: 700; color: var(--ink);
+    margin: 0 0 10px; line-height: 1.3; letter-spacing: -0.2px;
+    padding: 4px 8px; margin-left: -8px;
+    background: var(--title-band); border-radius: 3px;
+    display: inline-block;
+  }
+  .card .card-tldr {
+    font-size: 14.5px; color: var(--ink); margin: 0 0 10px;
+    line-height: 1.5; font-weight: 400;
+  }
+  .card .card-angle {
+    font-size: 14.5px; color: var(--ink); margin: 0 0 10px;
+    line-height: 1.5; font-weight: 400;
+  }
+  .card .card-body {
+    font-size: 13.5px; color: var(--ink-2); margin: 0 0 10px; line-height: 1.6;
+  }
+  .card .card-action {
+    font-size: 13px; line-height: 1.6; margin: 0 0 8px; color: var(--ink);
+  }
+  .card .card-action { margin-bottom: 12px; }
+  .card .meta-grid {
+    display: grid; grid-template-columns: auto 1fr; gap: 4px 12px;
+    font-size: 12.5px; line-height: 1.6;
+  }
+  .card .meta-grid .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; padding-top: 2px;
+  }
+  .card .meta-grid .value { color: var(--ink-2); }
+  .card .source-link {
+    display: inline-block; margin-top: 12px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--cyan); text-decoration: none;
+    border-bottom: 1px dashed var(--cyan);
+    padding-bottom: 1px;
+  }
+  .card .source-link:hover { color: var(--violet); border-color: var(--violet); }
+  /* Viral lead special styling */
+  .card.viral {
+    border: 2px solid var(--brand-navy);
+    background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+    box-shadow: 0 4px 20px rgba(14,26,43,0.10);
+  }
+  .card.viral .card-title {
+    font-size: 20px;
+    background: var(--brand-navy); color: #ffffff;
+    padding: 6px 12px; border-radius: 3px;
+  }
+  /* Middle East section */
+  .me-block {
+    margin: 0 44px 22px; padding: 18px 24px;
+    border: 1px solid var(--line); border-radius: 5px;
+    background: var(--panel);
+  }
+  .me-block .me-item {
+    margin-bottom: 14px; padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .me-block .me-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .me-block .me-headline {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 15px; font-weight: 600; color: var(--ink); margin: 0 0 4px;
+  }
+  .me-block .me-tldr {
+    font-size: 13.5px; color: var(--ink-2); line-height: 1.5; margin: 0;
+  }
+  .me-block .me-link {
+    display: inline-block; margin-top: 6px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--cyan); text-decoration: none;
+  }
+  /* v12.8 Gulf Watch strip */
+  .gulf-watch {
+    margin: 0 0 18px; padding: 14px 16px;
+    border: 1px solid var(--line); border-radius: 5px;
+    background: rgba(0, 212, 255, 0.04);
+  }
+  .gulf-watch-title {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
+    color: var(--ink); margin: 0 0 10px;
+  }
+  .gulf-watch-title span { color: var(--muted); font-weight: 400; }
+  .gulf-cols { display: flex; gap: 18px; }
+  .gulf-col { flex: 1; min-width: 0; }
+  .gulf-country { font-size: 12px; font-weight: 700; color: var(--ink); margin: 0 0 6px; }
+  .gulf-item { display: block; margin-bottom: 9px; text-decoration: none; }
+  .gulf-item:last-child { margin-bottom: 0; }
+  .gulf-headline { display: block; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+  .gulf-item:hover .gulf-headline { color: var(--cyan); }
+  .gulf-source {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
+  }
+  /* Tip of the Week */
+  .tip-block {
+    margin: 0 44px 22px; padding: 22px 26px;
+    border: 1px solid var(--tip-rule); border-radius: 5px;
+    background: var(--tip-bg);
+    border-left: 4px solid var(--tip-rule);
+  }
+  .tip-block .tip-title {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 8px;
+  }
+  .tip-block .tip-what {
+    font-size: 14px; color: var(--ink-2); margin-bottom: 10px; line-height: 1.5;
+  }
+  .tip-block .tip-try {
+    font-size: 13px; color: var(--muted); margin-bottom: 10px;
+    padding: 8px 12px; background: rgba(255,255,255,0.7); border-radius: 3px;
+  }
+  .tip-block .tip-try strong { color: var(--ink-2); }
+  .tip-block .tip-link {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--tip-rule); text-decoration: none;
+    border-bottom: 1px dashed var(--tip-rule);
+  }
+  /* CTA */
+  .cta-section {
+    text-align: center; padding: 36px 44px;
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .cta-section .cta-text {
+    font-size: 14px; color: var(--muted); margin-bottom: 16px;
+  }
+  .cta-section .button {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: #ffffff; background: var(--ink);
+    padding: 14px 28px; border-radius: 3px; text-decoration: none;
+    transition: background 0.15s ease, transform 0.15s ease;
+    margin: 4px;
+  }
+  .cta-section .button:hover { background: var(--cyan); transform: translateY(-1px); }
+  .cta-section .button.alt {
+    background: var(--cyan);
+  }
+  .cta-section .button.alt:hover { background: var(--violet); }
+  /* Footer */
+  .footer {
+    padding: 24px 44px; text-align: center;
+    font-size: 11px; color: var(--muted-2);
+    border-top: 1px solid var(--line);
+  }
+  .footer a { color: var(--cyan); text-decoration: none; }
+  /* Share buttons */
+  .share-bar {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    padding: 16px 44px;
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .share-bar .share-label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted-2); margin-right: 8px;
+  }
+  .share-bar a.share-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 500; color: var(--ink-2);
+    text-decoration: none; padding: 7px 14px;
+    border: 1px solid var(--line); border-radius: 4px;
+    background: var(--paper);
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .share-bar a.share-btn:hover {
+    border-color: var(--cyan); background: rgba(14,116,144,0.04);
+  }
+  .share-bar a.share-btn svg { width: 14px; height: 14px; fill: currentColor; }
+  /* Email subscribe box (prominent) */
+  .email-capture {
+    margin: 28px 44px; padding: 28px 30px;
+    border: 2px solid var(--cyan); border-radius: 6px;
+    background: linear-gradient(135deg, #f0fafb 0%, #ffffff 100%);
+    text-align: center;
+  }
+  .email-capture .ec-headline {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 18px; font-weight: 700; color: var(--ink);
+    margin: 0 0 8px;
+  }
+  .email-capture .ec-sub {
+    font-size: 14px; color: var(--muted); margin: 0 0 18px; line-height: 1.5;
+  }
+  .email-capture a.ec-button {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: #ffffff; background: var(--cyan);
+    padding: 14px 32px; border-radius: 4px; text-decoration: none;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  .email-capture a.ec-button:hover { background: var(--violet); transform: translateY(-1px); }
+  @media (max-width: 600px) {
+    body { padding: 16px 4px; }
+    .masthead, .subscribe-strip, .section-header, .card, .me-block, .tip-block, .cta-section, .footer, .share-bar {
+      padding-left: 20px; padding-right: 20px;
+    }
+    .email-capture { margin-left: 12px; margin-right: 12px; }
+    .card { margin-left: 12px; margin-right: 12px; }
+    .me-block { margin-left: 12px; margin-right: 12px; }
+    .gulf-cols { flex-direction: column; }
+    .tip-block { margin-left: 12px; margin-right: 12px; }
+    .masthead h1 { font-size: 38px; }
+  }
+  .byline { text-align: center; color: var(--muted); font-size: 14px; margin: 8px 0 0; }
+  .byline-photo { width: 44px; height: 44px; object-fit: cover; border-radius: 50%; vertical-align: middle; margin-right: 8px; }
+  .byline-name { white-space: nowrap; }
+  .byline-brand { display: block; font-weight: 600; color: var(--text); font-size: 15px; margin-top: 4px; white-space: nowrap; }
+  .byline-tag { display: block; font-size: 12.5px; margin-top: 2px; }
+  .social-links { text-align: center; font-size: 13px; margin: 8px 0 0; }
+  .social-links a { color: #00D4FF; margin: 0 6px; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <div class="masthead-top">
+      <span><span class="dot"></span>Issue #021</span>
+      <span>September 28, 2026</span>
+    </div>
+    <h1>SIGN<span class="accent">A</span>L</h1>
+    <p class="tagline">The AI stories that matter, in five minutes flat.</p>
+    <p class="promise">Curated for leaders &amp; curious minds · Every Monday · Dubai 08:00 GST</p>
+    <p class="byline"><img class="byline-photo" src="https://hjt-bit.github.io/ai-news-agent/assets/hasan-headshot.jpg" alt="Hasan Jad"><span class="byline-name">By <strong>Hasan Jad</strong></span><span class="byline-brand">AI, decoded for MENA leaders</span><span class="byline-tag">I build production AI agents with the region&#x27;s biggest companies.</span></p>
+    <p class="social-links"></p>
+  </div>
+  <div class="subscribe-strip">
+    <div class="copy"><strong>Never miss an issue.</strong> Join SIGNAL — free, every Monday.</div>
+    <a class="cta-mini" href="https://www.linkedin.com/newsletters/signal-7459465103449468928/" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
+    <a class="cta-mini alt" href="https://signalweekly.beehiiv.com/?modal=signup" target="_blank" rel="noopener">Subscribe by email</a>
+  </div>
+  <!-- Email subscribe box (top) -->
+  <div class="email-capture">
+      <p class="ec-headline">Get SIGNAL in your inbox every Monday</p>
+      <p class="ec-sub">Five minutes. The AI stories that matter. Free, forever.</p>
+      <a class="ec-button" href="https://signalweekly.beehiiv.com/?modal=signup" target="_blank" rel="noopener">Subscribe by email</a>
+    </div>
+  
+        <div class="section-header">
+          <span class="index">01 //</span>
+          <h2>The Viral Lead</h2>
+          <span class="rule"></span>
+        </div>
+        
+    <div class="card viral">
+      <div class="card-title">Anthropic signs $11.6 billion cloud deal with Akamai</div>
+      <p class="card-angle"><strong>Why you care:</strong> Anthropic&#x27;s $11.6 billion investment in Akamai means enhanced cloud capabilities for AI development and potential growth in market value.</p>
+      <p class="card-body">Anthropic will pay Akamai $11.6 billion over seven years, with a potential total of $20 billion and a 5% stock stake.</p>
+      <p class="card-action"><strong>Leader action:</strong> Negotiate cloud service terms with Akamai to optimize costs</p>
+      <a class="source-link" href="https://techcrunch.com/2026/09/25/anthropic-to-pay-akamai-11-6-billion-over-seven-years-in-cloud-deal/" target="_blank" rel="noopener">Read full story → TechCrunch AI</a>
+    </div>
+        
+  <!-- Share buttons (after viral lead) -->
+  <div class="share-bar">
+      <span class="share-label">Share this issue</span>
+      <a class="share-btn" href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fhjt-bit.github.io%2Fai-news-agent%2Fnewsletters%2Fnewsletter_2026_09_28.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        LinkedIn
+      </a>
+      <a class="share-btn" href="https://twitter.com/intent/tweet?url=https%3A%2F%2Fhjt-bit.github.io%2Fai-news-agent%2Fnewsletters%2Fnewsletter_2026_09_28.html&text=SIGNAL%20%23021%20%E2%80%94%20AI%20Intelligence%20Briefing" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        X
+      </a>
+      <a class="share-btn" href="https://wa.me/?text=SIGNAL%20%23021%20%E2%80%94%20AI%20Intelligence%20Briefing%20https%3A%2F%2Fhjt-bit.github.io%2Fai-news-agent%2Fnewsletters%2Fnewsletter_2026_09_28.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        WhatsApp
+      </a>
+      <a class="share-btn" href="#" onclick="navigator.clipboard.writeText('https://hjt-bit.github.io/ai-news-agent/newsletters/newsletter_2026_09_28.html');this.textContent='Copied!';return false;">
+        &#128279; Copy link
+      </a>
+    </div>
+  <div class="section-header">
+    <span class="index">02 //</span>
+    <h2>Strategic Briefing</h2>
+    <span class="rule"></span>
+  </div>
+  
+    <div class="card">
+      <div class="card-title">OpenAI and Grab launch AI skills program</div>
+      <p class="card-angle"><strong>Why you care:</strong> Training 30,000 partners in AI means increased capabilities for businesses in Southeast Asia.</p>
+      <p class="card-body">The GO Forward with AI program aims to enhance practical AI skills across Southeast Asia.</p>
+      <p class="card-action"><strong>Leader action:</strong> Implement AI training sessions for your teams to boost skill development</p>
+      <a class="source-link" href="https://openai.com/index/grab-openai-ai-skills-southeast-asia" target="_blank" rel="noopener">Read full story → OpenAI Blog</a>
+    </div>
+    <div class="card">
+      <div class="card-title">Exa Launches Agent Ultra for Deep Research</div>
+      <p class="card-angle"><strong>Why you care:</strong> Agent Ultra&#x27;s 81.4% soft recall means improved data accuracy for companies relying on exhaustive list building.</p>
+      <p class="card-body">Exa&#x27;s Agent Ultra coordinates subagents across thousands of sources, outperforming competitors like Opus 5.5 and GPT-6 Astra.</p>
+      <p class="card-action"><strong>Leader action:</strong> Implement Agent Ultra to enhance your entity enrichment processes</p>
+      <a class="source-link" href="https://www.marktechpost.com/2026/09/26/exa-launches-agent-ultra-a-subagent-swarm-deep-research-api-built-for-exhaustive-list-building/" target="_blank" rel="noopener">Read full story → MarkTechPost</a>
+    </div>
+    <div class="card">
+      <div class="card-title">Nvidia launches free AI model for speaker identification</div>
+      <p class="card-angle"><strong>Why you care:</strong> Nvidia&#x27;s new model can enhance communication analysis, potentially saving companies time and improving meeting outcomes.</p>
+      <p class="card-body">Nvidia released Nemotron 3 Diarization, a 100M-parameter AI model that identifies up to eight speakers in real time.</p>
+      <p class="card-action"><strong>Leader action:</strong> Implement Nemotron 3 Diarization to improve meeting transcription accuracy</p>
+      <a class="source-link" href="https://the-decoder.com/nvidia-drops-a-free-100m-parameter-model-that-identifies-up-to-eight-speakers-in-real-time/" target="_blank" rel="noopener">Read full story → The Decoder</a>
+    </div>
+  <div class="section-header">
+    <span class="index">03 //</span>
+    <h2>From the Region</h2>
+    <span class="rule"></span>
+  </div>
+  <div class="me-block"><div class="gulf-watch"><p class="gulf-watch-title">Gulf Watch <span>&mdash; KSA &amp; UAE at a glance</span></p><div class="gulf-cols"><div class="gulf-col"><p class="gulf-country">&#x1f1e6;&#x1f1ea; UAE</p><a class="gulf-item" href="https://www.tahawultech.com/features/cyble-accelerates-proactive-cyber-defence-with-agentic-ai/" target="_blank" rel="noopener"><span class="gulf-headline">Cyble accelerates proactive cyber defence with agentic AI</span><span class="gulf-source">TahawulTech</span></a></div></div></div>
+        <div class="me-item">
+          <p class="me-headline">Strengthening Security Culture for AI Resilience</p>
+          <p class="me-tldr">Organizations in the GCC must enhance security measures to support rapid AI adoption and innovation, ensuring resilience against emerging threats.</p>
+          <a class="me-link" href="https://www.tahawultech.com/features/security-culture-strengthens-resilience-amid-rapid-ai-adoption/" target="_blank" rel="noopener">Read more → TahawulTech</a>
+        </div>
+        <div class="me-item">
+          <p class="me-headline">HCLSoftware Enhances AI and Cybersecurity Solutions</p>
+          <p class="me-tldr">HCLSoftware&#x27;s focus on AI-driven cybersecurity positions organizations to better tackle emerging business challenges in the GCC/MENA region</p>
+          <a class="me-link" href="https://www.tahawultech.com/features/hclsoftware-advances-ai-driven-cyber-and-operational-resilience/" target="_blank" rel="noopener">Read more → TahawulTech</a>
+        </div></div>
+  <div class="section-header">
+    <span class="index">04 //</span>
+    <h2>Consumer Signals</h2>
+    <span class="rule"></span>
+  </div>
+  
+    <div class="card">
+      <div class="card-title">Meet Google&#x27;s New Live Avatar for Gemini 3.8</div>
+      <p class="card-tldr"><strong>Google&#x27;s Gemini 3.8 Live lets users chat with a real-time animated AI persona.</strong></p>
+      <p class="card-body">Chat with an animated AI that shows emotions</p>
+      <p class="card-stake"><strong>Why you care:</strong> Experience more engaging conversations with AI</p>
+      <p class="card-action"><strong>What to do:</strong> Explore Gemini 3.8 Live features now</p>
+      <a class="source-link" href="https://www.theverge.com/tech/1000328/google-gemini-ai-live-avatar-face" target="_blank" rel="noopener">Read full story → The Verge AI</a>
+    </div>
+    <div class="card">
+      <div class="card-title">Join Meta&#x27;s Early Access for Muse Features</div>
+      <p class="card-tldr"><strong>Meta invites users to join the early access program for new Muse features.</strong></p>
+      <p class="card-body">Ask Muse to join the early access list</p>
+      <p class="card-stake"><strong>Why you care:</strong> Get early access to exciting new features</p>
+      <p class="card-action"><strong>What to do:</strong> Ask Muse to add you to the list</p>
+      <a class="source-link" href="https://techcrunch.com/2026/09/25/meta-opens-early-access-program-for-new-muse-features/" target="_blank" rel="noopener">Read full story → TechCrunch AI</a>
+    </div>
+    <div class="card">
+      <div class="card-title">Microsoft unveils its new Copilot super app</div>
+      <p class="card-tldr"><strong>Microsoft&#x27;s Copilot combines chat, coding, and agents into one powerful app.</strong></p>
+      <p class="card-body">New app bundles AI chat, coding, and agents</p>
+      <p class="card-stake"><strong>Why you care:</strong> This could change how you use Microsoft tools</p>
+      <p class="card-action"><strong>What to do:</strong> Explore the new Copilot features today</p>
+      <a class="source-link" href="https://www.theverge.com/news/1000532/microsoft-copilot-super-app-chat-coding-autopilot" target="_blank" rel="noopener">Read full story → The Verge AI</a>
+    </div>
+  
+    <div class="section-header">
+      <span class="index">05 //</span>
+      <h2>Tip of the Week</h2>
+      <span class="rule"></span>
+    </div>
+    <div class="tip-block">
+      <div class="tip-title">Explore Custom GPTs for Marketing</div>
+      <div class="tip-what">Did you know you can create Custom GPTs tailored specifically for marketing tasks? This allows you to optimize your campaigns and engagement strategies more effectively by leveraging AI to mimic your brand voice and target audience preferences.</div>
+      <div class="tip-try"><strong>Try this:</strong> Visit the Custom GPTs section in ChatGPT, then create a new GPT focused on your marketing goals by providing specific prompts related to your brand guidelines and target demographics.</div>
+      <a class="tip-link" href="https://platform.openai.com/docs/guides/gpt/custom-gpts" target="_blank" rel="noopener">Create Your Custom GPT</a>
+    </div>
+  <!-- Email subscribe box (bottom) -->
+  <div class="email-capture">
+      <p class="ec-headline">Get SIGNAL in your inbox every Monday</p>
+      <p class="ec-sub">Five minutes. The AI stories that matter. Free, forever.</p>
+      <a class="ec-button" href="https://signalweekly.beehiiv.com/?modal=signup" target="_blank" rel="noopener">Subscribe by email</a>
+    </div>
+  <!-- Share buttons (bottom) -->
+  <div class="share-bar">
+      <span class="share-label">Share this issue</span>
+      <a class="share-btn" href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fhjt-bit.github.io%2Fai-news-agent%2Fnewsletters%2Fnewsletter_2026_09_28.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        LinkedIn
+      </a>
+      <a class="share-btn" href="https://twitter.com/intent/tweet?url=https%3A%2F%2Fhjt-bit.github.io%2Fai-news-agent%2Fnewsletters%2Fnewsletter_2026_09_28.html&text=SIGNAL%20%23021%20%E2%80%94%20AI%20Intelligence%20Briefing" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        X
+      </a>
+      <a class="share-btn" href="https://wa.me/?text=SIGNAL%20%23021%20%E2%80%94%20AI%20Intelligence%20Briefing%20https%3A%2F%2Fhjt-bit.github.io%2Fai-news-agent%2Fnewsletters%2Fnewsletter_2026_09_28.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        WhatsApp
+      </a>
+      <a class="share-btn" href="#" onclick="navigator.clipboard.writeText('https://hjt-bit.github.io/ai-news-agent/newsletters/newsletter_2026_09_28.html');this.textContent='Copied!';return false;">
+        &#128279; Copy link
+      </a>
+    </div>
+  <div class="cta-section">
+    <p class="cta-text">Enjoyed this issue? Share SIGNAL with a colleague who wants to stay sharp on AI.</p>
+    <a class="button" href="https://www.linkedin.com/newsletters/signal-7459465103449468928/" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
+    <a class="button alt" href="https://signalweekly.beehiiv.com/?modal=signup" target="_blank" rel="noopener">Subscribe by email</a>
+  </div>
+  <div class="footer">
+    SIGNAL is curated each week by <strong>Hasan Jad</strong> (AI, decoded for MENA leaders).<br>I build production AI agents with the region&#x27;s biggest companies.<br>
+    <em>Represents my own views and not that of my employer.</em><br><br>
+     &middot; <a href="https://www.linkedin.com/newsletters/signal-7459465103449468928/">LinkedIn Newsletter</a>
+  </div>
+</div>
+</body>
+</html>
