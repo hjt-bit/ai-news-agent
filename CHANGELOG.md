@@ -1,5 +1,15 @@
 # SIGNAL Agent — Changelog
 
+## v12.10 (2026-09-27) — Take removed; archive link fixed
+
+- "Hasan Jad's Take" is removed from the newsletter entirely (web HTML, email
+  HTML, Kit draft, Beehiiv teaser, QA gate). The take now lives in the LinkedIn
+  post, which Hasan writes himself. Take *suggestions* still ship in the review
+  bundle to feed his LinkedIn writing.
+- Fixed the email footer's archive link: it pointed at /newsletters/ (no index
+  page — GitHub Pages 404). It now points at the site root, which carries the
+  archive listing.
+
 ## v12.9 (2026-09-27) — Email-safe HTML for Kit broadcasts
 
 - Kit drafts now carry a dedicated email-safe build instead of the web HTML:
