@@ -1,5 +1,14 @@
 # SIGNAL Agent — Changelog
 
+## v12.9 (2026-09-27) — Email-safe HTML for Kit broadcasts
+
+- Kit drafts now carry a dedicated email-safe build instead of the web HTML:
+  table layout, 600px max-width, every style inline, no CSS variables, no
+  flexbox, Arial/Helvetica stack — so subscribers see the designed issue in
+  Outlook and Gmail, not a mangled page. Same sections, same order, including
+  the Gulf Watch strip and Hasan's Take.
+- The web archive HTML is unchanged (still the beautiful full version).
+
 ## v12.8 (2026-09-27) — Gulf Watch strip
 
 - New "Gulf Watch" element at the top of "From the Region": a bird's-eye strip
