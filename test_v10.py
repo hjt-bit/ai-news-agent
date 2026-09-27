@@ -162,12 +162,10 @@ check(not hasattr(agent, "TEASER_MODE"), "TEASER_MODE removed")
 check(not hasattr(agent, "score_articles"), "dead score_articles() v1 removed")
 check(hasattr(agent, "RUN_FLAGS"), "RUN_FLAGS exists")
 check(hasattr(agent, "REVIEW_DIR") and agent.REVIEW_DIR == "review", "REVIEW_DIR == 'review'")
-check(hasattr(agent, "TAKE_MODE"), "TAKE_MODE placeholder config exists")
 check(hasattr(agent, "AUTHOR_NAME"), "AUTHOR_NAME TODO field exists")
 check(hasattr(agent, "BEEHIIV_API_KEY"), "BEEHIIV_API_KEY placeholder exists")
 check(hasattr(agent, "SYSTEM_GUARD"), "SYSTEM_GUARD prompt-injection guard exists")
 check(callable(agent.parse_args), "parse_args() exists")
-check(callable(agent.get_hasan_take), "get_hasan_take() exists")
 check(callable(agent.generate_social_derivatives), "generate_social_derivatives() exists")
 check(callable(agent.generate_take_suggestions), "generate_take_suggestions() exists")
 
@@ -411,32 +409,19 @@ evil_tip = {"title": "T", "one_liner": "x", "how_to": "x", "link_url": "javascri
 tip_html = agent.render_tip_block(evil_tip)
 check("javascript:" not in tip_html, "evil tip URL never rendered")
 
-# ─── TEST 12: Take placeholder slot ──────────────────────────────────────────
-banner("v10 TEST 12 — Hasan's Take placeholder")
-take = agent.get_hasan_take(mk_article("V", "https://x.com/v"), {})
-check(take.get("mode") == "placeholder", "default TAKE_MODE is placeholder")
-take_html = agent.render_take_block(take)
-check("to be written at review" in take_html, "placeholder block rendered after viral lead")
-written = {"mode": "written", "text": "My <b>opinion</b> here."}
-take_html2 = agent.render_take_block(written)
-check("<b>opinion</b>" not in take_html2 and "&lt;b&gt;" in take_html2,
-      "written take text is escaped")
+# ─── v12.10: Hasan's Take removed ─────────────────────────────────────────────
+banner("v12.10 — Hasan's Take removed from the newsletter")
+check(not hasattr(agent, "get_hasan_take"), "get_hasan_take() is gone")
+check(not hasattr(agent, "render_take_block"), "render_take_block() is gone")
+check(not hasattr(agent, "TAKE_MODE"), "TAKE_MODE constant is gone")
+check("{take_block}" not in agent.HTML_TEMPLATE, "web template has no take slot")
+check("01b //" not in agent.build_email_html("020", "September 28, 2026"),
+      "email build has no take section")
+check("Hasan Jad's Take" not in agent.build_email_html("020", "September 28, 2026"),
+      "email build has no take copy")
+# take suggestions still exist — they now feed the LinkedIn post he writes himself
+check(callable(agent.generate_take_suggestions), "generate_take_suggestions() still exists")
 
-# v12.2: take header uses the full byline name; byline photo must not stretch
-import os as _os
-_os.environ["HASAN_TAKE_FINAL"] = "First sentence here. Second sentence here."
-try:
-    take_f = agent.get_hasan_take(mk_article("V", "https://x.com/v"), {})
-    check(take_f.get("headline") == "Hasan Jad's Take", "final take headline uses full name")
-    html_f = agent.render_take_block(take_f)
-    check("Hasan Jad's Take" in html_f and "Hasan's Take</h2>" not in html_f.replace("Hasan Jad's Take</h2>", ""),
-          "rendered take header uses full name")
-finally:
-    del _os.environ["HASAN_TAKE_FINAL"]
-take_p = agent.get_hasan_take(mk_article("V", "https://x.com/v"), {})
-check(take_p.get("headline") == "Hasan Jad's take (to be written at review)",
-      "placeholder take headline uses full name")
-check("object-fit: cover" in agent.HTML_TEMPLATE, "byline photo uses object-fit: cover (no stretch)")
 # v12.7.1: byline brand line is its own non-wrapping block (never splits mid-phrase on mobile)
 check('class="byline-brand"' in agent.HTML_TEMPLATE, "byline brand line is a dedicated element")
 check("byline-brand" in agent.HTML_TEMPLATE and "white-space: nowrap" in agent.HTML_TEMPLATE,
@@ -865,31 +850,6 @@ _, checks_st2 = agent.run_qa_checks(art_status, {"business": [art_status], "ever
 check(any(s == "PASS" and "no status upgrades" in m for s, m in checks_st2),
       "check 20 PASSes when analysis matches source status")
 
-# 22g: placeholder take WARNs in review mode, FAILs in publish mode
-reset_flags()
-agent.RUN_FLAGS["take_mode"] = "placeholder"
-_, checks_take_rev = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
-                                         None, None, publish=False)
-check(any(s == "WARN" and "Hasan's Take" in m for s, m in checks_take_rev),
-      "check 21 WARNs on placeholder take in review mode")
-reset_flags()
-agent.RUN_FLAGS["take_mode"] = "placeholder"
-_, checks_take_pub = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
-                                         None, None, publish=True)
-check(any(s == "FAIL" and "Hasan's Take" in m for s, m in checks_take_pub),
-      "check 21 FAILs on placeholder take in publish mode")
-
-# 22h: HASAN_TAKE_FINAL env var produces final take
-reset_flags()
-os.environ["HASAN_TAKE_FINAL"] = "This is my take. It has two sentences."
-take_final = agent.get_hasan_take(art_bp, {})
-check(take_final.get("mode") == "final" and "my take" in take_final.get("text", ""),
-      "HASAN_TAKE_FINAL env var produces final take mode")
-del os.environ["HASAN_TAKE_FINAL"]
-take_ph = agent.get_hasan_take(art_bp, {})
-check(take_ph.get("mode") == "placeholder",
-      "without env var, take falls back to placeholder")
-
 # 22i: module constants contain all approved banned phrases/openers
 check(len(agent.BANNED_OPENER_PHRASES) == 16,
       "16 banned opener phrases in module constant")
@@ -988,46 +948,7 @@ check(agent._issue_date(now=date(2026, 9, 27)) == date(2026, 9, 28),
       "_issue_date(now=date) resolves like datetime input")
 agent._ISSUE_DATE = None
 
-# 23g: HASAN_TAKE_FINAL must be exactly 2-3 sentences
-saved_take = os.environ.pop("HASAN_TAKE_FINAL", None)
-try:
-    os.environ["HASAN_TAKE_FINAL"] = "This is one sentence"
-    check(agent.get_hasan_take(art_bp, {}).get("mode") == "invalid",
-          "1-sentence final take is marked invalid")
-    os.environ["HASAN_TAKE_FINAL"] = "First. Second."
-    check(agent.get_hasan_take(art_bp, {}).get("mode") == "final",
-          "2-sentence final take is accepted")
-    os.environ["HASAN_TAKE_FINAL"] = "First. Second. Third."
-    check(agent.get_hasan_take(art_bp, {}).get("mode") == "final",
-          "3-sentence final take is accepted")
-    os.environ["HASAN_TAKE_FINAL"] = "First. Second. Third. Fourth."
-    t4 = agent.get_hasan_take(art_bp, {})
-    check(t4.get("mode") == "invalid" and "4 sentence" in t4.get("error", ""),
-          "4-sentence final take is marked invalid with clear error")
-    os.environ["HASAN_TAKE_FINAL"] = "The U.S. deal matters. Gulf funds should pay attention."
-    check(agent.get_hasan_take(art_bp, {}).get("mode") == "final",
-          "abbreviations (U.S.) don't inflate the sentence count")
-finally:
-    if saved_take is not None:
-        os.environ["HASAN_TAKE_FINAL"] = saved_take
-    else:
-        os.environ.pop("HASAN_TAKE_FINAL", None)
 
-# 23h: check 21 FAILs on an invalid take in BOTH review and publish modes
-reset_flags()
-agent.RUN_FLAGS["take_mode"] = "invalid"
-agent.RUN_FLAGS["take_error"] = "HASAN_TAKE_FINAL has 1 sentence(s); exactly 2-3 sentences required"
-_, checks_inv_rev = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
-                                        None, None, publish=False)
-check(any(s == "FAIL" and "Hasan's Take" in m for s, m in checks_inv_rev),
-      "check 21 FAILs on invalid take in review mode")
-_, checks_inv_pub = agent.run_qa_checks(art_bp, {"business": [art_bp], "everyday": [], "middle_east": []},
-                                        None, None, publish=True)
-check(any(s == "FAIL" and "Hasan's Take" in m for s, m in checks_inv_pub),
-      "check 21 FAILs on invalid take in publish mode")
-agent.RUN_FLAGS["take_mode"] = "placeholder"
-agent.RUN_FLAGS.pop("take_error", None)
-reset_flags()
 
 # 23i: check 20 does not fire when the analysis status is weaker than the source
 reset_flags()
@@ -1396,19 +1317,17 @@ def _email_fixtures():
     g2["_gulf_country"] = "UAE"
     tip = {"title": "Use Projects", "what": "Organize chats", "try_this": "Make one today",
            "link_url": "https://chatgpt.com", "link_label": "Open ChatGPT"}
-    take = {"mode": "final", "headline": "Hasan Jad's Take",
-            "text": "First sentence here. Second sentence here."}
-    return v, vd, b, e, m, [g1, g2], tip, take
+    return v, vd, b, e, m, [g1, g2], tip
 
-_v, _vd, _b, _e, _m, _gw, _tip, _take = _email_fixtures()
+_v, _vd, _b, _e, _m, _gw, _tip = _email_fixtures()
 _eh = agent.build_email_html("020", "September 28, 2026", viral=_v, viral_data=_vd,
                              biz_pairs=[_b], eve_pairs=[_e], me_items=[_m],
-                             gulf_watch=_gw, tip=_tip, take=_take)
+                             gulf_watch=_gw, tip=_tip)
 check("SIGNAL" in _eh and "Issue #020" in _eh, "email html has masthead + issue meta")
 for section in ["The Viral Lead", "Strategic Briefing", "From the Region",
                 "Consumer Signals", "Tip of the Week"]:
     check(section in _eh, f"email html has section: {section}")
-check("01b //" in _eh and "First sentence here." in _eh, "email html carries the final take")
+check("01b //" not in _eh, "email html has no take section (v12.10)")
 check("Gulf Watch" in _eh and "Saudi Arabia" in _eh, "email html has Gulf Watch strip")
 check("Use Projects" in _eh and "Make one today" in _eh, "email html has tip content")
 check("Big regional moment." in _eh, "email html has regional item tldr")
@@ -1440,7 +1359,7 @@ try:
     _bid = agent.maybe_create_kit_draft("020", "September 28, 2026", viral=_v,
                                         viral_data=_vd, biz_pairs=[_b],
                                         eve_pairs=[_e], me_items=[_m],
-                                        gulf_watch=_gw, tip=_tip, take=_take)
+                                        gulf_watch=_gw, tip=_tip)
 finally:
     agent.create_kit_broadcast_draft = _orig_kit
 check(_bid == "bcast-123", "maybe_create_kit_draft returns the broadcast id")
