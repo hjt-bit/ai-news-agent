@@ -3652,11 +3652,20 @@ def build_email_html(issue_number_str, today, viral=None, viral_data=None,
         body.append(_email_card(tip.get("title", "AI Tip"), rows))
 
     # Footer
+    forward_line = ""
+    if KIT_SIGNUP_URL:
+        forward_line = (
+            f'<p style="margin:0 0 8px 0;font-family:{_EMAIL_FONT};font-size:12px;color:#4a5468;">'
+            f'Was this forwarded to you? '
+            f'<a href="{_h(KIT_SIGNUP_URL, quote=True)}" '
+            f'style="color:#0e7490;text-decoration:none;font-weight:bold;">Subscribe free &rarr;</a></p>'
+        )
     body.append(
         f'<tr><td align="center" style="padding:26px 28px 30px 28px;">'
         f'<p style="margin:0 0 8px 0;font-family:{_EMAIL_FONT};font-size:12px;color:#4a5468;">'
         f'<a href="{_h(PAGES_BASE_URL, quote=True)}/" '
         f'style="color:#0e7490;text-decoration:none;font-weight:bold;">Browse the archive &rarr;</a></p>'
+        + forward_line +
         f'<p style="margin:0;font-family:{_EMAIL_FONT};font-size:11px;color:#7b859a;'
         f'line-height:1.6;">&mdash; Hasan<br>'
         f'<em>Represents my own views and not those of my employer.</em></p>'
