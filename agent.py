@@ -46,7 +46,7 @@ MAX_PER_SOURCE = 2
 
 # Where to send readers when they click "Subscribe".
 SIGNUP_URL  = "https://www.linkedin.com/newsletters/signal-7459465103449468928/"
-KIT_SIGNUP_URL = "https://signal-6.kit.com/profile"
+KIT_SIGNUP_URL = "https://signal-6.kit.com/70ccec5969"
 
 # GitHub Pages archive base (used to build the canonical link to each issue).
 PAGES_BASE_URL = "https://hjt-bit.github.io/ai-news-agent"
