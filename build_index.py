@@ -299,7 +299,7 @@ HEAD = """<head>
 SUBSCRIBE_STRIP = """    <div class="subscribe-strip">
       <div class="copy"><strong>New here?</strong> Get SIGNAL every Monday at 08:00 GST -- on LinkedIn or by email.</div>
       <a class="cta-mini" href="https://www.linkedin.com/newsletters/signal-7459465103449468928/">Subscribe on LinkedIn</a>
-      <a class="cta-mini alt" href="https://signalweekly.beehiiv.com/?modal=signup">Subscribe by email</a>
+      <a class="cta-mini alt" href="https://signal-6.kit.com/5b9641497d">Subscribe by email</a>
     </div>
 """
 
@@ -326,7 +326,7 @@ CTA_FOOTER = """    <div class="cta">
       <p>Curated AI intelligence for leaders and professionals. One brief a week. No noise. Unsubscribe anytime.</p>
       <div class="cta-buttons">
         <a class="button" href="https://www.linkedin.com/newsletters/signal-7459465103449468928/">Subscribe on LinkedIn</a>
-        <a class="button alt" href="https://signalweekly.beehiiv.com/?modal=signup">Subscribe by email</a>
+        <a class="button alt" href="https://signal-6.kit.com/5b9641497d">Subscribe by email</a>
       </div>
     </div>
 
