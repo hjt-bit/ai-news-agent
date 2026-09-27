@@ -3507,6 +3507,215 @@ def render_middle_east_block(me_items, gulf_watch=None):
     return f'<div class="me-block">{gulf_html}{items_html}</div>'
 
 
+# =========================================================
+# v12.9 EMAIL-SAFE HTML — Kit broadcasts
+# =========================================================
+# The web newsletter HTML relies on CSS variables, flexbox, and webfonts —
+# none of which survive Outlook and many Gmail renderings. Kit broadcasts
+# therefore get a dedicated email-safe build: table layout, 600px max,
+# every style inline, no var(), no flex, Arial/Helvetica stack.
+# Same content and section order as the web issue.
+_EMAIL_FONT = "Arial,Helvetica,sans-serif"
+
+def _email_section(num, title):
+    return (
+        f'<tr><td style="padding:26px 28px 4px 28px;">'
+        f'<p style="margin:0;font-family:{_EMAIL_FONT};font-size:11px;letter-spacing:2px;'
+        f'color:#0e7490;font-weight:bold;">{num} //</p>'
+        f'<p style="margin:2px 0 0 0;font-family:{_EMAIL_FONT};font-size:20px;'
+        f'font-weight:bold;color:#050d1f;">{_h(title)}</p>'
+        f'</td></tr>')
+
+def _email_card(headline, body_rows, link=None, source=None):
+    rows = "".join(
+        f'<p style="margin:0 0 10px 0;font-family:{_EMAIL_FONT};font-size:14px;'
+        f'line-height:1.6;color:#1a2438;">'
+        f'<strong style="color:#050d1f;">{_h(label)}:</strong> {_h(str(text))}</p>'
+        for label, text in body_rows if text)
+    link_html = ""
+    if link:
+        link_html = (
+            f'<p style="margin:8px 0 0 0;">'
+            f'<a href="{_h(link, quote=True)}" '
+            f'style="font-family:{_EMAIL_FONT};font-size:12px;font-weight:bold;'
+            f'color:#0e7490;text-decoration:none;">'
+            f'Read full story &rarr; {_h(source or "Source")}</a></p>')
+    return (
+        f'<tr><td style="padding:8px 28px 8px 28px;">'
+        f'<table width="100%" cellpadding="0" cellspacing="0" '
+        f'style="background:#ffffff;border:1px solid #d9dfe9;border-left:3px solid #0e7490;">'
+        f'<tr><td style="padding:16px 18px;">'
+        f'<p style="margin:0 0 10px 0;font-family:{_EMAIL_FONT};font-size:16px;'
+        f'font-weight:bold;color:#050d1f;line-height:1.4;">{_h(str(headline))}</p>'
+        f'{rows}{link_html}</td></tr></table></td></tr>')
+
+def _email_gulf_watch(gulf_watch):
+    ksa = [a for a in gulf_watch if a.get("_gulf_country") == "KSA"]
+    uae = [a for a in gulf_watch if a.get("_gulf_country") == "UAE"]
+    if not ksa and not uae:
+        return ""
+    def _col(flag, name, arts):
+        items = "".join(
+            f'<p style="margin:0 0 10px 0;font-family:{_EMAIL_FONT};font-size:13px;'
+            f'line-height:1.5;">'
+            f'<a href="{_h(a["link"], quote=True)}" '
+            f'style="color:#1a2438;text-decoration:none;">{_h(a["title"])}</a><br>'
+            f'<span style="font-size:10px;letter-spacing:1px;color:#7b859a;">'
+            f'{_h(a["source"])}</span></p>'
+            for a in arts)
+        return (
+            f'<td width="50%" valign="top" style="padding:6px 8px 0 8px;">'
+            f'<p style="margin:0 0 8px 0;font-family:{_EMAIL_FONT};font-size:12px;'
+            f'font-weight:bold;color:#050d1f;">{flag} {_h(name)}</p>{items}</td>')
+    return (
+        f'<tr><td style="padding:8px 28px 8px 28px;">'
+        f'<table width="100%" cellpadding="0" cellspacing="0" '
+        f'style="background:#f3f6fb;border:1px solid #d9dfe9;">'
+        f'<tr><td style="padding:12px 16px 4px 16px;">'
+        f'<p style="margin:0;font-family:{_EMAIL_FONT};font-size:13px;font-weight:bold;'
+        f'color:#050d1f;">Gulf Watch '
+        f'<span style="font-weight:normal;color:#4a5468;">&mdash; KSA &amp; UAE at a glance</span></p>'
+        f'</td></tr>'
+        f'<tr><td style="padding:4px 8px 10px 8px;">'
+        f'<table width="100%" cellpadding="0" cellspacing="0"><tr>'
+        f'{_col("&#x1f1f8;&#x1f1e6;", "Saudi Arabia", ksa)}'
+        f'{_col("&#x1f1e6;&#x1f1ea;", "UAE", uae)}'
+        f'</tr></table></td></tr></table></td></tr>')
+
+def build_email_html(issue_number_str, today, viral=None, viral_data=None,
+                     biz_pairs=None, eve_pairs=None, me_items=None,
+                     gulf_watch=None, tip=None, take=None):
+    """v12.9: build the email-safe HTML version of the issue for Kit broadcasts."""
+    body = []
+    # Preheader (hidden preview snippet)
+    body.append(
+        '<div style="display:none;max-height:0;overflow:hidden;opacity:0;">'
+        'Five minutes. The AI stories that matter.</div>')
+
+    # Masthead
+    photo = ""
+    if AUTHOR_PHOTO_URL:
+        photo = (f'<img src="{_h(AUTHOR_PHOTO_URL, quote=True)}" alt="Hasan Jad" width="44" '
+                 f'style="display:block;border-radius:50%;margin:0 auto 8px auto;">')
+    body.append(
+        f'<tr><td align="center" style="padding:30px 28px 6px 28px;">{photo}'
+        f'<p style="margin:0;font-family:{_EMAIL_FONT};font-size:30px;font-weight:bold;'
+        f'letter-spacing:6px;color:#050d1f;">SIGNAL</p>'
+        f'<p style="margin:6px 0 0 0;font-family:{_EMAIL_FONT};font-size:13px;'
+        f'color:#4a5468;">The AI stories that matter, in five minutes flat.</p>'
+        f'<p style="margin:10px 0 0 0;font-family:{_EMAIL_FONT};font-size:12px;'
+        f'color:#7b859a;">Issue #{_h(issue_number_str)} &mdash; {_h(today)}<br>'
+        f'By <strong style="color:#050d1f;">Hasan Jad</strong> &mdash; '
+        f'AI, decoded for MENA leaders</p>'
+        f'</td></tr>')
+    body.append(
+        f'<tr><td style="padding:14px 28px 0 28px;">'
+        f'<table width="100%" cellpadding="0" cellspacing="0">'
+        f'<tr><td style="border-top:2px solid #0e7490;font-size:0;line-height:0;">&nbsp;</td></tr>'
+        f'</table></td></tr>')
+
+    # 01 Viral lead
+    if viral and viral_data and not viral_data.get("_analysis_failed"):
+        body.append(_email_section("01", "The Viral Lead"))
+        body.append(_email_card(
+            viral_data.get("headline", viral["title"]),
+            [("Why you care", viral_data.get("why_you_care", "")),
+             ("What happened", viral_data.get("what_happened", "")),
+             ("Leader action", viral_data.get("leader_action", ""))],
+            link=viral.get("link"), source=viral.get("source")))
+
+    # Hasan's Take
+    if take:
+        if take.get("mode") == "final" and take.get("text"):
+            body.append(_email_section("01b", "Hasan Jad's Take"))
+            body.append(_email_card(
+                "Hasan Jad's Take",
+                [("The take", take.get("text", ""))]))
+        elif take.get("mode") == "placeholder":
+            body.append(_email_section("01b", "Hasan Jad's Take"))
+            body.append(_email_card(
+                "Hasan Jad's take (to be written at review)",
+                [("Note", "The final take is added during Sunday-evening review.")]))
+
+    # 02 Strategic Briefing
+    biz_pairs = biz_pairs or []
+    if any(d and not d.get("_analysis_failed") for _, d in biz_pairs):
+        body.append(_email_section("02", "Strategic Briefing"))
+        for art, data in biz_pairs:
+            if not data or data.get("_analysis_failed"):
+                continue
+            body.append(_email_card(
+                data.get("headline", art["title"]),
+                [("Why you care", data.get("why_you_care", "")),
+                 ("What happened", data.get("what_happened", "")),
+                 ("Leader action", data.get("leader_action", ""))],
+                link=art.get("link"), source=art.get("source")))
+
+    # 03 From the Region (+ Gulf Watch)
+    me_items = me_items or []
+    gulf_html = _email_gulf_watch(gulf_watch or [])
+    me_cards = []
+    for art, data in me_items:
+        if not data or data.get("_analysis_failed"):
+            continue
+        me_cards.append(_email_card(
+            data.get("headline", art["title"]),
+            [("Why it matters", data.get("tldr", ""))],
+            link=art.get("link"), source=art.get("source")))
+    if gulf_html or me_cards:
+        body.append(_email_section("03", "From the Region"))
+        if gulf_html:
+            body.append(gulf_html)
+        body.extend(me_cards)
+
+    # 04 Consumer Signals
+    eve_pairs = eve_pairs or []
+    if any(d and not d.get("_analysis_failed") for _, d in eve_pairs):
+        body.append(_email_section("04", "Consumer Signals"))
+        for art, data in eve_pairs:
+            if not data or data.get("_analysis_failed"):
+                continue
+            body.append(_email_card(
+                data.get("headline", art["title"]),
+                [("In plain English", data.get("in_plain_english", "")),
+                 ("Why you care", data.get("why_you_care", "")),
+                 ("What to do", data.get("what_to_do", ""))],
+                link=art.get("link"), source=art.get("source")))
+
+    # 05 Tip of the Week
+    if tip:
+        body.append(_email_section("05", "Tip of the Week"))
+        rows = [("Tip", tip.get("title", "AI Tip"))]
+        if tip.get("what"):
+            rows.append(("What it is", tip.get("what")))
+        if tip.get("try_this"):
+            rows.append(("Try this", tip.get("try_this")))
+        body.append(_email_card(tip.get("title", "AI Tip"), rows))
+
+    # Footer
+    body.append(
+        f'<tr><td align="center" style="padding:26px 28px 30px 28px;">'
+        f'<p style="margin:0 0 8px 0;font-family:{_EMAIL_FONT};font-size:12px;color:#4a5468;">'
+        f'<a href="{_h(PAGES_BASE_URL, quote=True)}/newsletters/" '
+        f'style="color:#0e7490;text-decoration:none;font-weight:bold;">Browse the archive &rarr;</a></p>'
+        f'<p style="margin:0;font-family:{_EMAIL_FONT};font-size:11px;color:#7b859a;'
+        f'line-height:1.6;">&mdash; Hasan<br>'
+        f'<em>Represents my own views and not those of my employer.</em></p>'
+        f'</td></tr>')
+
+    return (
+        '<!DOCTYPE html><html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<title>SIGNAL</title></head>'
+        '<body style="margin:0;padding:0;background:#eef1f7;">'
+        '<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f7;">'
+        '<tr><td align="center" style="padding:20px 10px;">'
+        '<table width="600" cellpadding="0" cellspacing="0" '
+        'style="background:#ffffff;max-width:600px;">'
+        + "".join(body) +
+        '</table></td></tr></table></body></html>')
+
+
 def render_tip_block(tip):
     """Render the Tip of the Week block. v10: escaped + link_url allow-list enforced."""
     if not tip:
@@ -4153,8 +4362,13 @@ def create_kit_broadcast_draft(subject, html, preview_text=""):
         return None
 
 
-def maybe_create_kit_draft(html, issue_number_str, today):
-    """v12.2 pipeline step: create the rendered issue as a Kit DRAFT broadcast.
+def maybe_create_kit_draft(issue_number_str, today, viral=None, viral_data=None,
+                           biz_pairs=None, eve_pairs=None, me_items=None,
+                           gulf_watch=None, tip=None, take=None):
+    """v12.2 pipeline step: create the issue as a Kit DRAFT broadcast.
+
+    v12.9: sends the email-safe HTML build (table layout, inline styles) —
+    not the web HTML, which Outlook/Gmail would mangle.
 
     Runs after the review bundle is written (both review and publish modes).
     Skipped gracefully with a warning when KIT_API_KEY is absent. Returns the
@@ -4162,7 +4376,11 @@ def maybe_create_kit_draft(html, issue_number_str, today):
     """
     subject = f"SIGNAL #{issue_number_str} \u2014 AI, decoded for MENA leaders ({today})"
     preview = "Five minutes. The AI stories that matter."
-    return create_kit_broadcast_draft(subject, html, preview_text=preview)
+    email_html = build_email_html(issue_number_str, today, viral=viral,
+                                  viral_data=viral_data, biz_pairs=biz_pairs,
+                                  eve_pairs=eve_pairs, me_items=me_items,
+                                  gulf_watch=gulf_watch, tip=tip, take=take)
+    return create_kit_broadcast_draft(subject, email_html, preview_text=preview)
 
 
 # =========================================================
@@ -4506,9 +4724,14 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     maybe_create_beehiiv_draft(html, issue_number_str, today)
 
     # 14c) v12.2: Kit DRAFT broadcast creation (draft-only — sending stays human).
+    #      v12.9: the draft carries the email-safe HTML build, not the web HTML.
     #      Runs after the review bundle; skipped with a warning when KIT_API_KEY
     #      is absent. Never blocks the run on failure.
-    maybe_create_kit_draft(html, issue_number_str, today)
+    maybe_create_kit_draft(issue_number_str, today, viral=viral,
+                           viral_data=viral_data, biz_pairs=biz_pairs,
+                           eve_pairs=eve_pairs, me_items=me_items,
+                           gulf_watch=picks.get("gulf_watch", []),
+                           tip=tip, take=take)
 
     # 15) Final banner — unmistakable.
     print("\n" + "=" * 60)
