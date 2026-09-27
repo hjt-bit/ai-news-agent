@@ -1312,6 +1312,68 @@ check(all(p in biz_q for p in agent.BANNED_OPENER_PHRASES),
       "v12.6 prompt banned list matches the module constant")
 
 
+# ─── v12.8 TESTS — Gulf Watch (KSA/UAE strip) ─────────────────────────────────
+banner("v12.8 TESTS — Gulf Watch (KSA/UAE strip)")
+
+# 1. classifier
+ksa_art = mk_article("SDAIA launches new Arabic LLM in Riyadh", "https://x.com/ksa1",
+                     summary="Saudi Arabia's data authority unveils the model.")
+uae_art = mk_article("MGX backs $2B Dubai AI campus", "https://x.com/uae1",
+                     summary="Abu Dhabi fund MGX leads the round.")
+egy_art = mk_article("Egyptian fintech raises round", "https://x.com/egy1",
+                     summary="Cairo startup closes seed funding.")
+both_art = mk_article("Saudi-UAE AI partnership announced", "https://x.com/both1",
+                      summary="Riyadh and Dubai join forces on compute.")
+check(agent.classify_gulf_country(ksa_art) == "KSA", "classifier tags SDAIA/Riyadh story as KSA")
+check(agent.classify_gulf_country(uae_art) == "UAE", "classifier tags MGX/Dubai story as UAE")
+check(agent.classify_gulf_country(egy_art) is None, "classifier returns None for non-Gulf regional story")
+check(agent.classify_gulf_country(both_art) == "KSA", "classifier tie-breaks to KSA")
+check(agent.classify_gulf_country(None) is None, "classifier handles None article")
+check(agent.classify_gulf_country(mk_article("Spiffy gadgets review", "https://x.com/n")) is None,
+      "classifier word boundaries stop 'pif' matching inside 'spiffy'")
+
+# 2. _select_gulf_watch: skips used links, skips non-Gulf, caps 2/country
+cands = [
+    mk_article("SDAIA launches Arabic LLM in Riyadh", "https://x.com/k1", source="TahawulTech"),
+    mk_article("PIF backs Humain expansion", "https://x.com/k2", source="Arab News (Business)"),
+    mk_article("NEOM cognitive city AI zone", "https://x.com/k3", source="Wamda"),
+    mk_article("MGX Dubai AI campus", "https://x.com/u1", source="TahawulTech"),
+    mk_article("G42 Abu Dhabi supercomputer", "https://x.com/u2", source="Wamda"),
+    mk_article("Mubadala AI fund III", "https://x.com/u3", source="Wamda"),
+    mk_article("Egyptian fintech raises", "https://x.com/e1", source="Wamda"),
+]
+used = {"https://x.com/k1"}  # already picked into a track
+gw = agent._select_gulf_watch(cands, used)
+check([a["link"] for a in gw] == ["https://x.com/k2", "https://x.com/k3",
+                                  "https://x.com/u1", "https://x.com/u2"],
+      "select caps 2/country, skips used links and non-Gulf, keeps rank order")
+check(all(a["_gulf_country"] in ("KSA", "UAE") for a in gw), "_gulf_country set on all picks")
+check("https://x.com/k2" in used and "https://x.com/u2" in used,
+      "used_links mutated so tracks can't double-pick")
+
+# 3. render: strip on top when items exist, absent when empty
+html = agent.render_middle_east_block([], gw)
+check("Gulf Watch" in html and "Saudi Arabia" in html, "strip renders with country columns")
+check("&#x1f1f8;&#x1f1e6;" in html and "&#x1f1e6;&#x1f1ea;" in html, "strip has KSA and UAE flags")
+check("PIF backs Humain expansion" in html and 'href="https://x.com/k2"' in html,
+      "strip one-liner carries headline and source link")
+html_none = agent.render_middle_east_block([], [])
+check("gulf-watch" not in html_none and "No major Middle East AI stories" in html_none,
+      "no strip rendered when no Gulf stories")
+
+# 4. QA helper
+st, msg = agent._check_gulf_watch({"middle_east": [], "gulf_watch": gw})
+check(st == "PASS", f"gulf QA passes clean picks ({msg})")
+st, _ = agent._check_gulf_watch({"middle_east": [gw[0]], "gulf_watch": gw})
+check(st == "FAIL", "gulf QA fails when a one-liner duplicates the main list")
+bad = mk_article("Berlin AI lab opens", "https://x.com/b1")
+bad["_gulf_country"] = "KSA"
+st, _ = agent._check_gulf_watch({"middle_east": [], "gulf_watch": [bad]})
+check(st == "FAIL", "gulf QA fails on a non-KSA/UAE story in the strip")
+st, _ = agent._check_gulf_watch({"middle_east": [], "gulf_watch": []})
+check(st == "PASS", "gulf QA passes when the strip is empty")
+
+
 # ─── SUMMARY ─────────────────────────────────────────────────────────────────
 print("=" * 60)
 print(f"  RESULT: {passed} passed, {failed} failed")
