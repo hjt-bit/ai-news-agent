@@ -1374,6 +1374,81 @@ st, _ = agent._check_gulf_watch({"middle_east": [], "gulf_watch": []})
 check(st == "PASS", "gulf QA passes when the strip is empty")
 
 
+# ─── v12.9 TESTS — email-safe HTML for Kit ────────────────────────────────────
+banner("v12.9 TESTS — email-safe HTML (Kit broadcasts)")
+
+def _email_fixtures():
+    v = mk_article("OpenAI launches reasoning model", "https://x.com/v", source="TechCrunch")
+    vd = {"headline": "OpenAI's new reasoning model", "why_you_care": "Cheaper agents for you.",
+          "what_happened": "OpenAI shipped it.", "leader_action": "Pilot it."}
+    b = (mk_article("Anthropic raises", "https://x.com/b", source="Reuters"),
+         {"headline": "Anthropic raises $5B", "why_you_care": "More competition.",
+          "what_happened": "Round closed.", "leader_action": "Watch pricing."})
+    e = (mk_article("New AI photo app", "https://x.com/e", source="The Verge"),
+         {"headline": "Photo app goes viral", "tldr": "Fun app",
+          "in_plain_english": "It edits photos.", "why_you_care": "Your team will use it.",
+          "what_to_do": "Try it."})
+    m = (mk_article("Riyadh AI summit", "https://x.com/m", source="TahawulTech"),
+         {"headline": "Riyadh hosts AI summit", "tldr": "Big regional moment."})
+    g1 = mk_article("SDAIA launches model", "https://x.com/g1", source="Arab News (Business)")
+    g1["_gulf_country"] = "KSA"
+    g2 = mk_article("MGX Dubai campus", "https://x.com/g2", source="Wamda")
+    g2["_gulf_country"] = "UAE"
+    tip = {"title": "Use Projects", "what": "Organize chats", "try_this": "Make one today",
+           "link_url": "https://chatgpt.com", "link_label": "Open ChatGPT"}
+    take = {"mode": "final", "headline": "Hasan Jad's Take",
+            "text": "First sentence here. Second sentence here."}
+    return v, vd, b, e, m, [g1, g2], tip, take
+
+_v, _vd, _b, _e, _m, _gw, _tip, _take = _email_fixtures()
+_eh = agent.build_email_html("020", "September 28, 2026", viral=_v, viral_data=_vd,
+                             biz_pairs=[_b], eve_pairs=[_e], me_items=[_m],
+                             gulf_watch=_gw, tip=_tip, take=_take)
+check("SIGNAL" in _eh and "Issue #020" in _eh, "email html has masthead + issue meta")
+for section in ["The Viral Lead", "Strategic Briefing", "From the Region",
+                "Consumer Signals", "Tip of the Week"]:
+    check(section in _eh, f"email html has section: {section}")
+check("01b //" in _eh and "First sentence here." in _eh, "email html carries the final take")
+check("Gulf Watch" in _eh and "Saudi Arabia" in _eh, "email html has Gulf Watch strip")
+check("Use Projects" in _eh and "Make one today" in _eh, "email html has tip content")
+check("Big regional moment." in _eh, "email html has regional item tldr")
+check("var(--" not in _eh, "email html has no CSS variables")
+check("display:flex" not in _eh and "display: flex" not in _eh, "email html has no flexbox")
+check("<table" in _eh, "email html is table-based")
+check(agent.PAGES_BASE_URL in _eh, "email html links the archive")
+
+# escaping
+_evil = mk_article("<script>alert(1)</script>", "https://x.com/evil", source="Evil")
+_evil_data = {"headline": "<script>alert(1)</script>", "why_you_care": "x",
+              "what_happened": "y", "leader_action": "z"}
+_eh2 = agent.build_email_html("020", "September 28, 2026",
+                             biz_pairs=[(_evil, _evil_data)])
+check("<script>" not in _eh2 and "&lt;script&gt;" in _eh2, "email html escapes headlines")
+
+# no gulf -> no strip
+_eh3 = agent.build_email_html("020", "September 28, 2026", me_items=[_m])
+check("Gulf Watch" not in _eh3, "no Gulf Watch strip when no Gulf stories")
+
+# wiring: Kit draft receives the email-safe build, not the web HTML
+_captured = {}
+_orig_kit = agent.create_kit_broadcast_draft
+def _fake_kit(subject, html, preview_text=""):
+    _captured.update(subject=subject, html=html, preview=preview_text)
+    return "bcast-123"
+agent.create_kit_broadcast_draft = _fake_kit
+try:
+    _bid = agent.maybe_create_kit_draft("020", "September 28, 2026", viral=_v,
+                                        viral_data=_vd, biz_pairs=[_b],
+                                        eve_pairs=[_e], me_items=[_m],
+                                        gulf_watch=_gw, tip=_tip, take=_take)
+finally:
+    agent.create_kit_broadcast_draft = _orig_kit
+check(_bid == "bcast-123", "maybe_create_kit_draft returns the broadcast id")
+check("var(--" not in _captured["html"] and "<table" in _captured["html"],
+      "Kit draft carries email-safe HTML, not the web template")
+check("SIGNAL #020" in _captured["subject"], "Kit draft subject line is correct")
+
+
 # ─── SUMMARY ─────────────────────────────────────────────────────────────────
 print("=" * 60)
 print(f"  RESULT: {passed} passed, {failed} failed")
