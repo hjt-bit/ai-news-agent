@@ -1282,6 +1282,21 @@ html_none = agent.render_middle_east_block([], [])
 check("gulf-watch" not in html_none and "No major Middle East AI stories" in html_none,
       "no strip rendered when no Gulf stories")
 
+# 3b. v12.11: empty country columns are hidden (no dangling headers)
+uae_only = [a for a in gw if a["_gulf_country"] == "UAE"]
+html_uae = agent.render_middle_east_block([], uae_only)
+check("Gulf Watch" in html_uae and "UAE" in html_uae,
+      "strip renders with only the UAE column when KSA is empty")
+check("Saudi Arabia" not in html_uae, "empty KSA column hidden in web render")
+email_uae = agent._email_gulf_watch(uae_only)
+check("Gulf Watch" in email_uae and "Saudi Arabia" not in email_uae,
+      "empty KSA column hidden in email render")
+check('width="100%"' in email_uae, "single email column spans full width")
+ksa_only = [a for a in gw if a["_gulf_country"] == "KSA"]
+html_ksa = agent.render_middle_east_block([], ksa_only)
+check("Saudi Arabia" in html_ksa and "&#x1f1e6;&#x1f1ea;" not in html_ksa,
+      "strip renders with only the KSA column when UAE is empty")
+
 # 4. QA helper
 st, msg = agent._check_gulf_watch({"middle_east": [], "gulf_watch": gw})
 check(st == "PASS", f"gulf QA passes clean picks ({msg})")

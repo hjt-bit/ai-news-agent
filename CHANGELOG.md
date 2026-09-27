@@ -1,5 +1,13 @@
 # SIGNAL Agent — Changelog
 
+## v12.11 (2026-09-27) — Gulf Watch hides empty country columns
+
+- When Gulf Watch has stories from only one of KSA/UAE, the empty country's
+  column (flag + "Saudi Arabia"/"UAE" header with nothing under it) is no
+  longer rendered — in both the web HTML and the email-safe Kit HTML. A lone
+  email column spans the full width. (Spotted on the #021 review: 0 KSA + 1
+  UAE left a dangling empty "Saudi Arabia" header.)
+
 ## v12.10 (2026-09-27) — Take removed; archive link fixed
 
 - "Hasan Jad's Take" is removed from the newsletter entirely (web HTML, email
