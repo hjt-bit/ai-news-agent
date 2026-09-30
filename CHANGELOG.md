@@ -1,5 +1,38 @@
 # SIGNAL Agent — Changelog
 
+## v12.14 (2026-09-30) — Editorial rules + expanded Middle East section
+
+- Hasan's standing editorial rules (GitHub issues #1 and #2) are now
+  code-enforced, not just documented:
+  - Rule 1 (accuracy first): prompts demand exact deal direction
+    (who pays / invests / gets equity) and verified numbers; a new
+    deal-direction self-check flags deal stories for human review.
+  - Rule 2: "Why you care" must add a non-obvious insight (1–2 sentences);
+    prompts and QA reject openers that restate the headline.
+  - Rule 3: leader actions must be realistic for a non-technical executive
+    this week — no negotiating with story subjects, no "implement a model/API";
+    "Watch:" is the fallback. Prompt + QA realism scan enforce this.
+  - Rule 4: Gulf Watch is bigger — up to 3 KSA + 3 UAE one-liners, drawn from
+    a wider pool (Google News RSS discovery, since the Saudi outlets on
+    Hasan's source list — Arab News, Saudi Gazette, Asharq Al-Awsat, Al
+    Arabiya, SPA, MAGNiTT, Wamda — publish no stable RSS). Requires ≥1 KSA
+    AND ≥1 UAE from different outlets; honest-empty note renders when nothing
+    qualifies, never padding.
+  - Rule 5: fewer, better stories — 1 lead + 2 strategic + 2 regional +
+    2 consumer.
+  - Rule 6: Tip of the Week must be a feature from the last 30 days (or a
+    genuinely non-obvious technique) linking a real product/help page; known
+    basics like "create a Custom GPT" are rejected by prompt and QA.
+  - Rule 7: [HASAN'S TAKE] and [HASAN'S ANGLE] placeholders are rendered in
+    the web + email HTML; the agent never writes them, and QA checks they
+    are present.
+  - Rule 8: exactly two subscribe blocks (after the intro, at the end) and
+    share buttons once at the end — LinkedIn strip CTA and the extra share
+    bar are gone. Approved author bio unchanged.
+  - Rule 9: a 7-point editorial self-check runs after generation; failures
+    are listed at the top of REVIEW_SUMMARY.md, and the draft is marked
+    **DRAFT — pending Hasan's review**.
+
 ## v12.11 (2026-09-27) — Gulf Watch hides empty country columns
 
 - When Gulf Watch has stories from only one of KSA/UAE, the empty country's

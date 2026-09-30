@@ -12,9 +12,10 @@ Run: python3 test_v10.py
 import copy
 import json
 import os
+import re
 import sys
 import types
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 # ─── Fake OpenAI (stubbed BEFORE importing agent_v10) ─────────────────────────
 
@@ -1253,7 +1254,7 @@ check(agent.classify_gulf_country(None) is None, "classifier handles None articl
 check(agent.classify_gulf_country(mk_article("Spiffy gadgets review", "https://x.com/n")) is None,
       "classifier word boundaries stop 'pif' matching inside 'spiffy'")
 
-# 2. _select_gulf_watch: skips used links, skips non-Gulf, caps 2/country
+# 2. _select_gulf_watch: skips used links, skips non-Gulf, caps 3/country (v12.14)
 cands = [
     mk_article("SDAIA launches Arabic LLM in Riyadh", "https://x.com/k1", source="TahawulTech"),
     mk_article("PIF backs Humain expansion", "https://x.com/k2", source="Arab News (Business)"),
@@ -1266,8 +1267,8 @@ cands = [
 used = {"https://x.com/k1"}  # already picked into a track
 gw = agent._select_gulf_watch(cands, used)
 check([a["link"] for a in gw] == ["https://x.com/k2", "https://x.com/k3",
-                                  "https://x.com/u1", "https://x.com/u2"],
-      "select caps 2/country, skips used links and non-Gulf, keeps rank order")
+                                  "https://x.com/u1", "https://x.com/u2", "https://x.com/u3"],
+      "select caps 3/country, skips used links and non-Gulf, keeps rank order")
 check(all(a["_gulf_country"] in ("KSA", "UAE") for a in gw), "_gulf_country set on all picks")
 check("https://x.com/k2" in used and "https://x.com/u2" in used,
       "used_links mutated so tracks can't double-pick")
@@ -1278,9 +1279,11 @@ check("Gulf Watch" in html and "Saudi Arabia" in html, "strip renders with count
 check("&#x1f1f8;&#x1f1e6;" in html and "&#x1f1e6;&#x1f1ea;" in html, "strip has KSA and UAE flags")
 check("PIF backs Humain expansion" in html and 'href="https://x.com/k2"' in html,
       "strip one-liner carries headline and source link")
-html_none = agent.render_middle_east_block([], [])
-check("gulf-watch" not in html_none and "No major Middle East AI stories" in html_none,
-      "no strip rendered when no Gulf stories")
+html_none = agent.render_middle_east_block(
+    [(mk_article("Riyadh AI summit", "https://x.com/m"),
+      {"headline": "Riyadh hosts AI summit", "tldr": "Big regional moment."})], [])
+check("nothing padded" in html_none and "No qualifying KSA/UAE" in html_none,
+      "v12.14 honest-empty note renders instead of padding")
 
 # 3b. v12.11: empty country columns are hidden (no dangling headers)
 uae_only = [a for a in gw if a["_gulf_country"] == "UAE"]
@@ -1307,7 +1310,14 @@ bad["_gulf_country"] = "KSA"
 st, _ = agent._check_gulf_watch({"middle_east": [], "gulf_watch": [bad]})
 check(st == "FAIL", "gulf QA fails on a non-KSA/UAE story in the strip")
 st, _ = agent._check_gulf_watch({"middle_east": [], "gulf_watch": []})
-check(st == "PASS", "gulf QA passes when the strip is empty")
+check(st == "WARN", "v12.14 gulf QA warns (not passes) when the strip is empty")
+ksa_solo = [a for a in gw if a["_gulf_country"] == "KSA"]
+st, msg = agent._check_gulf_watch({"middle_east": [], "gulf_watch": ksa_solo})
+check(st == "FAIL", f"v12.14 gulf QA fails when a country is missing ({msg})")
+one_outlet = [dict(a, source="Wamda") for a in gw if a["_gulf_country"] == "KSA"][:1] + \
+             [dict(a, source="Wamda") for a in gw if a["_gulf_country"] == "UAE"][:1]
+st, msg = agent._check_gulf_watch({"middle_east": [], "gulf_watch": one_outlet})
+check(st == "FAIL", f"v12.14 gulf QA fails when all items share one outlet ({msg})")
 
 
 # ─── v12.9 TESTS — email-safe HTML for Kit ────────────────────────────────────
@@ -1350,6 +1360,8 @@ check("var(--" not in _eh, "email html has no CSS variables")
 check("display:flex" not in _eh and "display: flex" not in _eh, "email html has no flexbox")
 check("<table" in _eh, "email html is table-based")
 check(agent.PAGES_BASE_URL in _eh, "email html links the archive")
+check("Was this forwarded to you?" in _eh and agent.KIT_SIGNUP_URL in _eh,
+      "email footer has forwarded-reader subscribe line (Kit URL)")
 
 # escaping
 _evil = mk_article("<script>alert(1)</script>", "https://x.com/evil", source="Evil")
@@ -1359,9 +1371,9 @@ _eh2 = agent.build_email_html("020", "September 28, 2026",
                              biz_pairs=[(_evil, _evil_data)])
 check("<script>" not in _eh2 and "&lt;script&gt;" in _eh2, "email html escapes headlines")
 
-# no gulf -> no strip
+# no gulf -> honest-empty note (v12.14: never pad)
 _eh3 = agent.build_email_html("020", "September 28, 2026", me_items=[_m])
-check("Gulf Watch" not in _eh3, "no Gulf Watch strip when no Gulf stories")
+check("nothing padded" in _eh3, "email honest-empty Gulf Watch note when no Gulf stories")
 
 # wiring: Kit draft receives the email-safe build, not the web HTML
 _captured = {}
@@ -1381,6 +1393,158 @@ check(_bid == "bcast-123", "maybe_create_kit_draft returns the broadcast id")
 check("var(--" not in _captured["html"] and "<table" in _captured["html"],
       "Kit draft carries email-safe HTML, not the web template")
 check("SIGNAL #020" in _captured["subject"], "Kit draft subject line is correct")
+
+
+# ─── v12.14 TESTS — editorial rules + expanded Middle East ────────────────────
+banner("v12.14 TESTS — editorial rules + expanded Middle East")
+
+# rule 5: story caps
+check(agent.TOP_BUSINESS == 2, "v12.14 cap: 2 strategic stories")
+check(agent.TOP_EVERYDAY == 2, "v12.14 cap: 2 consumer stories")
+check(agent.TOP_MIDDLE_EAST == 2, "v12.14 cap: 2 regional stories")
+
+# rule 7: placeholders exist and are never written by the agent
+check(agent.HASAN_TAKE_PLACEHOLDER in agent.HTML_TEMPLATE,
+      "v12.14 web template carries the [HASAN'S TAKE] placeholder")
+check(agent.HASAN_ANGLE_PLACEHOLDER in agent.HTML_TEMPLATE,
+      "v12.14 web template carries the [HASAN'S ANGLE] placeholder")
+_eh_take = agent.build_email_html("020", "September 28, 2026",
+                                   viral=_v, viral_data=_vd)
+check(agent.HASAN_TAKE_PLACEHOLDER in _eh_take,
+      "v12.14 email template carries the [HASAN'S TAKE] placeholder")
+check(agent.HASAN_ANGLE_PLACEHOLDER in _eh_take,
+      "v12.14 email template carries the [HASAN'S ANGLE] placeholder")
+
+# rule 8: exactly two subscribe blocks + share buttons once, at the end
+check(agent.HTML_TEMPLATE.count("{email_capture_top}") == 1 and
+      agent.HTML_TEMPLATE.count("{email_capture_bottom}") == 1,
+      "v12.14 web template has exactly two subscribe blocks (intro + end)")
+check(agent.HTML_TEMPLATE.count("{share_bar}") == 1,
+      "v12.14 web template renders share buttons once")
+check("{signup_url}" not in agent.HTML_TEMPLATE and
+      "{beehiiv_strip_btn}" not in agent.HTML_TEMPLATE and
+      "{beehiiv_main_btn}" not in agent.HTML_TEMPLATE and
+      "{share_bar_bottom}" not in agent.HTML_TEMPLATE and
+      "subscribe-strip" not in agent.HTML_TEMPLATE,
+      "v12.14 web template drops LinkedIn strip, Beehiiv buttons, extra share bar")
+
+# rule 8: layout checker on synthetic pages
+_good_html = ('<div class="email-capture">a</div><div class="email-capture">b</div>'
+              '<div class="share-bar">s</div>'
+              f'{agent._h(agent.AUTHOR_TAGLINE)}'
+              f'{agent.HASAN_TAKE_PLACEHOLDER}{agent.HASAN_ANGLE_PLACEHOLDER}')
+_lc = agent._check_rendered_layout(_good_html, _good_html)
+check(all(s == "PASS" for s, _ in _lc), "v12.14 layout checker passes a correct page")
+_bad_html = '<div class="email-capture">a</div><div class="share-bar">s</div><div class="share-bar">s2</div>'
+_lc2 = agent._check_rendered_layout(_bad_html, _bad_html)
+check(any(s == "FAIL" and "subscribe" in m for s, m in _lc2),
+      "v12.14 layout checker fails one subscribe block")
+check(any(s == "FAIL" and "share-bar" in m for s, m in _lc2),
+      "v12.14 layout checker fails two share bars")
+
+# rule 3: realism patterns catch negotiate-with-subject / implement-a-tool
+check(any(re.search(p, "negotiate better terms with OpenAI") for p in agent.BANNED_LEADER_ACTION_PATTERNS),
+      "v12.14 realism: 'negotiate with X' is banned")
+check(any(re.search(p, "implement the new API this week".lower()) for p in agent.BANNED_LEADER_ACTION_PATTERNS),
+      "v12.14 realism: 'implement the API' is banned")
+check(not any(re.search(p, "ask your team what this means for the renewal budget") for p in agent.BANNED_LEADER_ACTION_PATTERNS),
+      "v12.14 realism: legitimate executive actions pass")
+
+# rule 1+2+3+4+6+9: the editorial self-check (hermetic: no link liveness)
+_sc_v = mk_article("Anthropic invests $11.6B in Akamai cloud", "https://x.com/deal", source="Reuters")
+_sc_vd = {"headline": "Anthropic's $11.6B cloud deal",
+          "why_you_care": "Anthropic's $11.6B cloud deal shows scale.",
+          "what_happened": "Terms signed.", "leader_action": "Negotiate with Akamai for better rates."}
+_sc_tip = {"title": "Use Custom GPT for everything", "what": "Create a custom GPT",
+           "try_this": "Do it now", "link_url": agent.TIP_URL_FALLBACK,
+           "_tip_url_fallback": True}
+_sc = agent._editorial_self_check(_sc_v, _sc_vd, [], [], [], _sc_tip,
+                                  {"gulf_watch": []}, check_links=False)
+_by_label = {label: (status, detail) for status, label, detail in _sc}
+check(_by_label["Deal direction matches the source"][0] == "REVIEW",
+      "v12.14 self-check flags deal stories for human direction review")
+check(_by_label["No 'Why you care' restates its headline"][0] == "FAIL",
+      "v12.14 self-check fails an opener that restates the headline")
+check(_by_label["Leader actions pass the 'executive could do this this week?' test"][0] == "FAIL",
+      "v12.14 self-check fails a negotiate-with-subject action")
+check(_by_label["Gulf Watch has KSA + UAE from different outlets"][0] == "REVIEW",
+      "v12.14 self-check reviews an empty Gulf Watch")
+check(_by_label["Tip is recent and not basic"][0] == "FAIL",
+      "v12.14 self-check fails a basic tip with a fallback link")
+check(_by_label["Draft marked DRAFT — pending Hasan's review"][0] == "PASS",
+      "v12.14 self-check always records the DRAFT marker")
+_g1s = mk_article("SDAIA launches", "https://x.com/k9", source="Arab News")
+_g1s["_gulf_country"] = "KSA"
+_g2s = mk_article("MGX campus", "https://x.com/u9", source="Wamda")
+_g2s["_gulf_country"] = "UAE"
+_sc_ok = agent._editorial_self_check(
+    None, None,
+    [(mk_article("Fine story", "https://x.com/ok", source="Reuters"),
+      {"headline": "A fine headline", "why_you_care": "The Gulf angle nobody saw.",
+       "what_happened": "It happened.", "leader_action": "Watch the renewal pricing."})],
+    [], [],
+    {"title": "New Copilot feature", "what": "Try the fresh agents mode",
+     "try_this": "Open it", "link_url": "https://support.microsoft.com/x"},
+    {"gulf_watch": [_g1s, _g2s]}, check_links=False)
+check(all(s == "PASS" for s, _, _ in _sc_ok), "v12.14 self-check passes a clean issue")
+
+# rule 9: review summary leads with DRAFT + the self-check
+import tempfile
+with tempfile.TemporaryDirectory() as _td:
+    agent._write_review_summary(out_dir=_td, publish=False, qa_passed=True,
+                                qa_checks=[("PASS", "ok")], issue_number_str="022",
+                                today="October 5, 2026", viral=None, tip=None,
+                                files=[], self_check=_sc)
+    _rs = open(os.path.join(_td, "REVIEW_SUMMARY.md"), encoding="utf-8").read()
+check("DRAFT" in _rs and "pending Hasan's review" in _rs,
+      "v12.14 review summary carries the DRAFT banner")
+check("Editorial self-check" in _rs and _rs.index("Editorial self-check") < _rs.index("QA failures"),
+      "v12.14 self-check sits at the top of the review summary")
+check("FILL HASAN'S VOICE" in _rs and "DEAL DIRECTION" in _rs,
+      "v12.14 review summary lists placeholder + deal-direction human actions")
+
+# rule 4: Google News discovery wires Saudi outlets in as Middle East items
+class _FakeEntry(dict):
+    """Mimics feedparser's FeedParserDict: attribute + item access."""
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+_fake_feed = types.SimpleNamespace(entries=[_FakeEntry({
+    "title": "SDAIA announces new Arabic model", "link": "https://news.google.com/rss/articles/x",
+    "published_parsed": (datetime.now() - timedelta(days=1)).timetuple(),
+    "summary": "Riyadh's AI authority launched a model.",
+    "source": {"title": "Arab News"}})])
+_orig_parse = agent.feedparser.parse
+_orig_resolve = agent._resolve_gnews_link
+agent.feedparser.parse = lambda url: _fake_feed
+agent._resolve_gnews_link = lambda url, timeout=8: "https://www.arabnews.com/node/123"
+try:
+    _me_found = agent.fetch_gnews_middle_east(days=7)
+finally:
+    agent.feedparser.parse = _orig_parse
+    agent._resolve_gnews_link = _orig_resolve
+check(len(_me_found) == 1 and _me_found[0]["source"] == "Arab News" and
+      _me_found[0]["link"] == "https://www.arabnews.com/node/123",
+      "v12.14 Google News discovery resolves to the publisher's exact article URL")
+check(agent.classify_gulf_country(_me_found[0]) == "KSA",
+      "v12.14 Saudi-outlet stories classify as KSA for Gulf Watch")
+check("Arab News" in agent.MIDDLE_EAST_SOURCES,
+      "v12.14 Google News 'Arab News' counts as a MENA source")
+
+# rule 6: tip URL validation flags fallbacks
+check(agent._validate_tip_url("https://not-a-real-site.example/x") == agent.TIP_URL_FALLBACK,
+      "v12.14 unrecognized tip URL falls back to the archive URL")
+
+# prompts carry the v12.14 editorial rules
+import inspect as _inspect
+check("DEAL DIRECTION" in _inspect.getsource(agent.analyze_article),
+      "v12.14 accuracy/deal-direction rules are in the analysis prompt")
+check("RECENCY RULE" in _inspect.getsource(agent.generate_tip_of_week),
+      "v12.14 30-day recency rule is in the tip prompt")
+check("V12.14" in _inspect.getsource(agent.analyze_article),
+      "v12.14 sourcing preference is in the regional prompt")
 
 
 # ─── SUMMARY ─────────────────────────────────────────────────────────────────

@@ -36,9 +36,11 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 MODEL = "gpt-4o-mini"
 TEMPERATURE = 0.3
 
-TOP_BUSINESS = 3       # stories in Strategic Briefing (excluding the Viral Lead)
-TOP_EVERYDAY = 3       # stories in Consumer Signals
-TOP_MIDDLE_EAST = 2    # quick bullets in the Middle East section
+# v12.14 editorial rule 5: fewer, better stories — 1 lead + 2 strategic +
+# 2 regional + 2 consumer. Rank by relevance to Gulf leaders, not virality.
+TOP_BUSINESS = 2       # stories in Strategic Briefing (excluding the Viral Lead)
+TOP_EVERYDAY = 2       # stories in Consumer Signals
+TOP_MIDDLE_EAST = 2    # stories in From the Region
 LOOKBACK_DAYS = 7
 
 # Maximum stories from any single source (enforces diversity)
@@ -430,7 +432,8 @@ SOURCES = {
 }
 
 # Sources we treat as "Middle East" for the regional section
-MIDDLE_EAST_SOURCES = {"TahawulTech", "Wamda", "Arab News (Business)"}
+# v12.14: "Arab News" is the Google News outlet name for arabnews.com items.
+MIDDLE_EAST_SOURCES = {"TahawulTech", "Wamda", "Arab News (Business)", "Arab News"}
 
 # Sources that are podcasts (will also get transcript extraction)
 PODCAST_SOURCES = {"All-In Podcast", "Latent Space", "Dwarkesh Podcast"}
@@ -573,16 +576,68 @@ def is_regional_story(article):
 # Keyword signals for the two Gulf countries Hasan tracks. Matched with the
 # same word-boundary discipline as is_regional_story so short tokens ('pif',
 # 'uae') don't over-trigger inside other words.
+# v12.14: expanded Saudi source footprint (Hasan's source list, issue #2).
+# Outlet/authority names act as KSA signals so Saudi-press stories classify
+# correctly even when the body doesn't repeat "Saudi".
 GULF_KSA_KEYWORDS = (
     "saudi arabia", "saudi", "ksa", "riyadh", "jeddah", "dammam", "neom",
     "sdaia", "public investment fund", "pif", "aramco", "stc", "humain",
     "alat", "kaust", "tuwaiq",
+    "arab news", "saudi gazette", "asharq al-awsat", "aawsat", "al arabiya",
+    "alarabiya", "spa", "cst", "sama", "misa", "monshaat", "nca", "rdia",
+    "tadawul", "saudi exchange", "magnitt", "wamda",
 )
 GULF_UAE_KEYWORDS = (
     "united arab emirates", "uae", "emirati", "dubai", "abu dhabi", "sharjah",
     "ajman", "mgx", "g42", "mubadala", "mbzuai", "hub71", "adnoc",
 )
-GULF_WATCH_PER_COUNTRY = 2
+# v12.14 rule 4: bigger Middle East section — up to 3 one-liners per country.
+GULF_WATCH_PER_COUNTRY = 3
+
+# =========================================================
+# v12.14 EDITORIAL RULES — Hasan's standing rules, code-enforced
+# =========================================================
+# Rule 7: Hasan's voice. The agent NEVER writes these; Hasan fills them in at
+# review. QA checks for their presence in the rendered outputs.
+HASAN_TAKE_PLACEHOLDER = "[HASAN'S TAKE: 2–3 sentences on the week's theme]"
+HASAN_ANGLE_PLACEHOLDER = "[HASAN'S ANGLE: optional 1 line]"
+
+# Rule 3: leader actions must be realistic for a non-technical executive this
+# week. Never direct readers to negotiate with story subjects, and never tell
+# them to "implement" a model/API/tool. "Watch:" + a signal is the fallback.
+BANNED_LEADER_ACTION_PATTERNS = (
+    r"negotiat\w*[^.\n]{0,40}\bwith\b",                    # negotiate … with the story subject
+    r"implement\s+(\w+\s+){0,3}(model|api|tool|framework|sdk|platform|system)\b",
+)
+
+# Rule 6: the tip must not be a well-known basic.
+BASIC_TIP_PHRASES = (
+    "custom gpt",
+    "summarize meeting",
+    "summarize your meeting",
+    "summarise meeting",
+    "brainstorm with chatgpt",
+    "brainstorm ideas with",
+    "write a blog post",
+    "create a custom gpt",
+)
+
+# Rule 1: stories with deal language get a human deal-direction review flag.
+DEAL_KEYWORDS = (
+    "invest", "acqui", "merger", "stake", "warrant", "buyout",
+    "funding round", "raises", "valued at", "takes a stake",
+)
+
+# v12.14: Middle East discovery queries (Google News RSS — the Saudi outlets
+# on Hasan's source list don't publish stable RSS feeds).
+GNEWS_ME_QUERIES = (
+    "artificial intelligence Saudi Arabia",
+    "AI SDAIA Saudi",
+    "artificial intelligence UAE",
+    "AI startup funding Middle East",
+)
+GNEWS_ME_MAX_PER_QUERY = 8    # redirect resolutions per query (bounded)
+GNEWS_ME_MAX_TOTAL = 24       # redirect resolutions per run (bounded)
 
 def _gulf_hits(text, keywords):
     return sum(1 for kw in keywords
@@ -700,6 +755,16 @@ def fetch_recent_news(days=LOOKBACK_DAYS):
             source_counts[source] = f"FAILED: {e}"
             print(f"  ✗ {source}: {e}")
 
+    # v12.14: Middle East discovery — Saudi/UAE AI coverage via Google News RSS.
+    try:
+        me_extra = fetch_gnews_middle_east(days)
+        for art in me_extra:
+            recent.append(art)
+        source_counts["Google News (ME queries)"] = len(me_extra)
+    except Exception as e:
+        source_counts["Google News (ME queries)"] = f"FAILED: {e}"
+        print(f"  \u2717 Google News ME discovery: {e}")
+
     # Print source fetch report
     print(f"\n  Source Fetch Report:")
     print(f"  {'─'*50}")
@@ -712,6 +777,79 @@ def fetch_recent_news(days=LOOKBACK_DAYS):
         print(f"  (skipped {skipped_badlink} entr(ies) with non-article links e.g. podcast/audio/social)")
 
     return recent
+
+# =========================================================
+# v12.14 MIDDLE EAST DISCOVERY — Google News RSS
+# =========================================================
+# The Saudi outlets on Hasan's source list (Arab News, Saudi Gazette, Asharq
+# Al-Awsat English, Al Arabiya English, SPA English, MAGNiTT, Wamda) don't
+# publish stable RSS feeds, so the Middle East section is discovered through
+# Google News RSS searches scoped to Saudi/UAE AI coverage. Stable, keyless,
+# and each story carries its real outlet name via the <source> element.
+def _resolve_gnews_link(url, timeout=8):
+    """Follow a Google News RSS redirect to the publisher's article URL."""
+    try:
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "SIGNAL-newsletter-agent/1.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            final = resp.geturl()
+            if final and "news.google.com" not in (
+                    urllib.parse.urlparse(final).hostname or ""):
+                return final
+    except Exception:
+        pass
+    return None
+
+
+def fetch_gnews_middle_east(days=LOOKBACK_DAYS):
+    """v12.14: discover Middle East AI stories via Google News RSS."""
+    from urllib.parse import quote
+    print(f"\n  [v12.14] Middle East discovery via Google News RSS "
+          f"({len(GNEWS_ME_QUERIES)} queries)")
+    cutoff = datetime.now() - timedelta(days=days)
+    found = []
+    seen_links = set()
+    resolved = 0
+    for q in GNEWS_ME_QUERIES:
+        url = ("https://news.google.com/rss/search?q=" + quote(q) +
+               "&hl=en&gl=SA&ceid=SA:en")
+        try:
+            feed = feedparser.parse(url)
+        except Exception as e:
+            print(f"    \u2717 query '{q}': {e}")
+            continue
+        nq = 0
+        for entry in feed.entries:
+            if resolved >= GNEWS_ME_MAX_TOTAL or nq >= GNEWS_ME_MAX_PER_QUERY:
+                break
+            try:
+                pub = datetime.fromtimestamp(mktime(entry.published_parsed))
+            except Exception:
+                continue
+            if pub <= cutoff:
+                continue
+            link = _resolve_gnews_link(entry.link)
+            if not link or link in seen_links:
+                continue
+            if not is_valid_article_link(link):
+                continue
+            resolved += 1
+            nq += 1
+            seen_links.add(link)
+            src = entry.get("source", {})
+            outlet = src.get("title") if isinstance(src, dict) else str(src)
+            found.append({
+                "title": entry.title,
+                "link": link,
+                "source": outlet or "Google News",
+                "summary": (entry.get("summary", "") or "")[:600],
+                "published": pub,
+                "_gnews_me": True,
+            })
+        print(f"    \u2713 '{q}': {nq} stories")
+    print(f"  [v12.14] Middle East pool: {len(found)} stories")
+    return found
+
 
 # =========================================================
 # 2. PODCAST TRANSCRIPT EXTRACTION
@@ -2335,11 +2473,12 @@ def backfill_picks(picks, viral_article, scored_articles, notes):
 # 5d. AUTOMATED QA SELF-CHECK (runs before every publish)
 # =========================================================
 def _check_gulf_watch(picks):
-    """v12.8 QA: Gulf Watch one-liners are KSA/UAE-classified and not duplicated
-    in the main 'From the Region' list."""
+    """v12.14 QA (rule 4): Gulf Watch needs >=1 KSA AND >=1 UAE item from
+    different outlets — never duplicating the main regional list. Honest-empty
+    is allowed but raises a WARN so the editor confirms nothing qualified."""
     gw = picks.get("gulf_watch", []) or []
     if not gw:
-        return ("PASS", "Gulf Watch empty (no KSA/UAE stories this week)")
+        return ("WARN", "Gulf Watch empty — honest-empty note renders (confirm no KSA/UAE stories qualified)")
     me_links = {a.get("link") for a in picks.get("middle_east", [])}
     dupes = [a.get("title", "")[:45] for a in gw if a.get("link") in me_links]
     if dupes:
@@ -2348,8 +2487,16 @@ def _check_gulf_watch(picks):
            if classify_gulf_country(a) not in ("KSA", "UAE")]
     if bad:
         return ("FAIL", f"Gulf Watch has non-KSA/UAE stories: {bad}")
-    ksa_n = sum(1 for a in gw if a.get("_gulf_country") == "KSA")
-    return ("PASS", f"Gulf Watch OK ({ksa_n} KSA + {len(gw) - ksa_n} UAE one-liners, no dupes)")
+    ksa = [a for a in gw if a.get("_gulf_country") == "KSA"]
+    uae = [a for a in gw if a.get("_gulf_country") == "UAE"]
+    if not ksa or not uae:
+        return ("FAIL",
+                f"Gulf Watch missing {'UAE' if ksa else 'KSA'} item "
+                f"(rule 4: at least one KSA and one UAE)")
+    outlets = {a.get("source") for a in gw}
+    if len(outlets) < 2:
+        return ("FAIL", "Gulf Watch items all come from one outlet (rule 4: at least two different outlets)")
+    return ("PASS", f"Gulf Watch OK ({len(ksa)} KSA + {len(uae)} UAE, {len(outlets)} outlets, no dupes)")
 
 
 def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
@@ -2479,6 +2626,20 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
         checks.append(("WARN", f"Tip '{tip_name}' may repeat a previous tip"))
     else:
         checks.append(("WARN", "Could not verify Tip of the Week name"))
+    # v12.14 rule 6: tip must link a real product/help page, not a fallback,
+    # and must not be a well-known basic.
+    if isinstance(tip, dict) and tip:
+        if tip.get("_tip_url_fallback"):
+            checks.append(("WARN", "v12.14 Tip: link failed allow-list validation — fell back to the archive URL "
+                           "(rule 6: needs a real product/help link)"))
+        else:
+            checks.append(("PASS", "v12.14 Tip: links to a real product/help page"))
+        tip_text = f"{tip.get('title', '')} {tip.get('what', '')}".lower()
+        basic = [p for p in BASIC_TIP_PHRASES if p in tip_text]
+        if basic:
+            checks.append(("WARN", f"v12.14 Tip: looks like a well-known basic ({basic[0]!r}) — rule 6"))
+        else:
+            checks.append(("PASS", "v12.14 Tip: not a well-known basic"))
 
     # 8) Podcast ingestion happened (transparency tie-in)
     if podcast_report:
@@ -2598,6 +2759,7 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
     if analysis_pairs:
         banned_hits = []
         opener_hits = []
+        realism_hits = []
         status_hits = []
         redundancy_hits = []
         abstract_hits = []
@@ -2617,6 +2779,13 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
             for opener in BANNED_LEADER_ACTION_OPENERS:
                 if action.startswith(opener):
                     opener_hits.append(f"{title}… ['{opener}']")
+                    break
+            # v12.14 rule 3: leader actions must be realistic for a non-technical
+            # executive this week — never negotiate-with-subject or implement-a-tool.
+            action_raw = (data.get("leader_action") or "").strip()
+            for pat in BANNED_LEADER_ACTION_PATTERNS:
+                if re.search(pat, action_raw.lower()):
+                    realism_hits.append(f"{title}… ['{action_raw[:60]}']")
                     break
             # 20) status precision: the source text sets the status ceiling via
             # the six approved distinctions (STATUS_PRECISION_LEVELS, weakest
@@ -2659,6 +2828,11 @@ def run_qa_checks(viral_article, picks, tip, podcast_report, cull_report=None,
                            "; ".join(opener_hits[:3])))
         else:
             checks.append(("PASS", "v12.1 Leader-action: all openers decisive"))
+        if realism_hits:
+            checks.append(("FAIL", f"v12.14 Leader-action realism: {len(realism_hits)} unrealistic action(s): " +
+                           "; ".join(realism_hits[:3])))
+        else:
+            checks.append(("PASS", "v12.14 Leader-action realism: actions are executable this week"))
         if status_hits:
             checks.append(("FAIL", f"v12.1 Status precision: {len(status_hits)} status upgrade(s): " +
                            "; ".join(status_hits[:3])))
@@ -2766,7 +2940,24 @@ def analyze_article(article, audience="business"):
                  "unconfirmed negotiations, 'reportedly considering' for single-source reports, 'announced' for "
                  "company statements, 'launched' for available products, 'confirmed' for verified facts, 'rumored' "
                  "for weak sourcing. NEVER upgrade a status (e.g. do not write 'launched' for a story that is only "
-                 "'in talks').")
+                 "'in talks'). "
+                 "V12.14 EDITORIAL RULES (Hasan's standing rules — apply to every issue). "
+                 "DEAL DIRECTION (critical): get who-pays-whom right. A customer committing $11.6B of cloud "
+                 "spend is a CUSTOMER, not an investor in the supplier; a supplier granting the customer a stock "
+                 "warrant is not 'investing in' the customer. State buyer/seller/investor roles exactly as the "
+                 "source does — never flip them. If the direction is unclear, describe the mechanics plainly "
+                 "without assigning investor/investee roles. "
+                 "WHY-YOU-CARE must answer ONE of: what does this signal about where AI is heading? what changes "
+                 "for a business in the Gulf? what is the non-obvious angle? Good example: 'This is a bet on CPUs, "
+                 "not GPUs: agents running tasks need general-purpose compute. It also flips the usual "
+                 "supplier-invests-in-AI-lab deal — here the supplier gives the customer equity.' 1-2 sentences, "
+                 "never a restatement of the headline. "
+                 "LEADER ACTION must be something a non-technical executive could do THIS WEEK: ask the team a "
+                 "specific question, review a budget line or vendor contract, run a small pilot, brief the board, "
+                 "or watch for a specific signal. NEVER tell readers to negotiate with the companies in the story, "
+                 "and NEVER tell them to 'implement' a model, API, or technical tool. If no realistic action "
+                 "exists, write 'Watch:' followed by what to monitor. "
+                 "Use ONLY facts present in the source — if unsure about a fact, leave it out.")
     elif audience == "middle_east":
         schema_hint = """{
   "headline": "punchy 6-10 word headline (no period)",
@@ -2779,7 +2970,11 @@ def analyze_article(article, audience="business"):
                  "FAITHFULNESS (critical): the headline AND tldr MUST describe the SAME event as the source title/summary. "
                  "Use ONLY facts present in the source — NEVER invent dollar figures, percentages, or claims (e.g. do not "
                  "write a '$100B commitment' headline if the source is about a venture fund or a language-AI topic). "
-                 "The headline must accurately reflect what the article is actually about.")
+                 "The headline must accurately reflect what the article is actually about. "
+                 "V12.14: prefer government announcements, major deals, regulation, funding, and enterprise "
+                 "adoption. NEVER vendor-written features, sponsored content, or press releases dressed as news. "
+                 "Name the country or company and end with a concrete 'so what for a Gulf business leader' "
+                 "takeaway.")
     else:  # everyday
         schema_hint = """{
   "headline": "fun 6-10 word headline (no period)",
@@ -2918,6 +3113,10 @@ ALREADY USED IN PREVIOUS ISSUES (do NOT repeat any of these):
 
 Date context: {today}. Pick something seasonally fresh.
 
+V12.14 RECENCY RULE: the tip MUST be a feature launched or significantly updated in the last 30 days
+(today is {today}), or a technique most leaders would not already know. Do NOT repeat well-known
+basics such as "create a Custom GPT".
+
 The tip MUST include ONE real, working URL to a tool, course, or resource the reader can click.
 Use only well-known, stable URLs you are confident exist (e.g., https://notebooklm.google.com,
 https://www.anthropic.com/news, https://openai.com/chatgpt/projects, https://www.granola.ai,
@@ -2946,6 +3145,8 @@ Return ONLY a JSON object with EXACTLY these keys:
         data = json.loads(resp.choices[0].message.content)
         # v10: enforce the URL allow-list in code (the prompt's list is advisory only).
         data["link_url"] = _validate_tip_url(data.get("link_url", ""))
+        # v12.14 rule 6: record whether the link survived allow-list validation.
+        data["_tip_url_fallback"] = (data["link_url"] == TIP_URL_FALLBACK)
         print(f"  Tip: {data.get('title', '')} -> {data.get('link_url', '')}")
         return data
     except Exception as e:
@@ -3062,30 +3263,27 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     font-size: 12.5px; color: rgba(255,255,255,0.62);
     letter-spacing: 0.2px;
   }}
-  .subscribe-strip {{
-    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
-    justify-content: space-between;
-    padding: 14px 44px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--line);
-    font-size: 13px; color: var(--ink-2);
+  .hasan-take {{
+    margin: 18px 44px 0; padding: 14px 18px;
+    border: 1px dashed var(--line); border-radius: 8px;
+    background: rgba(0,212,255,0.04);
   }}
-  .subscribe-strip .copy {{ flex: 1; min-width: 200px; }}
-  .subscribe-strip .copy strong {{ color: var(--ink); }}
-  .subscribe-strip a.cta-mini {{
-    display: inline-flex; align-items: center; gap: 8px;
-    font-family: "JetBrains Mono", monospace;
-    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
-    color: #ffffff; background: var(--ink);
-    padding: 10px 18px; border-radius: 3px; text-decoration: none;
-    transition: background 0.15s ease, transform 0.15s ease;
+  .hasan-take-label {{
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    letter-spacing: 2.4px; text-transform: uppercase; color: var(--cyan);
+    margin: 0 0 6px 0;
   }}
-  .subscribe-strip a.cta-mini:hover {{ background: var(--cyan); transform: translateY(-1px); }}
-  .subscribe-strip a.cta-mini::after {{ content: "->"; }}
-  .subscribe-strip a.cta-mini.alt {{
-    background: var(--cyan);
+  .hasan-take-text {{ margin: 0; font-size: 14px; color: var(--ink-2); font-style: italic; }}
+  .hasan-angle {{
+    margin: 0 44px; padding: 10px 14px;
+    border-left: 3px solid var(--cyan);
+    font-size: 13px; color: var(--ink-2); font-style: italic;
+    background: rgba(0,212,255,0.04);
   }}
-  .subscribe-strip a.cta-mini.alt:hover {{ background: var(--violet); }}
+  .gulf-empty-note {{
+    font-size: 12.5px; color: var(--muted); font-style: italic;
+    padding: 0 18px 14px; margin: 0;
+  }}
   .section-header {{
     display: flex; align-items: center; gap: 14px;
     padding: 28px 44px 10px; border-top: 1px solid var(--line);
@@ -3319,7 +3517,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .email-capture a.ec-button:hover {{ background: var(--violet); transform: translateY(-1px); }}
   @media (max-width: 600px) {{
     body {{ padding: 16px 4px; }}
-    .masthead, .subscribe-strip, .section-header, .card, .me-block, .tip-block, .cta-section, .footer, .share-bar {{
+    .masthead, .section-header, .card, .me-block, .tip-block, .cta-section, .footer, .share-bar {{
       padding-left: 20px; padding-right: 20px;
     }}
     .email-capture {{ margin-left: 12px; margin-right: 12px; }}
@@ -3351,16 +3549,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <p class="byline">{author_photo_html}<span class="byline-name">By <strong>{author_name}</strong></span><span class="byline-brand">{author_role}</span><span class="byline-tag">{author_tagline}</span></p>
     <p class="social-links">{social_links_html}</p>
   </div>
-  <div class="subscribe-strip">
-    <div class="copy"><strong>Never miss an issue.</strong> Join SIGNAL — free, every Monday.</div>
-    <a class="cta-mini" href="{signup_url}" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
-    {beehiiv_strip_btn}
-  </div>
-  <!-- Email subscribe box (top) -->
+  <!-- v12.14 rule 8: subscribe block 1 of 2 (after the intro) -->
   {email_capture_top}
+  <!-- v12.14 rule 7: Hasan's voice at the top (filled at review, never by the agent) -->
+  <div class="hasan-take">
+    <p class="hasan-take-label">Hasan's take</p>
+    <p class="hasan-take-text">[HASAN'S TAKE: 2–3 sentences on the week's theme]</p>
+  </div>
   {viral_block}
-  <!-- Share buttons (after viral lead) -->
-  {share_bar}
+  <!-- v12.14 rule 7: Hasan's voice under the lead (filled at review, never by the agent) -->
+  <p class="hasan-angle">[HASAN'S ANGLE: optional 1 line]</p>
   <div class="section-header">
     <span class="index">02 //</span>
     <h2>Strategic Briefing</h2>
@@ -3380,19 +3578,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   </div>
   {everyday_cards}
   {tip_block}
-  <!-- Email subscribe box (bottom) -->
+  <!-- v12.14 rule 8: subscribe block 2 of 2 (at the end) -->
   {email_capture_bottom}
-  <!-- Share buttons (bottom) -->
-  {share_bar_bottom}
+  <!-- v12.14 rule 8: share buttons — once, at the end -->
   <div class="cta-section">
     <p class="cta-text">Enjoyed this issue? Share SIGNAL with a colleague who wants to stay sharp on AI.</p>
-    <a class="button" href="{signup_url}" target="_blank" rel="noopener">Subscribe on LinkedIn</a>
-    {beehiiv_main_btn}
+    {share_bar}
   </div>
   <div class="footer">
     {author_footer_html}<br>
     <em>Represents my own views and not that of my employer.</em><br><br>
-    {social_links_html} &middot; <a href="{signup_url}">LinkedIn Newsletter</a>
+    {social_links_html}
   </div>
 </div>
 </body>
@@ -3443,12 +3639,12 @@ def render_everyday_card(article, data):
 
 
 def render_middle_east_block(me_items, gulf_watch=None):
-    """Render the Middle East section, with the v12.8 Gulf Watch strip on top."""
+    """Render the Middle East section, with the v12.14 Gulf Watch strip on top."""
     gulf_watch = gulf_watch or []
     ksa = [a for a in gulf_watch if a.get("_gulf_country") == "KSA"]
     uae = [a for a in gulf_watch if a.get("_gulf_country") == "UAE"]
-    gulf_html = ""
-    if ksa or uae:
+    has_gulf = bool(ksa or uae)
+    if has_gulf:
         def _gulf_col(flag, name, arts):
             items = "".join(
                 f'<a class="gulf-item" href="{_h(a["link"], quote=True)}" target="_blank" rel="noopener">'
@@ -3463,6 +3659,13 @@ def render_middle_east_block(me_items, gulf_watch=None):
             + (_gulf_col("&#x1f1f8;&#x1f1e6;", "Saudi Arabia", ksa) if ksa else "")
             + (_gulf_col("&#x1f1e6;&#x1f1ea;", "UAE", uae) if uae else "")
             + '</div></div>')
+    else:
+        # v12.14 rule 4: honest-empty — say so rather than padding.
+        gulf_html = (
+            '<div class="gulf-watch gulf-empty">'
+            '<p class="gulf-watch-title">Gulf Watch <span>&mdash; KSA &amp; UAE at a glance</span></p>'
+            '<p class="gulf-empty-note">No qualifying KSA/UAE stories this week &mdash; nothing padded.</p>'
+            '</div>')
     items_html = ""
     for art, data in me_items:
         if not data or data.get("_analysis_failed"):
@@ -3473,7 +3676,7 @@ def render_middle_east_block(me_items, gulf_watch=None):
           <p class="me-tldr">{_h(str(data.get('tldr', '')))}</p>
           <a class="me-link" href="{_h(art['link'], quote=True)}" target="_blank" rel="noopener">Read more → {_h(art['source'])}</a>
         </div>"""
-    if not gulf_html and not items_html.strip():
+    if not has_gulf and not items_html.strip():
         return '<div class="me-block"><p style="color:var(--muted);font-size:13px;">No major Middle East AI stories this week.</p></div>'
     return f'<div class="me-block">{gulf_html}{items_html}</div>'
 
@@ -3524,7 +3727,19 @@ def _email_gulf_watch(gulf_watch):
     ksa = [a for a in gulf_watch if a.get("_gulf_country") == "KSA"]
     uae = [a for a in gulf_watch if a.get("_gulf_country") == "UAE"]
     if not ksa and not uae:
-        return ""
+        # v12.14 rule 4: honest-empty — say so rather than padding.
+        return (
+            f'<tr><td style="padding:8px 28px 8px 28px;">'
+            f'<table width="100%" cellpadding="0" cellspacing="0" '
+            f'style="background:#f3f6fb;border:1px solid #d9dfe9;">'
+            f'<tr><td style="padding:12px 16px;">'
+            f'<p style="margin:0;font-family:{_EMAIL_FONT};font-size:13px;font-weight:bold;'
+            f'color:#050d1f;">Gulf Watch '
+            f'<span style="font-weight:normal;color:#4a5468;">&mdash; KSA &amp; UAE at a glance</span></p>'
+            f'<p style="margin:6px 0 0 0;font-family:{_EMAIL_FONT};font-size:12px;'
+            f'color:#7b859a;font-style:italic;">No qualifying KSA/UAE stories this week '
+            f'&mdash; nothing padded.</p>'
+            f'</td></tr></table></td></tr>')
     def _col(flag, name, arts, full_width=False):
         items = "".join(
             f'<p style="margin:0 0 10px 0;font-family:{_EMAIL_FONT};font-size:13px;'
@@ -3585,6 +3800,21 @@ def build_email_html(issue_number_str, today, viral=None, viral_data=None,
         f'<table width="100%" cellpadding="0" cellspacing="0">'
         f'<tr><td style="border-top:2px solid #0e7490;font-size:0;line-height:0;">&nbsp;</td></tr>'
         f'</table></td></tr>')
+    # v12.14 rule 8: subscribe block 1 of 2 — right after the intro (forwarded readers)
+    if KIT_SIGNUP_URL:
+        body.append(
+            f'<tr><td align="center" style="padding:14px 28px 4px 28px;">'
+            f'<p style="margin:0;font-family:{_EMAIL_FONT};font-size:12px;color:#4a5468;">'
+            f'Was this forwarded to you? '
+            f'<a href="{_h(KIT_SIGNUP_URL, quote=True)}" '
+            f'style="color:#0e7490;text-decoration:none;font-weight:bold;">Subscribe free &rarr;</a></p>'
+            f'</td></tr>')
+    # v12.14 rule 7: Hasan's voice at the top (filled at review, never by the agent)
+    body.append(
+        f'<tr><td style="padding:10px 28px 0 28px;">'
+        f'<p style="margin:0;padding:10px 12px;border:1px dashed #94a3b8;border-radius:6px;'
+        f'font-family:{_EMAIL_FONT};font-size:12px;color:#475569;">'
+        f'<strong>Hasan&#8217;s take</strong><br>{HASAN_TAKE_PLACEHOLDER}</p></td></tr>')
 
     # 01 Viral lead
     if viral and viral_data and not viral_data.get("_analysis_failed"):
@@ -3595,6 +3825,12 @@ def build_email_html(issue_number_str, today, viral=None, viral_data=None,
              ("What happened", viral_data.get("what_happened", "")),
              ("Leader action", viral_data.get("leader_action", ""))],
             link=viral.get("link"), source=viral.get("source")))
+        # v12.14 rule 7: Hasan's voice under the lead
+        body.append(
+            f'<tr><td style="padding:0 28px 0 28px;">'
+            f'<p style="margin:0 0 6px 0;padding:8px 10px;border-left:3px solid #0e7490;'
+            f'font-family:{_EMAIL_FONT};font-size:12px;color:#475569;font-style:italic;">'
+            f'{HASAN_ANGLE_PLACEHOLDER}</p></td></tr>')
 
     # 02 Strategic Briefing
     biz_pairs = biz_pairs or []
@@ -4484,19 +4720,8 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
         issue_number = max(1, ((delta_days + 3) // 7) + 1)
     issue_number_str = f"{issue_number:03d}"
 
-    # Build Beehiiv buttons
-    if KIT_SIGNUP_URL:
-        beehiiv_strip_btn = (
-            f'<a class="cta-mini alt" href="{KIT_SIGNUP_URL}" '
-            f'target="_blank" rel="noopener">Subscribe by email</a>'
-        )
-        beehiiv_main_btn = (
-            f'<a class="button alt" href="{KIT_SIGNUP_URL}" '
-            f'target="_blank" rel="noopener">Subscribe by email</a>'
-        )
-    else:
-        beehiiv_strip_btn = ""
-        beehiiv_main_btn = ""
+    # v12.14 rule 8: the only subscribe CTAs are the two email-capture blocks
+    # (after the intro + at the end). No LinkedIn strip, no extra buttons.
 
     # Build canonical issue URL and OG image
     issue_url = f"{PAGES_BASE_URL}/newsletters/newsletter_{_issue_date_str()}.html"
@@ -4542,17 +4767,28 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
         middle_east_block=me_html,
         viral_block=viral_html,
         tip_block=tip_html,
-        signup_url=SIGNUP_URL,
         **_author_context(),
-        beehiiv_strip_btn=beehiiv_strip_btn,
-        beehiiv_main_btn=beehiiv_main_btn,
         issue_url=issue_url,
         og_image_url=og_image_url,
         email_capture_top=email_capture_html,
         email_capture_bottom=email_capture_html,
         share_bar=share_bar_html,
-        share_bar_bottom=share_bar_html,
     )
+
+    # 8b) v12.14: layout checks on the rendered outputs (rules 7+8) — these can
+    #     only run after rendering, so they extend the QA report post-hoc.
+    _email_html_qa = build_email_html(issue_number_str, today, viral=viral,
+                                      viral_data=viral_data, biz_pairs=biz_pairs,
+                                      eve_pairs=eve_pairs, me_items=me_items,
+                                      gulf_watch=picks.get("gulf_watch", []),
+                                      tip=tip)
+    _layout_checks = _check_rendered_layout(html, _email_html_qa)
+    qa_checks = list(qa_checks) + _layout_checks
+    qa_passed = not any(s == "FAIL" for s, _ in qa_checks)
+    _write_qa_report(qa_checks, qa_passed)
+    _icons = {"PASS": "\u2713", "WARN": "\u26a0", "FAIL": "\u2717"}
+    for _status, _msg in _layout_checks:
+        print(f"  {_icons[_status]} [{_status}] {_msg}")
 
     # 9) v10 PUBLISH GATE — a --publish run dies here on ANY QA FAIL.
     #    (The review-mode run above only warns; nothing ever leaves the box.)
@@ -4597,11 +4833,15 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     _write_take_suggestions_md(take_suggestions, "take_suggestions.md",
                                issue_number_str, today)
 
+    # 13b) v12.14 rule 9: editorial self-check — failures listed at the top of the draft.
+    self_check = _editorial_self_check(viral, viral_data, biz_pairs, eve_pairs,
+                                       me_items, tip, picks)
+
     # 14) v10: REVIEW_SUMMARY.md — the one file a human must read before publishing
     _write_review_summary(out_dir=".", publish=publish, qa_passed=qa_passed,
                           qa_checks=qa_checks, issue_number_str=issue_number_str,
                           today=today, viral=viral, tip=tip,
-                          files=sorted(os.listdir(".")))
+                          files=sorted(os.listdir(".")), self_check=self_check)
 
     # 14b) v11: Beehiiv DRAFT creation (draft-only — sending stays human).
     #      Runs after the review bundle; skipped with a warning when the
@@ -4630,14 +4870,188 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     print("=" * 60)
 
 
+# =========================================================
+# v12.14 rule 9 — EDITORIAL SELF-CHECK
+# =========================================================
+# The 7-point self-check Hasan dictated. Failures are listed at the top of the
+# draft (REVIEW_SUMMARY.md); deal-direction items need his eyes by design.
+
+def _link_resolves(url, timeout=6):
+    """v12.14 rule 9: does the link resolve (HTTP 200-399; 405 counts as alive)?"""
+    try:
+        req = urllib.request.Request(url, method="HEAD",
+                                     headers={"User-Agent": "SIGNAL-newsletter-agent/1.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return 200 <= resp.status < 400
+    except urllib.error.HTTPError as e:
+        return e.code == 405 or 200 <= e.code < 400
+    except Exception:
+        return False
+
+
+def _editorial_self_check(viral, viral_data, biz_pairs, eve_pairs, me_items,
+                          tip, picks, check_links=True):
+    """v12.14 rule 9: run Hasan's 7-point editorial self-check.
+
+    Returns a list of (status, label, detail); status is PASS / FAIL / REVIEW
+    (REVIEW = needs Hasan's judgment by design).
+    """
+    results = []
+    pairs = ([(viral, viral_data)] if viral else []) + list(biz_pairs or []) + \
+        list(eve_pairs or []) + list(me_items or [])
+
+    # 1) Deal direction matches the source — needs human eyes; flag deal stories.
+    deal_stories = []
+    for art, _ in pairs:
+        if not art:
+            continue
+        text = f"{art.get('title', '')} {art.get('summary', '')}".lower()
+        if any(k in text for k in DEAL_KEYWORDS):
+            deal_stories.append(art.get("title", "")[:55])
+    if deal_stories:
+        results.append(("REVIEW", "Deal direction matches the source",
+                        f"{len(deal_stories)} deal stor(ies) need a human direction check "
+                        f"(who pays / invests / gets equity): " + "; ".join(deal_stories[:3])))
+    else:
+        results.append(("PASS", "Deal direction matches the source",
+                        "no deal stories this issue"))
+
+    # 2) No "Why you care" restates its headline.
+    redundant = []
+    for art, data in pairs:
+        if not isinstance(data, dict):
+            continue
+        opener_words = set(_tokens(data.get("why_you_care") or ""))
+        if len(opener_words) >= 4:
+            head_words = set(_tokens(data.get("headline") or ""))
+            if len(opener_words & head_words) / len(opener_words) >= 0.6:
+                redundant.append((art.get("title", "") if art else "?")[:45])
+    if redundant:
+        results.append(("FAIL", "No 'Why you care' restates its headline",
+                        f"{len(redundant)} opener(s) restate the headline: " +
+                        "; ".join(redundant[:3])))
+    else:
+        results.append(("PASS", "No 'Why you care' restates its headline",
+                        "all openers add new information"))
+
+    # 3) Leader actions are realistic for a non-technical executive this week.
+    bad_actions = []
+    for art, data in pairs:
+        if not isinstance(data, dict):
+            continue
+        action = (data.get("leader_action") or "")
+        if any(re.search(pat, action.lower()) for pat in BANNED_LEADER_ACTION_PATTERNS):
+            bad_actions.append(f"{(art.get('title', '') if art else '?')[:40]}: {action[:55]}")
+    if bad_actions:
+        results.append(("FAIL", "Leader actions pass the 'executive could do this this week?' test",
+                        "unrealistic action(s): " + "; ".join(bad_actions[:3])))
+    else:
+        results.append(("PASS", "Leader actions pass the 'executive could do this this week?' test",
+                        "all actions executable this week (or 'Watch:')"))
+
+    # 4) Gulf Watch: ≥1 KSA + ≥1 UAE from different outlets (honest-empty is a REVIEW).
+    gw = picks.get("gulf_watch", []) or []
+    ksa = [a for a in gw if a.get("_gulf_country") == "KSA"]
+    uae = [a for a in gw if a.get("_gulf_country") == "UAE"]
+    if not gw:
+        results.append(("REVIEW", "Gulf Watch has KSA + UAE from different outlets",
+                        "empty this week — honest-empty note renders; confirm nothing qualified"))
+    elif not ksa or not uae:
+        results.append(("FAIL", "Gulf Watch has KSA + UAE from different outlets",
+                        f"missing {'UAE' if ksa else 'KSA'} item"))
+    elif len({a.get("source") for a in gw}) < 2:
+        results.append(("FAIL", "Gulf Watch has KSA + UAE from different outlets",
+                        "all items from a single outlet"))
+    else:
+        results.append(("PASS", "Gulf Watch has KSA + UAE from different outlets",
+                        f"{len(ksa)} KSA + {len(uae)} UAE"))
+
+    # 5) All links resolve to the described page.
+    if check_links:
+        dead = []
+        links = [(art.get("title", "")[:45], art.get("link", "")) for art, _ in pairs if art]
+        if isinstance(tip, dict) and tip.get("link_url"):
+            links.append((f"Tip: {tip.get('title', '')[:35]}", tip["link_url"]))
+        for title, link in links:
+            if link and not _link_resolves(link):
+                dead.append(title)
+        if dead:
+            results.append(("FAIL", "All links resolve to the described page",
+                            f"{len(dead)} dead link(s): " + "; ".join(dead[:3])))
+        else:
+            results.append(("PASS", "All links resolve to the described page",
+                            f"{len(links)} links resolve"))
+    else:
+        results.append(("PASS", "All links resolve to the described page",
+                        "link liveness skipped (hermetic run)"))
+
+    # 6) Tip is recent and not basic.
+    tip_problems = []
+    if isinstance(tip, dict) and tip:
+        if tip.get("_tip_url_fallback"):
+            tip_problems.append("link fell back to archive URL")
+        tip_text = f"{tip.get('title', '')} {tip.get('what', '')}".lower()
+        basic = [p for p in BASIC_TIP_PHRASES if p in tip_text]
+        if basic:
+            tip_problems.append(f"looks basic ({basic[0]})")
+    else:
+        tip_problems.append("no tip generated")
+    if tip_problems:
+        results.append(("FAIL", "Tip is recent and not basic", "; ".join(tip_problems)))
+    else:
+        title = tip.get("title", "")[:50] if isinstance(tip, dict) else ""
+        results.append(("PASS", "Tip is recent and not basic",
+                        f"'{title}' links a real page"))
+
+    # 7) Draft marked DRAFT — pending Hasan's review (always recorded).
+    results.append(("PASS", "Draft marked DRAFT — pending Hasan's review",
+                    "review bundle carries the DRAFT banner"))
+    return results
+
+
+def _check_rendered_layout(html, email_html):
+    """v12.14 rules 7+8 on the rendered outputs: exactly two subscribe blocks,
+    share buttons once at the end, Hasan's placeholders present, bio intact."""
+    checks = []
+    n_sub = html.count('class="email-capture"')
+    checks.append(("PASS" if n_sub == 2 else "FAIL",
+                   f"v12.14 Layout: web has {n_sub} subscribe block(s) (rule 8: exactly 2)"))
+    n_share = html.count('class="share-bar"')
+    checks.append(("PASS" if n_share == 1 else "FAIL",
+                   f"v12.14 Layout: web has {n_share} share-bar(s) (rule 8: once, at the end)"))
+    bio_ok = _h(AUTHOR_TAGLINE) in html
+    checks.append(("PASS" if bio_ok else "FAIL",
+                   "v12.14 Layout: approved author bio unchanged (rule 8)"))
+    for page, label in ((html, "web"), (email_html, "email")):
+        for ph, name in ((HASAN_TAKE_PLACEHOLDER, "HASAN'S TAKE"),
+                         (HASAN_ANGLE_PLACEHOLDER, "HASAN'S ANGLE")):
+            present = ph in page
+            checks.append(("PASS" if present else "FAIL",
+                           f"v12.14 Voice: {label} {'has' if present else 'MISSING'} "
+                           f"{name} placeholder (rule 7)"))
+    return checks
+
+
 def _write_review_summary(out_dir, publish, qa_passed, qa_checks, issue_number_str,
-                          today, viral, tip, files):
+                          today, viral, tip, files, self_check=None):
     """Write REVIEW_SUMMARY.md: the single file a human reads before publishing (v10)."""
     path = os.path.join(out_dir, "REVIEW_SUMMARY.md")
     fails = [m for s, m in qa_checks if s == "FAIL"]
     warns = [m for s, m in qa_checks if s == "WARN"]
     lines = [
         f"# SIGNAL #{issue_number_str} — Review Summary",
+        "",
+        "> **DRAFT — pending Hasan's review**",
+        "",
+        "## v12.14 Editorial self-check (rule 9 — failures listed at the top)",
+    ]
+    if self_check:
+        _icons = {"PASS": "\u2705", "FAIL": "\u274c", "REVIEW": "\U0001f440\ufe0f"}
+        for _status, _label, _detail in self_check:
+            lines.append(f"- {_icons.get(_status, '')} **{_status}** — {_label}: {_detail}")
+    else:
+        lines.append("- self-check not run")
+    lines += [
         "",
         f"- Date: {today}",
         f"- Mode: {'PUBLISH (final outputs)' if publish else 'REVIEW-ONLY (not published)'}",
@@ -4664,6 +5078,12 @@ def _write_review_summary(out_dir, publish, qa_passed, qa_checks, issue_number_s
         "## Human actions required",
     ]
     lines.append(f"- [ ] Verify viral lead: {viral['title'][:80] if viral else 'none'}")
+    lines.append(f"- [ ] Sanity-check tip of the week: {tip.get('title', '')[:60] if tip else 'none'}")
+    lines.append("- [ ] FILL HASAN'S VOICE: replace the [HASAN'S TAKE] and [HASAN'S ANGLE] "
+                 "placeholders with your own words before publishing (the agent never writes these).")
+    for _status, _label, _detail in (self_check or []):
+        if _status == "REVIEW" and _label.startswith("Deal direction"):
+            lines.append(f"- [ ] DEAL DIRECTION: {_detail}")
     lines.append(f"- [ ] Sanity-check tip of the week: {tip.get('title', '')[:60] if tip else 'none'}")
     lines.append("- [ ] Review social_derivatives.json outlines before any social posting.")
     lines.append("- [ ] REVIEW TAKE SUGGESTIONS: read take_suggestions.md — pick angles, "
