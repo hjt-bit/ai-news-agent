@@ -1547,6 +1547,94 @@ check("V12.14" in _inspect.getsource(agent.analyze_article),
       "v12.14 sourcing preference is in the regional prompt")
 
 
+# ─── v12.15 TESTS — Threads-native format wired into the agent ────────────────
+banner("v12.15 TESTS — Threads-native format (Sep 28 2026 decision)")
+
+check(agent.EXPORT_THREADS is True, "v12.15 EXPORT_THREADS flag is on")
+
+_b2 = (mk_article("MGX commits to Stargate", "https://x.com/b2", source="Bloomberg"),
+       {"headline": "MGX backs Stargate with $20B", "why_you_care": "Gulf money shapes AI infra.",
+        "what_happened": "Commitment signed.", "leader_action": "Watch the partner list."})
+
+_cwd = os.getcwd()
+with tempfile.TemporaryDirectory() as _td:
+    os.chdir(_td)
+    try:
+        _tf = agent.export_threads_post("September 28, 2026", "022",
+                                        (_v, _vd), [_b, _b2], [_e], [_m], _tip)
+        _tt = open(_tf, encoding="utf-8").read()
+    finally:
+        os.chdir(_cwd)
+check(os.path.basename(_tf).startswith("threads_post_") and _tf.endswith(".md"),
+      "v12.15 export writes threads_post_<date>.md")
+
+for _h in ["## POST 1", "## POST 2", "## POST 3", "## POST 4", "## POST 5",
+           "MIDWEEK DRIP POSTS", "### Drip 1", "### Drip 2"]:
+    check(_h in _tt, f"v12.15 thread has section: {_h}")
+
+# hook-first: POST 1 leads with the viral lead's take, linkless, no promo line
+_hook_body = _tt.split("## POST 2")[0]
+check("Cheaper agents for you" in _hook_body,
+      "v12.15 hook leads with the viral story's take")
+check("http" not in _hook_body and "issue is out" not in _tt.lower(),
+      "v12.15 hook is linkless and never says the issue is out")
+check("🧵" in _hook_body, "v12.15 hook marks the thread")
+
+# one story per reply
+for _headline in ["Anthropic raises $5B", "Photo app goes viral", "Riyadh hosts AI summit"]:
+    check(_headline in _tt, f"v12.15 story reply carries: {_headline}")
+check("→ " in _tt, "v12.15 story replies carry the leader action")
+
+# the newsletter URL appears exactly once, and only in the final reply
+_post5 = _tt.split("## POST 5")[1]
+check(_tt.count("http") == 2,
+      "v12.15 file has exactly two URLs (issue link + subscribe)")
+check("http" in _post5 and "http" not in _tt.split("## POST 5")[0],
+      "v12.15 links live ONLY in the final reply")
+check(agent.PAGES_BASE_URL in _post5,
+      "v12.15 final reply links the issue archive")
+
+# drip posts are standalone and linkless
+_drips = _tt.split("MIDWEEK DRIP POSTS")[1]
+check("http" not in _drips, "v12.15 drip posts are linkless")
+check("MGX backs Stargate" in _drips, "v12.15 drip posts reuse leftover stories")
+
+# sanitizer strips URLs that slip into story copy (end-to-end)
+_evil_data = dict(_vd); _evil_data["why_you_care"] = "See https://evil.example/x for details."
+with tempfile.TemporaryDirectory() as _td2:
+    os.chdir(_td2)
+    try:
+        _tf2 = agent.export_threads_post("September 28, 2026", "022",
+                                         (_v, _evil_data), [_b], [_e], [_m], _tip)
+        _tt2 = open(_tf2, encoding="utf-8").read()
+    finally:
+        os.chdir(_cwd)
+check("evil.example" not in _tt2.split("## POST 5")[0],
+      "v12.15 URL sanitizer strips links from linkless posts")
+
+# empty issue: fail-closed, no thread generated
+with tempfile.TemporaryDirectory() as _td3:
+    os.chdir(_td3)
+    try:
+        _tf3 = agent.export_threads_post("September 28, 2026", "022",
+                                         None, [], [], [], None)
+        _tt3 = open(_tf3, encoding="utf-8").read()
+    finally:
+        os.chdir(_cwd)
+check("No stories qualified" in _tt3,
+      "v12.15 empty issue writes a skipped-thread note, not a thread")
+
+# helper units: truncation keeps posts within the Threads limit
+check(len(agent._threads_trunc("word " * 400)) <= agent.THREADS_POST_MAX and
+      agent._threads_trunc("word " * 400).endswith("…"),
+      "v12.15 _threads_trunc caps post length safely")
+
+# wiring: the pipeline calls the export
+import inspect as _inspect2
+check("export_threads_post" in _inspect2.getsource(agent.generate_newsletter),
+      "v12.15 generate_newsletter calls export_threads_post")
+
+
 # ─── SUMMARY ─────────────────────────────────────────────────────────────────
 print("=" * 60)
 print(f"  RESULT: {passed} passed, {failed} failed")

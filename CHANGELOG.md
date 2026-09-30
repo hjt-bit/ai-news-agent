@@ -1,5 +1,22 @@
 # SIGNAL Agent — Changelog
 
+## v12.15 (2026-09-30) — Threads-native format wired into the agent
+
+- Hasan's Sep 28 2026 decision (after the #021 Threads post flopped at ~0 reach)
+  is now code: every run generates `threads_post_YYYY_MM_DD.md` in the review
+  bundle — a Threads-native launch thread + midweek drip posts.
+  - POST 1: hook-first take on the viral lead (linkless, never "this week's
+    issue is out"). POSTS 2–4: one story per reply (headline + why-you-care +
+    leader action). POST 5: the ONLY place a link appears (issue URL + Kit
+    subscribe). Then 2 standalone, linkless drip posts (suggested Wed/Thu)
+    built from leftover stories.
+  - Deterministic, no LLM: built from the verified story analysis the same way
+    the LinkedIn export is. Fail-closed URL guardrail: any URL leaking into a
+    linkless post aborts the run; every post body is capped at the Threads
+    character limit.
+  - Posting stays manual — Hasan approves each post via threads-cli.
+- Live with the #022 run (Sun Oct 4, 17:00 GST).
+
 ## v12.14 (2026-09-30) — Editorial rules + expanded Middle East section
 
 - Hasan's standing editorial rules (GitHub issues #1 and #2) are now

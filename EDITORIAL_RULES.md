@@ -1,9 +1,8 @@
 # EDITORIAL RULES FOR SIGNAL — apply to every issue
 
-Noted 2026-09-28 from Hasan. NOT YET ENCODED IN CODE.
-Action: encode into agent.py + agent_v10.py (packaging rule: every v12.x change
-updates BOTH files) as v12.14 before the next issue run (#022, Sunday 2026-10-04
-17:00 GST agent run).
+Noted 2026-09-28 from Hasan. Rules 1–9 ENCODED IN CODE as v12.14 (2026-09-30).
+Rule 10 (Threads-native format, decided Sep 28 2026) ENCODED as v12.15 (2026-09-30).
+Packaging rule: every v12.x change updates BOTH agent.py and agent_v10.py.
 
 ## AUDIENCE
 Senior leaders in the GCC, especially Saudi Arabia and the UAE: executives,
@@ -87,3 +86,18 @@ Before finalizing, confirm each of these and list any failures at the top of the
 - All links resolve to the described page.
 - The tip is recent and not basic.
 - The draft is marked DRAFT, pending Hasan's review.
+
+## 10. THREADS-NATIVE FORMAT (Sep 28 2026 decision — ENCODED as v12.15)
+After the #021 Threads post flopped (~0 reach on a long promo post with a link
+preview), SIGNAL posts on Threads in a Threads-native format, generated
+deterministically from the verified story analysis every run:
+- Hook-first: lead with the most surprising story as a take — NEVER
+  "this week's issue is out".
+- Thread 3–4 replies, one story each (headline + why-you-care + leader action).
+- The newsletter link appears ONLY in the final reply.
+- 2 standalone, linkless drip posts for midweek (suggested Wed/Thu).
+- Every post body stays within the Threads character limit; URLs are
+  URL-sanitized out of every linkless post (fail-closed: the run aborts if a
+  URL leaks outside the final reply).
+- Posting itself stays manual: Hasan approves each post via threads-cli.
+  The generated thread is copy for review in threads_post_YYYY_MM_DD.md.

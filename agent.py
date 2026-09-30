@@ -8,7 +8,7 @@ Pipeline:
                    podcast mention signals, audience relevance)
   4. SELECT     -> pick top stories enforcing source diversity (max 2 per source)
   5. ANALYZE    -> ask the LLM for a structured, scannable card per story
-  6. PUBLISH    -> render a polished HTML newsletter + LinkedIn export
+  6. PUBLISH    -> render a polished HTML newsletter + LinkedIn/Threads exports
 
 Built as a learning project for the MIT Applied Agentic course.
 """
@@ -62,6 +62,11 @@ else:
 
 # Also export a LinkedIn-formatted version of the newsletter on each run.
 EXPORT_LINKEDIN = True
+
+# v12.15: also generate the Threads-native launch thread + midweek drip posts
+# (hook-first thread, link only in the final reply). Posting itself stays
+# manual — Hasan approves each post via threads-cli.
+EXPORT_THREADS = True
 
 # ── One-off overrides (v10) ────────────────────────────────────────────────────
 # FORCED_LEAD / FORCED_ISSUE module constants were REMOVED in v10: they were a
@@ -4247,6 +4252,158 @@ def export_linkedin_post(date_str, issue_number, viral_pair, biz_pairs, eve_pair
 
 
 # =========================================================
+# 8b. THREADS EXPORT — Threads-native launch thread (v12.15)
+# =========================================================
+# Hasan's Sep 28 2026 decision after the #021 Threads post flopped (~0 reach
+# on a long promo post with a link preview): Threads-native format, not promo
+# copy —
+#   1. Hook-first: lead with the most surprising story as a take —
+#      NEVER "this week's issue is out".
+#   2. Thread 3–4 replies, one story each (headline + why-you-care + action).
+#   3. The newsletter link appears ONLY in the final reply.
+#   4. 2 standalone, linkless drip posts for midweek (Wed/Thu).
+# Deterministic (no LLM): built from the verified story analysis the same way
+# the LinkedIn export is. Posting itself stays manual — Hasan approves each
+# post via threads-cli.
+THREADS_HOOK_MAX = 260
+THREADS_POST_MAX = 500
+
+
+def _threads_strip_urls(text):
+    """Remove any http(s) URL — linkless posts must carry no links."""
+    return re.sub(r"https?://\S+", "", text).strip()
+
+
+def _threads_trunc(text, limit=THREADS_POST_MAX):
+    text = " ".join(text.split())
+    if len(text) <= limit:
+        return text
+    cut = text.rfind(" ", 0, limit - 1)
+    return text[:cut if cut > 0 else limit - 1].rstrip() + "…"
+
+
+def _threads_story_lines(art, data):
+    """One story as a single Threads reply: headline + insight + action."""
+    headline = ((data or {}).get("headline") or art.get("title", "")).strip()
+    why = ((data or {}).get("why_you_care") or (data or {}).get("tldr") or "").strip()
+    action = ((data or {}).get("leader_action") or (data or {}).get("what_to_do") or "").strip()
+    lines = [headline]
+    if why:
+        lines += ["", why]
+    if action:
+        lines += ["", "→ " + action]
+    return lines
+
+
+def _threads_clean(pair):
+    return pair is not None and (pair[1] or {}).get("_analysis_failed") is not True
+
+
+def export_threads_post(date_str, issue_number, viral_pair, biz_pairs, eve_pairs, me_items, tip):
+    """Write the Threads-native launch thread + midweek drip posts for review.
+
+    Output is threads_post_YYYY_MM_DD.md: a 5-post thread (hook-first take,
+    3 one-story replies, final link reply) plus 2 standalone linkless drip
+    posts. The newsletter URL appears ONLY in the final reply — every other
+    body is URL-sanitized (fail-closed: assertion aborts on any leak).
+    """
+    print("\n  Exporting Threads-native thread (v12.15)...")
+    issue_url = f"{PAGES_BASE_URL}/newsletters/newsletter_{_issue_date_str()}"
+
+    # ── Candidate stories: one per section first (variety), then backfill ──
+    sections = [
+        [p for p in biz_pairs if _threads_clean(p)],
+        [p for p in eve_pairs if _threads_clean(p)],
+        [p for p in me_items if _threads_clean(p)],
+    ]
+    picks = []
+    for sec in sections:
+        if len(picks) < 3 and sec:
+            picks.append(sec[0])
+    leftovers = [p for sec in sections for p in sec[1:]]
+    while len(picks) < 3 and leftovers:
+        picks.append(leftovers.pop(0))
+
+    fname = f"threads_post_{_issue_date_str()}.md"
+    if not (_threads_clean(viral_pair)) and not picks:
+        with open(fname, "w", encoding="utf-8") as f:
+            f.write(f"# SIGNAL #{issue_number} — Threads launch thread\n\n"
+                    "No stories qualified this week — thread not generated.\n")
+        print("  No qualified stories — Threads thread skipped.")
+        return fname
+
+    # ── POST 1: hook-first take on the viral lead (NO link, NO promo line) ──
+    hook_text = ""
+    if _threads_clean(viral_pair):
+        _, vdata = viral_pair
+        why = (vdata.get("why_you_care") or "").strip()
+        hook_text = why.split(". ")[0] if why else vdata.get("headline", "")
+    if not hook_text and picks:
+        hook_text = (picks[0][1] or {}).get("headline") or picks[0][0].get("title", "")
+    hook_body = _threads_trunc(_threads_strip_urls(hook_text), THREADS_HOOK_MAX) + "\n\n🧵"
+    posts = [("POST 1 (main — hook-first, NO link)", hook_body)]
+
+    # ── POSTS 2–4: one story per reply ──
+    for pair in picks[:3]:
+        body = _threads_trunc(
+            _threads_strip_urls("\n".join(_threads_story_lines(*pair))),
+            THREADS_POST_MAX)
+        posts.append((f"POST {len(posts) + 1} (reply — one story)", body))
+
+    # ── POST 5: the ONLY place a link appears ──
+    link_lines = ["That's the week in AI, in five minutes:", "", issue_url]
+    if KIT_SIGNUP_URL:
+        link_lines += ["", f"Get SIGNAL in your inbox every Monday (free): {KIT_SIGNUP_URL}"]
+    posts.append(("POST 5 (final reply — ONLY link in the whole thread)",
+                  "\n".join(link_lines)))
+
+    # ── Midweek drip posts: standalone + linkless ──
+    used_ids = {id(p[0]) for p in picks}
+    if _threads_clean(viral_pair):
+        used_ids.add(id(viral_pair[0]))
+    drip_candidates = [p for sec in sections for p in sec if id(p[0]) not in used_ids]
+    if tip:
+        drip_candidates.append(
+            ({"title": tip.get("title", "Tip of the week")},
+             {"headline": tip.get("title", "Tip of the week"),
+              "why_you_care": tip.get("one_liner") or tip.get("what") or "",
+              "leader_action": tip.get("try_this") or ""}))
+    drip_days = ["Wed", "Thu"]
+    drips = []
+    for j, pair in enumerate(drip_candidates[:2]):
+        body = _threads_trunc(
+            _threads_strip_urls("\n".join(_threads_story_lines(*pair))),
+            THREADS_POST_MAX)
+        drips.append((f"Drip {j + 1} — suggested {drip_days[j]} (standalone, linkless)", body))
+
+    # ── Fail-closed guardrails: no URL may leak outside the final reply ──
+    linkless_bodies = [b for _, b in posts[:-1]] + [b for _, b in drips]
+    assert not any(re.search(r"https?://", b) for b in linkless_bodies), \
+        "v12.15 Threads guardrail: URL found outside the final reply"
+    assert issue_url in posts[-1][1], \
+        "v12.15 Threads guardrail: final reply must carry the issue link"
+
+    lines = [f"# SIGNAL #{issue_number} — Threads launch thread",
+             "",
+             "Threads-native format (v12.15). Posting notes:",
+             "- Post 1 goes up linkless first, Mon ~08:00 GST.",
+             "- Reply to Post 1 with Posts 2–5 in order, a minute or two apart.",
+             "- Drip posts are standalone and linkless — suggested days Wed / Thu.",
+             "- Posting stays manual: Hasan approves each post via threads-cli.",
+             ""]
+    for heading, body in posts:
+        lines += ["---", "", f"## {heading}", "", body, ""]
+    lines += ["---", "", "## MIDWEEK DRIP POSTS (standalone, linkless)", ""]
+    for heading, body in drips:
+        lines += [f"### {heading}", "", body, ""]
+
+    with open(fname, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    print(f"  Threads thread written -> {fname}")
+    return fname
+
+
+# =========================================================
 # 9. BEEHIIV EMAIL EXPORT (v8)
 # =========================================================
 def export_beehiiv_email(date_str, issue_number, viral_pair, biz_pairs, eve_pairs, me_items, tip, gulf_watch=None):
@@ -4808,6 +4965,12 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     if EXPORT_LINKEDIN:
         export_linkedin_post(today, issue_number_str, viral_pair, biz_pairs, eve_pairs,
                              me_items, tip)
+
+    # 11b) v12.15: Threads-native launch thread + midweek drip posts (copy for
+    #      review — posting itself stays manual/Hasan-approved via threads-cli)
+    if EXPORT_THREADS:
+        export_threads_post(today, issue_number_str, viral_pair, biz_pairs, eve_pairs,
+                            me_items, tip)
 
     # 12) Beehiiv email export
     if EXPORT_LINKEDIN:  # reuse same flag — if we export LinkedIn, we export email too
