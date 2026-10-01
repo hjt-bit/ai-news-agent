@@ -633,16 +633,17 @@ DEAL_KEYWORDS = (
     "funding round", "raises", "valued at", "takes a stake",
 )
 
-# v12.14: Middle East discovery queries (Google News RSS — the Saudi outlets
-# on Hasan's source list don't publish stable RSS feeds).
-GNEWS_ME_QUERIES = (
+# v12.14: Middle East discovery queries. v12.16: served by Serper News
+# search (the Saudi outlets on Hasan's source list don't publish stable
+# RSS feeds, and Google News RSS links no longer resolve server-side).
+ME_DISCOVERY_QUERIES = (
     "artificial intelligence Saudi Arabia",
     "AI SDAIA Saudi",
     "artificial intelligence UAE",
     "AI startup funding Middle East",
 )
-GNEWS_ME_MAX_PER_QUERY = 8    # redirect resolutions per query (bounded)
-GNEWS_ME_MAX_TOTAL = 24       # redirect resolutions per run (bounded)
+ME_DISCOVERY_MAX_PER_QUERY = 8    # stories kept per query (bounded)
+ME_DISCOVERY_MAX_TOTAL = 24       # stories kept per run (bounded)
 
 def _gulf_hits(text, keywords):
     return sum(1 for kw in keywords
@@ -760,15 +761,15 @@ def fetch_recent_news(days=LOOKBACK_DAYS):
             source_counts[source] = f"FAILED: {e}"
             print(f"  ✗ {source}: {e}")
 
-    # v12.14: Middle East discovery — Saudi/UAE AI coverage via Google News RSS.
+    # v12.16: Middle East discovery — Saudi/UAE AI coverage via Serper News.
     try:
-        me_extra = fetch_gnews_middle_east(days)
+        me_extra = fetch_serper_middle_east(days)
         for art in me_extra:
             recent.append(art)
-        source_counts["Google News (ME queries)"] = len(me_extra)
+        source_counts["Serper News (ME queries)"] = len(me_extra)
     except Exception as e:
-        source_counts["Google News (ME queries)"] = f"FAILED: {e}"
-        print(f"  \u2717 Google News ME discovery: {e}")
+        source_counts["Serper News (ME queries)"] = f"FAILED: {e}"
+        print(f"  \u2717 Serper ME discovery: {e}")
 
     # Print source fetch report
     print(f"\n  Source Fetch Report:")
@@ -784,76 +785,107 @@ def fetch_recent_news(days=LOOKBACK_DAYS):
     return recent
 
 # =========================================================
-# v12.14 MIDDLE EAST DISCOVERY — Google News RSS
+# v12.16 MIDDLE EAST DISCOVERY — Serper News search
 # =========================================================
 # The Saudi outlets on Hasan's source list (Arab News, Saudi Gazette, Asharq
 # Al-Awsat English, Al Arabiya English, SPA English, MAGNiTT, Wamda) don't
 # publish stable RSS feeds, so the Middle East section is discovered through
-# Google News RSS searches scoped to Saudi/UAE AI coverage. Stable, keyless,
-# and each story carries its real outlet name via the <source> element.
-def _resolve_gnews_link(url, timeout=8):
-    """Follow a Google News RSS redirect to the publisher's article URL."""
-    try:
-        req = urllib.request.Request(
-            url, headers={"User-Agent": "SIGNAL-newsletter-agent/1.0"})
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            final = resp.geturl()
-            if final and "news.google.com" not in (
-                    urllib.parse.urlparse(final).hostname or ""):
-                return final
-    except Exception:
-        pass
+# Serper News searches scoped to Saudi/UAE AI coverage. v12.14 tried Google
+# News RSS first, but Google no longer HTTP-redirects the new-style RSS
+# article URLs for server-side fetches, so every story was dropped at link
+# resolution. Serper returns the publisher's exact article URL directly.
+def _parse_serper_news_date(text):
+    """Best-effort parse of a Serper News date string -> datetime or None.
+
+    Serper returns forms like 'Oct 1, 2026', '5 hours ago', '2 days ago'.
+    Unparseable values return None; callers keep the story (Serper already
+    time-filters) rather than dropping it.
+    """
+    t = (text or "").strip()
+    if not t:
+        return None
+    for fmt in ("%b %d, %Y", "%B %d, %Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(t, fmt)
+        except ValueError:
+            continue
+    m = re.match(r"(\d+)\s+(hour|day|week|month)s?\s+ago", t.lower())
+    if m:
+        n, unit = int(m.group(1)), m.group(2)
+        delta = {"hour": timedelta(hours=n), "day": timedelta(days=n),
+                 "week": timedelta(weeks=n), "month": timedelta(days=30 * n)}[unit]
+        return datetime.now() - delta
+    if t.lower() in ("just now",):
+        return datetime.now()
     return None
 
 
-def fetch_gnews_middle_east(days=LOOKBACK_DAYS):
-    """v12.14: discover Middle East AI stories via Google News RSS."""
-    from urllib.parse import quote
-    print(f"\n  [v12.14] Middle East discovery via Google News RSS "
-          f"({len(GNEWS_ME_QUERIES)} queries)")
+def fetch_serper_middle_east(days=LOOKBACK_DAYS):
+    """v12.16: discover Middle East AI stories via Serper News search.
+
+    Degrades gracefully without SERPER_API_KEY (returns [] with a warning,
+    never crashes) — the same pattern as the fact-check search. Stories are
+    the publisher's exact article URLs (no redirect resolution needed).
+    """
+    print(f"\n  [v12.16] Middle East discovery via Serper News "
+          f"({len(ME_DISCOVERY_QUERIES)} queries)")
+    api_key = os.environ.get("SERPER_API_KEY", "").strip()
+    if not api_key:
+        print("    \u26a0 SERPER_API_KEY not set — Middle East discovery skipped.")
+        return []
     cutoff = datetime.now() - timedelta(days=days)
+    # Serper time filter: qdr:d (<=1 day window) or qdr:w (past week+)
+    tbs = "qdr:w" if days >= 2 else "qdr:d"
     found = []
     seen_links = set()
-    resolved = 0
-    for q in GNEWS_ME_QUERIES:
-        url = ("https://news.google.com/rss/search?q=" + quote(q) +
-               "&hl=en&gl=SA&ceid=SA:en")
+    for q in ME_DISCOVERY_QUERIES:
+        if len(found) >= ME_DISCOVERY_MAX_TOTAL:
+            break
         try:
-            feed = feedparser.parse(url)
+            payload = json.dumps({"q": q, "num": 10, "tbs": tbs}).encode("utf-8")
+            req = urllib.request.Request(
+                "https://google.serper.dev/news",
+                data=payload,
+                headers={
+                    "X-API-KEY": api_key,  # never logged
+                    "Content-Type": "application/json",
+                    "User-Agent": "SIGNAL-newsletter-agent/1.0",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8", errors="ignore") or "{}")
         except Exception as e:
-            print(f"    \u2717 query '{q}': {e}")
+            print(f"    \u2717 query '{q}': {type(e).__name__}")
             continue
         nq = 0
-        for entry in feed.entries:
-            if resolved >= GNEWS_ME_MAX_TOTAL or nq >= GNEWS_ME_MAX_PER_QUERY:
+        for item in (data.get("news") or []):
+            if len(found) >= ME_DISCOVERY_MAX_TOTAL or nq >= ME_DISCOVERY_MAX_PER_QUERY:
                 break
-            try:
-                pub = datetime.fromtimestamp(mktime(entry.published_parsed))
-            except Exception:
-                continue
-            if pub <= cutoff:
-                continue
-            link = _resolve_gnews_link(entry.link)
-            if not link or link in seen_links:
+            title = (item.get("title") or "").strip()
+            link = (item.get("link") or "").strip()
+            if not title or not link or link in seen_links:
                 continue
             if not is_valid_article_link(link):
                 continue
-            resolved += 1
-            nq += 1
+            pub = _parse_serper_news_date(item.get("date")) or datetime.now()
+            if pub <= cutoff:
+                continue
             seen_links.add(link)
-            src = entry.get("source", {})
-            outlet = src.get("title") if isinstance(src, dict) else str(src)
             found.append({
-                "title": entry.title,
+                "title": title,
                 "link": link,
-                "source": outlet or "Google News",
-                "summary": (entry.get("summary", "") or "")[:600],
+                "source": (item.get("source") or "").strip() or "Serper News",
+                "summary": (item.get("snippet") or "")[:600],
                 "published": pub,
-                "_gnews_me": True,
+                "_me_discovery": True,
             })
+            nq += 1
         print(f"    \u2713 '{q}': {nq} stories")
-    print(f"  [v12.14] Middle East pool: {len(found)} stories")
+    print(f"  [v12.16] Middle East pool: {len(found)} stories")
     return found
+
+
 
 
 # =========================================================

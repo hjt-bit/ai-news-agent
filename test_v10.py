@@ -1503,35 +1503,43 @@ check("Editorial self-check" in _rs and _rs.index("Editorial self-check") < _rs.
 check("FILL HASAN'S VOICE" in _rs and "DEAL DIRECTION" in _rs,
       "v12.14 review summary lists placeholder + deal-direction human actions")
 
-# rule 4: Google News discovery wires Saudi outlets in as Middle East items
-class _FakeEntry(dict):
-    """Mimics feedparser's FeedParserDict: attribute + item access."""
-    def __getattr__(self, name):
-        try:
-            return self[name]
-        except KeyError:
-            raise AttributeError(name)
-_fake_feed = types.SimpleNamespace(entries=[_FakeEntry({
-    "title": "SDAIA announces new Arabic model", "link": "https://news.google.com/rss/articles/x",
-    "published_parsed": (datetime.now() - timedelta(days=1)).timetuple(),
-    "summary": "Riyadh's AI authority launched a model.",
-    "source": {"title": "Arab News"}})])
-_orig_parse = agent.feedparser.parse
-_orig_resolve = agent._resolve_gnews_link
-agent.feedparser.parse = lambda url: _fake_feed
-agent._resolve_gnews_link = lambda url, timeout=8: "https://www.arabnews.com/node/123"
+# rule 4: Serper News discovery wires Saudi outlets in as Middle East items
+def _serper_news_json(items):
+    # Serper News shape: {"news": [{"title", "link", "snippet", "date", "source"}]}
+    return json.dumps({"news": items})
+
+FAKE_SERPER_JSON = _serper_news_json([
+    {"title": "SDAIA announces new Arabic model",
+     "link": "https://www.arabnews.com/node/123",
+     "snippet": "Riyadh's AI authority launched a model in Saudi Arabia.",
+     "date": "1 day ago", "source": "Arab News"},
+    {"title": "Old story out of window",
+     "link": "https://example.com/old",
+     "snippet": "Stale.", "date": "30 days ago", "source": "Example"},
+])
+_urlreq.urlopen = _fake_urlopen
 try:
-    _me_found = agent.fetch_gnews_middle_east(days=7)
+    with mock.patch.dict(os.environ, {"SERPER_" + "API_KEY": "test-serper-key"}):
+        _me_found = agent.fetch_serper_middle_east(days=7)
 finally:
-    agent.feedparser.parse = _orig_parse
-    agent._resolve_gnews_link = _orig_resolve
+    _urlreq.urlopen = orig_urlopen
+    FAKE_SERPER_JSON = ""
 check(len(_me_found) == 1 and _me_found[0]["source"] == "Arab News" and
       _me_found[0]["link"] == "https://www.arabnews.com/node/123",
-      "v12.14 Google News discovery resolves to the publisher's exact article URL")
+      "v12.16 Serper News discovery returns the publisher's exact article URL")
 check(agent.classify_gulf_country(_me_found[0]) == "KSA",
-      "v12.14 Saudi-outlet stories classify as KSA for Gulf Watch")
+      "v12.16 Saudi-outlet stories classify as KSA for Gulf Watch")
 check("Arab News" in agent.MIDDLE_EAST_SOURCES,
-      "v12.14 Google News 'Arab News' counts as a MENA source")
+      "v12.16 Serper 'Arab News' counts as a MENA source")
+
+# rule 4: missing Serper key degrades gracefully (empty pool, never crashes)
+_saved_key = os.environ.pop("SERPER_" + "API_KEY", None)
+try:
+    check(agent.fetch_serper_middle_east(days=7) == [],
+          "v12.16 missing SERPER_API_KEY -> empty ME pool, no crash")
+finally:
+    if _saved_key is not None:
+        os.environ["SERPER_" + "API_KEY"] = _saved_key
 
 # rule 6: tip URL validation flags fallbacks
 check(agent._validate_tip_url("https://not-a-real-site.example/x") == agent.TIP_URL_FALLBACK,

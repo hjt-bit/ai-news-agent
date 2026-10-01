@@ -1,5 +1,23 @@
 # SIGNAL Agent — Changelog
 
+## v12.16 (2026-10-02) — Middle East discovery swaps Google News for Serper
+
+- The Oct 1 live dry run of the #022 pipeline exposed a silent failure:
+  v12.14's Middle East discovery (Google News RSS) returned zero stories.
+  Google no longer HTTP-redirects the new-style RSS article URLs for
+  server-side fetches, so every Saudi/UAE story was dropped at link
+  resolution; Gulf Watch fell back to the old feeds (three UAE items,
+  zero KSA → rule-4 QA FAIL, correctly flagged).
+- Fix: `fetch_serper_middle_east` replaces `fetch_gnews_middle_east`.
+  Serper News search (same API key the fact-check already uses) returns
+  the publisher's exact article URL directly — no redirect resolution.
+  Same four Saudi/UAE queries, same per-query/run caps, same cutoff.
+  Degrades to an empty pool with a warning when SERPER_API_KEY is absent
+  (never crashes). KSA stories verified live before shipping (SDAIA AI
+  risk framework and peers are discoverable again).
+- Both agent.py and agent_v10.py updated; 343/343 tests green.
+- Live with the #022 run (Sun Oct 4, 17:00 GST).
+
 ## v12.15 (2026-09-30) — Threads-native format wired into the agent
 
 - Hasan's Sep 28 2026 decision (after the #021 Threads post flopped at ~0 reach)
