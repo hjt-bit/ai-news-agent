@@ -1532,6 +1532,12 @@ check(agent.classify_gulf_country(_me_found[0]) == "KSA",
 check("Arab News" in agent.MIDDLE_EAST_SOURCES,
       "v12.16 Serper 'Arab News' counts as a MENA source")
 
+# rule 4: v12.17 top-source queries are wired in
+_q = " ".join(agent.ME_DISCOVERY_QUERIES)
+check("HUMAIN" in _q and "MGX" in _q and "arabnews.com" in _q and
+      "thenationalnews.com" in _q and len(agent.ME_DISCOVERY_QUERIES) >= 8,
+      "v12.17 discovery carries top-source anchored queries (HUMAIN/MGX/Arab News/The National)")
+
 # rule 4: missing Serper key degrades gracefully (empty pool, never crashes)
 _saved_key = os.environ.pop("SERPER_" + "API_KEY", None)
 try:

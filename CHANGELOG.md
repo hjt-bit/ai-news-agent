@@ -1,5 +1,19 @@
 # SIGNAL Agent — Changelog
 
+## v12.17 (2026-10-02) — Top-source queries in Middle East discovery
+
+- A live check of who actually carries KSA/UAE AI news showed the v12.14
+  source list (Saudi Gazette, Asharq Al-Awsat English, Al Arabiya English,
+  Wamda, MAGNiTT) doesn't surface in English news results. The real
+  carriers: SPA via Arab News (KSA policy/SDAIA), HUMAIN deal coverage,
+  and The National + MGX/G42 wires (UAE capital).
+- Discovery gains four source-anchored queries (HUMAIN investment,
+  site:arabnews.com, MGX/G42, site:thenationalnews.com) on top of the
+  four generic ones; pool cap raised 24 → 32 so the anchor queries
+  aren't crowded out. Ranking now favors originators over aggregators.
+- Both agent.py and agent_v10.py updated; 344/344 tests green.
+- Live with the #022 run (Sun Oct 4, 17:00 GST).
+
 ## v12.16 (2026-10-02) — Middle East discovery swaps Google News for Serper
 
 - The Oct 1 live dry run of the #022 pipeline exposed a silent failure:

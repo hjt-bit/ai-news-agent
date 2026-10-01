@@ -636,14 +636,22 @@ DEAL_KEYWORDS = (
 # v12.14: Middle East discovery queries. v12.16: served by Serper News
 # search (the Saudi outlets on Hasan's source list don't publish stable
 # RSS feeds, and Google News RSS links no longer resolve server-side).
+# v12.17: source-anchored queries added from a live check of who actually
+# carries KSA/UAE AI news — SPA via Arab News (KSA policy, SDAIA) and HUMAIN
+# deals; The National + MGX/G42 (UAE capital). Search ranking favors the
+# outlets that originate these stories over aggregators that republish them.
 ME_DISCOVERY_QUERIES = (
     "artificial intelligence Saudi Arabia",
     "AI SDAIA Saudi",
+    "Saudi Arabia HUMAIN AI investment",
+    "site:arabnews.com artificial intelligence",
     "artificial intelligence UAE",
+    "UAE MGX G42 AI",
+    "site:thenationalnews.com AI UAE",
     "AI startup funding Middle East",
 )
 ME_DISCOVERY_MAX_PER_QUERY = 8    # stories kept per query (bounded)
-ME_DISCOVERY_MAX_TOTAL = 24       # stories kept per run (bounded)
+ME_DISCOVERY_MAX_TOTAL = 32       # stories kept per run (bounded)
 
 def _gulf_hits(text, keywords):
     return sum(1 for kw in keywords
@@ -827,7 +835,7 @@ def fetch_serper_middle_east(days=LOOKBACK_DAYS):
     never crashes) — the same pattern as the fact-check search. Stories are
     the publisher's exact article URLs (no redirect resolution needed).
     """
-    print(f"\n  [v12.16] Middle East discovery via Serper News "
+    print(f"\n  [v12.17] Middle East discovery via Serper News "
           f"({len(ME_DISCOVERY_QUERIES)} queries)")
     api_key = os.environ.get("SERPER_API_KEY", "").strip()
     if not api_key:
@@ -882,7 +890,7 @@ def fetch_serper_middle_east(days=LOOKBACK_DAYS):
             })
             nq += 1
         print(f"    \u2713 '{q}': {nq} stories")
-    print(f"  [v12.16] Middle East pool: {len(found)} stories")
+    print(f"  [v12.17] Middle East pool: {len(found)} stories")
     return found
 
 
