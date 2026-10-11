@@ -16,4 +16,8 @@ My take: for the next 3–6 months, the executive question is which side of that
 
 Full issue, five minutes: https://hjt-bit.github.io/ai-news-agent/newsletters/newsletter_2026_10_12.html
 
+— Hasan
+
+Views are my own.
+
 #AI #AIAgents #MENA #Leadership
