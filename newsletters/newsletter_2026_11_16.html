@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIGNAL // AI Intelligence Briefing - Issue #028 - November 16, 2026</title>
+<meta name="description" content="SIGNAL Issue #028 — The AI stories that matter, in five minutes flat.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="SIGNAL #028 — AI Intelligence Briefing">
+<meta property="og:description" content="The AI stories that matter this week, in five minutes flat. Curated for leaders and curious minds.">
+<meta property="og:url" content="https://hjt-bit.github.io/ai-news-agent/newsletters/newsletter_2026_11_16.html">
+<meta property="og:image" content="https://hjt-bit.github.io/ai-news-agent/assets/signal_og_card.png">
+<meta property="og:site_name" content="SIGNAL Weekly">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SIGNAL #028 — AI Intelligence Briefing">
+<meta name="twitter:description" content="The AI stories that matter this week, in five minutes flat.">
+<meta name="twitter:image" content="https://hjt-bit.github.io/ai-news-agent/assets/signal_og_card.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f7;
+    --paper: #ffffff;
+    --panel: #f3f6fb;
+    --line: #d9dfe9;
+    --line-bright: #b6bfd0;
+    --ink: #050d1f;
+    --ink-2: #1a2438;
+    --muted: #4a5468;
+    --muted-2: #7b859a;
+    --cyan: #0e7490;
+    --cyan-bright: #0891b2;
+    --violet: #6d28d9;
+    --highlight: #fff3a3;
+    --brand-navy: #0E1A2B;
+    --brand-navy-2: #16243a;
+    --title-band: #E8EEF7;
+    --tip-bg: #FDF6E3;
+    --tip-rule: #C49A2C;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    background-image:
+      radial-gradient(800px 400px at 50% -180px, rgba(14,116,144,0.10), transparent 60%),
+      radial-gradient(600px 350px at 95% 5%, rgba(109,40,217,0.06), transparent 65%);
+    color: var(--ink);
+    padding: 40px 16px;
+    line-height: 1.6;
+    font-size: 15px;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 700px;
+    margin: 0 auto;
+    background: var(--paper);
+    border: 1px solid var(--line-bright);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(5,13,31,0.05), 0 16px 50px rgba(5,13,31,0.10);
+  }
+  .masthead {
+    padding: 38px 44px 30px;
+    border-bottom: 3px solid #00D4FF;
+    background: linear-gradient(180deg, var(--brand-navy) 0%, var(--brand-navy-2) 100%);
+    color: #ffffff;
+    position: relative;
+  }
+  .masthead::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(600px 220px at 80% -40px, rgba(0,212,255,0.18), transparent 60%),
+      radial-gradient(420px 180px at 0% 100%, rgba(109,40,217,0.14), transparent 70%);
+    pointer-events: none;
+  }
+  .masthead > * { position: relative; z-index: 1; }
+  .masthead-top {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 2.4px;
+    color: rgba(255,255,255,0.62);
+    text-transform: uppercase; margin-bottom: 26px;
+  }
+  .masthead-top .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #00D4FF; margin-right: 8px; vertical-align: middle;
+    box-shadow: 0 0 10px rgba(0,212,255,0.8);
+  }
+  .masthead h1 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700; font-size: 54px; line-height: 1; letter-spacing: -1.8px;
+    margin: 0 0 14px; color: #ffffff;
+  }
+  .masthead h1 .accent { color: #00D4FF; }
+  .masthead .tagline {
+    font-size: 15.5px; color: rgba(255,255,255,0.92); font-weight: 500;
+    line-height: 1.45;
+  }
+  .masthead .promise {
+    margin-top: 10px;
+    font-size: 12.5px; color: rgba(255,255,255,0.62);
+    letter-spacing: 0.2px;
+  }
+  .hasan-take {
+    margin: 18px 44px 0; padding: 14px 18px;
+    border: 1px dashed var(--line); border-radius: 8px;
+    background: rgba(0,212,255,0.04);
+  }
+  .hasan-take-label {
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    letter-spacing: 2.4px; text-transform: uppercase; color: var(--cyan);
+    margin: 0 0 6px 0;
+  }
+  .hasan-take-text { margin: 0; font-size: 14px; color: var(--ink-2); font-style: italic; }
+  .section-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 28px 44px 10px; border-top: 1px solid var(--line);
+  }
+  .section-header .index {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 2.4px; color: var(--cyan);
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .section-header h2 {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 20px; font-weight: 700; margin: 0; color: var(--ink);
+    letter-spacing: -0.3px;
+  }
+  .section-header .rule {
+    flex: 1; height: 1px; background: var(--line);
+  }
+  .card {
+    margin: 0 44px 22px; padding: 22px 26px;
+    border: 1px solid var(--line); border-radius: 5px;
+    background: var(--paper);
+  }
+  .card .card-title {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 17px; font-weight: 700; color: var(--ink);
+    margin: 0 0 10px; line-height: 1.3; letter-spacing: -0.2px;
+    padding: 4px 8px; margin-left: -8px;
+    background: var(--title-band); border-radius: 3px;
+    display: inline-block;
+  }
+  .card .card-angle {
+    font-size: 14.5px; color: var(--ink); margin: 0 0 10px;
+    line-height: 1.5; font-weight: 400;
+  }
+  .card .card-body {
+    font-size: 13.5px; color: var(--ink-2); margin: 0 0 10px; line-height: 1.6;
+  }
+  .card .card-action {
+    font-size: 13px; line-height: 1.6; margin: 0 0 12px; color: var(--ink);
+  }
+  .card .source-link {
+    display: inline-block; margin-top: 12px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--cyan); text-decoration: none;
+    border-bottom: 1px dashed var(--cyan);
+    padding-bottom: 1px;
+  }
+  .card .source-link:hover { color: var(--violet); border-color: var(--violet); }
+  .card.viral {
+    border: 2px solid var(--brand-navy);
+    background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+    box-shadow: 0 4px 20px rgba(14,26,43,0.10);
+  }
+  .card.viral .card-title {
+    font-size: 20px;
+    background: var(--brand-navy); color: #ffffff;
+    padding: 6px 12px; border-radius: 3px;
+  }
+  .me-block {
+    margin: 0 44px 22px; padding: 18px 24px;
+    border: 1px solid var(--line); border-radius: 5px;
+    background: var(--panel);
+  }
+  .me-block .me-item {
+    margin-bottom: 14px; padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .me-block .me-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .me-block .me-headline {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 15px; font-weight: 600; color: var(--ink); margin: 0 0 4px;
+  }
+  .me-block .me-tldr {
+    font-size: 13.5px; color: var(--ink-2); line-height: 1.5; margin: 0 0 6px;
+  }
+  .me-block .me-action {
+    font-size: 13px; color: var(--ink); line-height: 1.5; margin: 0 0 4px;
+  }
+  .me-block .me-link {
+    display: inline-block; margin-top: 6px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--cyan); text-decoration: none;
+  }
+  .gulf-watch {
+    margin: 0 0 18px; padding: 14px 16px;
+    border: 1px solid var(--line); border-radius: 5px;
+    background: rgba(0, 212, 255, 0.04);
+  }
+  .gulf-watch-title {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
+    color: var(--ink); margin: 0 0 10px;
+  }
+  .gulf-watch-title span { color: var(--muted); font-weight: 400; }
+  .gulf-cols { display: flex; gap: 18px; }
+  .gulf-col { flex: 1; min-width: 0; }
+  .gulf-country { font-size: 12px; font-weight: 700; color: var(--ink); margin: 0 0 6px; }
+  .gulf-item { display: block; margin-bottom: 9px; text-decoration: none; }
+  .gulf-item:last-child { margin-bottom: 0; }
+  .gulf-headline { display: block; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+  .gulf-item:hover .gulf-headline { color: var(--cyan); }
+  .gulf-source {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
+  }
+  .tip-block {
+    margin: 0 44px 22px; padding: 22px 26px;
+    border: 1px solid var(--tip-rule); border-radius: 5px;
+    background: var(--tip-bg);
+    border-left: 4px solid var(--tip-rule);
+  }
+  .tip-block .tip-title {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 8px;
+  }
+  .tip-block .tip-what {
+    font-size: 14px; color: var(--ink-2); margin-bottom: 10px; line-height: 1.5;
+  }
+  .tip-block .tip-try {
+    font-size: 13px; color: var(--muted); margin-bottom: 10px;
+    padding: 8px 12px; background: rgba(255,255,255,0.7); border-radius: 3px;
+  }
+  .tip-block .tip-try strong { color: var(--ink-2); }
+  .tip-block .tip-link {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--tip-rule); text-decoration: none;
+    border-bottom: 1px dashed var(--tip-rule);
+  }
+  .cta-section {
+    text-align: center; padding: 36px 44px;
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .cta-section .cta-text {
+    font-size: 14px; color: var(--muted); margin-bottom: 16px;
+  }
+  .share-bar {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;
+    padding: 4px 0 0;
+  }
+  .share-bar .share-label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted-2); margin-right: 8px;
+  }
+  .share-bar a.share-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 500; color: var(--ink-2);
+    text-decoration: none; padding: 7px 14px;
+    border: 1px solid var(--line); border-radius: 4px;
+    background: var(--paper);
+  }
+  .share-bar a.share-btn:hover {
+    border-color: var(--cyan); background: rgba(14,116,144,0.04);
+  }
+  .share-bar a.share-btn svg { width: 14px; height: 14px; fill: currentColor; }
+  .email-capture {
+    margin: 28px 44px; padding: 28px 30px;
+    border: 2px solid var(--cyan); border-radius: 6px;
+    background: linear-gradient(135deg, #f0fafb 0%, #ffffff 100%);
+    text-align: center;
+  }
+  .email-capture .ec-headline {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 18px; font-weight: 700; color: var(--ink);
+    margin: 0 0 8px;
+  }
+  .email-capture .ec-sub {
+    font-size: 14px; color: var(--muted); margin: 0 0 18px; line-height: 1.5;
+  }
+  .email-capture a.ec-button {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: #ffffff; background: var(--cyan);
+    padding: 14px 32px; border-radius: 4px; text-decoration: none;
+  }
+  .email-capture a.ec-button:hover { background: var(--violet); }
+  @media (max-width: 600px) {
+    body { padding: 16px 4px; }
+    .masthead, .section-header, .card, .me-block, .tip-block, .cta-section, .footer, .share-bar {
+      padding-left: 20px; padding-right: 20px;
+    }
+    .email-capture { margin-left: 12px; margin-right: 12px; }
+    .hasan-take { margin-left: 12px; margin-right: 12px; }
+    .card { margin-left: 12px; margin-right: 12px; }
+    .me-block { margin-left: 12px; margin-right: 12px; }
+    .gulf-cols { flex-direction: column; }
+    .tip-block { margin-left: 12px; margin-right: 12px; }
+    .masthead h1 { font-size: 38px; }
+  }
+  .footer {
+    padding: 24px 44px; text-align: center;
+    font-size: 11px; color: var(--muted-2);
+    border-top: 1px solid var(--line);
+  }
+  .footer a { color: var(--cyan); text-decoration: none; }
+  .byline { text-align: center; color: rgba(255,255,255,0.85); font-size: 14px; margin: 8px 0 0; }
+  .byline-photo { width: 44px; height: 44px; object-fit: cover; border-radius: 50%; vertical-align: middle; margin-right: 8px; }
+  .byline-name { white-space: nowrap; }
+  .byline-brand { display: block; font-weight: 600; color: #ffffff; font-size: 15px; margin-top: 4px; white-space: nowrap; }
+  .byline-tag { display: block; font-size: 12.5px; margin-top: 2px; color: rgba(255,255,255,0.65); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <div class="masthead-top">
+      <span><span class="dot"></span>Issue #028</span>
+      <span>November 16, 2026</span>
+    </div>
+    <h1>SIGN<span class="accent">A</span>L</h1>
+    <p class="tagline">The AI stories that matter, in five minutes flat.</p>
+    <p class="promise">Curated for leaders &amp; curious minds · Every Monday · Dubai 08:00 GST</p>
+    <p class="byline"><img class="byline-photo" src="https://hjt-bit.github.io/ai-news-agent/assets/hasan-headshot.jpg" alt="Hasan Jad"><span class="byline-name">By <strong>Hasan Jad</strong></span><span class="byline-brand">AI, decoded for MENA leaders</span><span class="byline-tag">I build production AI agents with the region&#x27;s biggest companies.</span></p>
+  </div>
+  <div class="email-capture">
+      <p class="ec-headline">Get SIGNAL in your inbox every Monday</p>
+      <p class="ec-sub">Five minutes. The AI stories that matter. Free, forever.</p>
+      <a class="ec-button" href="https://signal-6.kit.com/70ccec5969" target="_blank" rel="noopener">Subscribe by email</a>
+    </div>
+  <div class="hasan-take">
+    <p class="hasan-take-label">Hasan Jad&#x27;s take</p>
+    <p class="hasan-take-text"><strong>The big picture:</strong> AI&#x27;s foundations shook this week. Nvidia&#x27;s founder-CEO resigned with no reason given. Microsoft 365 went down for 30 hours. Meanwhile, the new order moved: OpenAI gave its agents a wallet, Anthropic cut its top model&#x27;s price 20%, and the Gulf kept building &#8212; HUMAIN&#x27;s 3-trillion-parameter promise, $667M in new financing, a 10GW data-centre target.<br><br><strong>Why it matters:</strong> the model is no longer the moat. The moat is who controls the infrastructure it runs on, the money its agents spend, and the people who build it.<br><br><strong>The bottom line:</strong> Which one dependency in your AI stack &#8212; a person, a vendor, a cloud &#8212; would hurt most if it failed, and who owns the backup plan?</p>
+  </div>
+
+  <div class="section-header">
+    <span class="index">01 //</span>
+    <h2>The Lead</h2>
+    <span class="rule"></span>
+  </div>
+      <div class="card viral">
+    <div class="card-title">Huang resigns &#8212; Nvidia loses its founder-CEO</div>
+    <p class="card-angle"><strong>Why you care:</strong> Nvidia&#x27;s founder-CEO of 33 years resigned with no reason given &#8212; the most consequential leadership change in AI this year. CFO Colette Kress steps in as interim CEO, and the board is searching for a permanent successor. Q3 results still land Tuesday.</p>
+    <p class="card-body">Jensen Huang resigned as President, CEO and Board member, effective immediately, after a 33-year run &#8212; he co-founded Nvidia in 1993. CFO Colette Kress (EVP & CFO since September 2013) is interim CEO and keeps the CFO role. Harvey C. Jones was appointed the board&#x27;s first-ever Chair. The board is searching for a permanent CEO, considering internal and external candidates. The release gives no reason. US press reports link the exit to revelations about Huang&#x27;s personal conduct; Nvidia has not confirmed any reason. Nvidia says operations, customer commitments and the product roadmap &#8220;continue without interruption&#8221;. Q3 FY2027 results are still due Tuesday November 17, ~1:20pm PT. Market reaction (reported, not Nvidia-stated): shares closed at $166.19, down 4.34% on November 12, after falling as much as ~14% intraday; AMD and Broadcom rose more than 5% the same day (reported).</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your executive team which single person your AI strategy depends on most &#8212; and what the plan is if they leave tomorrow.</p>
+    <a class="source-link" href="https://investor.nvidia.com/news/press-release-details/2026/NVIDIA-Announces-CEO-Transition/default.aspx" target="_blank" rel="noopener">Read full story &#8594; Nvidia</a>
+  </div>
+
+  <div class="section-header">
+    <span class="index">02 //</span>
+    <h2>Strategic Briefing</h2>
+    <span class="rule"></span>
+  </div>
+      <div class="card">
+    <div class="card-title">Microsoft 365 outage downs Outlook for 30 hours</div>
+    <p class="card-angle"><strong>Why you care:</strong> Thirty hours without email: a Microsoft 365 outage that began Thursday knocked out Outlook and the Exchange-dependent features behind it &#8212; Teams calendars, Copilot&#x27;s access to work data, SharePoint sharing &#8212; for more than a day. Microsoft says it was a technical issue, not cyber or AI.</p>
+    <p class="card-body">Impact ran Thursday November 12, 10:05 UTC to Friday November 13, 16:10 UTC (~30 hours); the final update came Saturday November 14, 04:17 UTC, with status serviceRestored. Affected: Exchange Online mailbox access (Outlook web, desktop and mobile, plus mail delays) and every Exchange-dependent feature &#8212; Teams calendars and scheduling, Microsoft 365 Copilot Chat and Copilot access to work data, SharePoint external sharing, Defender XDR, Purview, Intune, Planner, To Do, Power BI and Graph. Core Teams calls, meetings and chats were mostly not affected. Cause (Microsoft, preliminary): introduced by an issue during an earlier network capacity upgrade that surfaced following a recent network change &#8212; a failure in the systems that establish secure connections; traffic shifts exposed a latent bug, connection requests queued, and servers exhausted processing capacity. Microsoft: &#8220;a technical issue not related to cyber or AI / agents.&#8221; A full post-incident report is promised (preliminary within 2 business days, final within 5). Scale (attributed, not Microsoft&#x27;s): Downdetector logged more than 130,000 Outlook problem reports at the US peak, from 74 countries.</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your IT lead what your team&#x27;s plan B is when email goes down for a day &#8212; and when it was last tested.</p>
+    <a class="source-link" href="https://mailservices.isc.upenn.edu/computing/email/penno365/alerts/ms-incidents.html" target="_blank" rel="noopener">Read full story &#8594; Microsoft Service Health (via UPenn)</a>
+  </div>
+      <div class="card">
+    <div class="card-title">OpenAI gives its agents a wallet</div>
+    <p class="card-angle"><strong>Why you care:</strong> OpenAI just gave its agents a way to pay &#8212; without ever seeing your card. ChatGPT Wallet launched November 13: add a card once, approve each purchase with Face ID or fingerprint, and the agent and merchant only ever see a token. For now it&#x27;s US-only, Pro subscribers only.</p>
+    <p class="card-body">ChatGPT Wallet launched November 13 &#8212; OpenAI calls it &#8220;the first wallet that lets agents pay without access to users&#x27; actual card details&#8221;. It requires a security check for every purchase, and preserves existing card rewards and protections for eligible disputes. Built with American Express, Mastercard and Visa. It rolls out in dots (OpenAI&#x27;s always-on agents), initially to ChatGPT Pro subscribers aged 18+ in the US with eligible US-issued cards. OpenAI says 1.2 billion people use ChatGPT each week. How it works: the user adds a card once, reviews the items, total and card, then approves with Face ID or fingerprint; the payment network issues a token &#8212; a substitute card number, security code and expiry &#8212; so the agent and merchant never see the real card details. Full delegation is future and undated: OpenAI &#8220;expects&#8221; users will eventually pre-approve purchases via spending limits, categories or time periods. A Commerce Partner Playbook was published alongside; fraud-prevention partners Forter, Riskified, Sardine and Signifyd; payment providers Adyen, Checkout.com and Stripe. OpenAI warns some sites may unintentionally block agent purchases. US-only at launch &#8212; no global rollout timetable.</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your e-commerce lead whether your checkout will accept purchases made by an agent &#8212; and what your fraud rules do with them.</p>
+    <a class="source-link" href="https://openai.com/index/introducing-chatgpt-wallet/" target="_blank" rel="noopener">Read full story &#8594; OpenAI</a>
+  </div>
+      <div class="card">
+    <div class="card-title">Anthropic launches Claude Fable and Mythos 5.2</div>
+    <p class="card-angle"><strong>Why you care:</strong> Anthropic&#x27;s new top model is cheaper and faster &#8212; and it comes in two flavours. Fable 5.2 is open to all API users; Mythos 5.2, the same model, is restricted to vetted organisations. Anthropic&#x27;s own benchmarks put it well ahead of Opus 5.5 on coding and long-horizon work.</p>
+    <p class="card-body">Claude Fable 5.2 and Mythos 5.2 launched November 9 &#8212; the same underlying model; Fable is open to all API users, Mythos is restricted to vetted organisations (cyber and life-sciences verification programmes). Pricing: $8 per million input tokens and $40 per million output tokens &#8212; down from $10/$50 for 5.1, a 20% cut &#8212; and Anthropic claims outputs up to 30% faster. An optional fast mode costs $16/$80, with up to 2.5× faster generation. Anthropic&#x27;s own benchmarks (vendor-run, not independently verified): FrontierCode 2.0 at 49.1% (Xhigh effort), against Opus 5.5&#x27;s 45.5% and Fable 5.1&#x27;s 32.4%; Remote Labor Index at 41.3%, against Opus 5.5&#x27;s 21.3%.</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your engineering lead to re-price your heaviest agent workloads on Fable 5.2 &#8212; and to verify Anthropic&#x27;s benchmarks on your own tasks before switching.</p>
+    <a class="source-link" href="https://www.anthropic.com/claude-fable-and-mythos-5-2" target="_blank" rel="noopener">Read full story &#8594; Anthropic</a>
+  </div>
+  <div class="section-header">
+    <span class="index">03 //</span>
+    <h2>From the Region</h2>
+    <span class="rule"></span>
+  </div>
+      <div class="me-block">
+    <div class="gulf-watch">
+      <p class="gulf-watch-title">Gulf Watch <span>&mdash; the Gulf at a glance</span></p>
+      <div class="gulf-cols">
+        <div class="gulf-col">
+          <p class="gulf-country">🇸🇦 Saudi Arabia</p>
+          <a class="gulf-item" href="https://www.saudibusiness.news/infra-and-humain-sign-financing-agreements-of-up-to-sar-2-5-billion-to-advance-saudi-arabias-ai-infrastructure/" target="_blank" rel="noopener"><span class="gulf-headline">Infra signs $667m HUMAIN financing for GPUs and power</span><span class="gulf-source">Saudi Business News</span></a>
+          <a class="gulf-item" href="https://www.middleeastainews.com/p/humain-readies-limitless-startup" target="_blank" rel="noopener"><span class="gulf-headline">HUMAIN readies Limitless accelerator under Dokhan</span><span class="gulf-source">Middle East AI News</span></a>
+        </div>
+        <div class="gulf-col">
+          <p class="gulf-country">🇦🇪 UAE</p>
+          <a class="gulf-item" href="https://www.middleeastainews.com/p/damac-targets-10gw-of-data-centres" target="_blank" rel="noopener"><span class="gulf-headline">DAMAC targets 10GW data-centre pipeline by end-2027</span><span class="gulf-source">Middle East AI News</span></a>
+          <a class="gulf-item" href="https://www.wam.ae/en/article/c37a8qw-presight-net-profit-rises-31-nine-month-profit" target="_blank" rel="noopener"><span class="gulf-headline">Presight Q3 profit jumps 31% to AED 144.5m</span><span class="gulf-source">WAM</span></a>
+        </div>
+      </div>
+    </div>
+    <div class="me-item">
+      <p class="me-headline">HUMAIN promises 3-trillion-parameter model on Dec 15</p>
+      <p class="me-tldr"><strong>Why you care:</strong> HUMAIN&#x27;s CEO says Saudi Arabia&#x27;s full AI stack lands December 15 &#8212; headlined by a 3-trillion-parameter open-weight model he calls the world&#x27;s largest. Every number here is his claim, not a verified fact &#8212; and the launch is a promise, not a delivery.</p>
+      <p class="me-tldr">Announced Wednesday November 11 evening at HUMAIN&#x27;s Majdoul Tower offices in Riyadh, CEO Tareq Amin said the full AI stack will be available in Saudi Arabia on 15 December 2026 &#8212; including a 3-trillion-parameter open-weight model, which Amin called &#8220;the world&#x27;s largest open-weight model&#8221; (his claim, not independently verified). Amin claimed the model costs 88% less in cost and token consumption than models available outside Saudi Arabia (Arab News names no comparator, price or benchmark). The stack was built in ~15 months, is Saudi-built and operated, and HUMAIN owns the entire stack. At the same event: HUMAIN+, an applied AI education and training platform (with VUZ, immersive 360° video), with an operational launch in Q1 2027; a Riyadh campus with ~1,500 learner places a year, GPU-backed Builder Labs and four learning journeys. The launch is a future promise (Dec 15), not a delivery; the model name was not given; whether the weights will actually be published is unverified.</p>
+      <p class="me-action"><strong>Leader action:</strong> Ask your Saudi lead what a Saudi-built 3-trillion-parameter model would change for your data-residency plans &#8212; and to wait for December 15 before betting on it.</p>
+      <a class="me-link" href="https://www.arabnews.com/saudi-arabia/humain-ceo-unveils-december-ai-stack-rollout-humain-launch-plans-for-2027-3011422" target="_blank" rel="noopener">Read full story &#8594; Arab News</a>
+    </div>
+    <div class="me-item">
+      <p class="me-headline">MBZUAI releases open world model PAN 2</p>
+      <p class="me-tldr"><strong>Why you care:</strong> Abu Dhabi&#x27;s Institute of Foundation Models released PAN 2 &#8212; an open world model that simulates video of what happens next from a scene and a text action. Open weights, open code, Apache 2.0 &#8212; and, on its own reported results, third overall on Physics-IQ, first among open models.</p>
+      <p class="me-tldr">The Institute of Foundation Models (IFM), established by MBZUAI, released PAN 2 on 10 November 2026 &#8212; an open, general-purpose world model: given a starting scene and a text action, it simulates a video of what happens next, &#8220;grounded in physics, time, and space&#8221; (simulative reasoning for agents and robotics). Released with video model weights, full training and inference code, a technical blog and documentation, all under Apache 2.0. IFM&#x27;s reported results (self-reported, no independent verification): 3rd overall on Physics-IQ Verified, 1st among open-weight models; placed just behind MiniMax-H3 and ahead of four other models across six dimensions; completed more full plans than any other model tested in multi-step planning. IFM itself notes long-term world consistency &#8220;remains an open challenge.&#8221; IFM launched in May 2025 by MBZUAI, with labs in Abu Dhabi, Silicon Valley and Paris.</p>
+      <p class="me-action"><strong>Leader action:</strong> Ask your robotics or agent lead whether a world model that simulates outcomes before acting changes how your agents plan &#8212; and to test PAN 2 against your own tasks.</p>
+      <a class="me-link" href="https://ifm.ai/pan2/press-release/" target="_blank" rel="noopener">Read full story &#8594; IFM / MBZUAI</a>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <span class="index">04 //</span>
+    <h2>Consumer Signals</h2>
+    <span class="rule"></span>
+  </div>
+      <div class="card">
+    <div class="card-title">OpenAI ships GPT-5.1, warmer and faster</div>
+    <p class="card-angle"><strong>Why you care:</strong> GPT-5.1 is here &#8212; warmer, faster, and harder to tell apart from its siblings. Instant thinks before responding; Thinking is roughly twice as fast on the fastest tasks. And in most cases, OpenAI says, you won&#x27;t need to choose a model at all.</p>
+    <p class="card-body">GPT-5.1 launched November 12 (reported date &#8212; the page itself carries no date). GPT-5.1 Instant &#8212; the most-used model &#8212; is warmer, more intelligent and better at following instructions, with adaptive reasoning to &#8220;think before responding&#8221;. GPT-5.1 Thinking is the advanced reasoning model: easier to understand, faster on simple tasks, more persistent on complex ones &#8212; &#8220;roughly twice as fast on the fastest tasks and twice as slow on the slowest tasks&#8221;. GPT-5.1 Auto continues to route each query; &#8220;in most cases, you won&#x27;t need to choose a model at all.&#8221; Rollout: paid plans (Pro, Plus, Go, Business) first, then free and logged-out users gradually over the next few days. Enterprise and Edu get a 7-day early-access toggle (off by default); after that window GPT-5.1 &#8220;will become the sole default model&#8221;. GPT-5 (Instant and Thinking) stays in the legacy-models dropdown for paid subscribers for 3 months. New tone controls: Default, Friendly (formerly Listener) and Efficient (formerly Robot) remain; Professional, Candid and Quirky are added; Cynical and Nerdy are unchanged. Granular tuning of characteristics is an experiment &#8220;starting to roll out gradually later this week… starting with a limited number of users&#8221;. Personalisation changes now &#8220;take effect across all chats right away, including ongoing conversations&#8221;. API: GPT-5.1 Instant as gpt-5.1-chat-latest, Thinking as gpt-5.1, &#8220;later this week&#8221;; GPT-5 Pro becomes GPT-5.1 Pro &#8220;soon&#8221;. OpenAI claims &#8220;significant improvements on math and coding evaluations like AIME 2025 and Codeforces&#8221; but gives no numbers in the page.</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your team to try the new tone controls &#8212; Professional, Candid, Quirky &#8212; and pick one house voice before everyone picks their own.</p>
+    <a class="source-link" href="https://openai.com/index/gpt-5-1/" target="_blank" rel="noopener">Read full story &#8594; OpenAI</a>
+  </div>
+      <div class="card">
+    <div class="card-title">Anthropic puts whiteboards and spreadsheets inside Claude</div>
+    <p class="card-angle"><strong>Why you care:</strong> Claude just grew a whiteboard, a spreadsheet and a data layer. Whiteboards and Sheets launched in beta; Dashboards is now generally available as Claude Data &#8212; all on paid plans, on web, desktop and mobile. The spreadsheet, for now, is simple &#8212; but it exports to .xlsx.</p>
+    <p class="card-body">Claude Whiteboards and Claude Sheets launched in beta on November 10; Claude Dashboards becomes generally available as Claude Data. All three are &#8220;available on all paid plans,&#8221; on web, desktop and mobile. Whiteboards: a shared board where a team brainstorms with Claude; Claude &#8220;can turn it into a board with a timeline with owners and dates&#8221;, group retro notes by theme and draft action items; a board can become a doc or deck, or move to Lucid, Miro or Vani by Zoho. Sheets: Claude &#8220;generate[s] spreadsheets with tabs, formulas, formatting, and drop-downs, often from just a prompt&#8221;; it edits in cells, outlining each edit; sheets are shareable. &#8220;For now, sheets have simple spreadsheet functionality&#8221;; export to .xlsx or CSV, or continue in Airtable, Asana, monday.com or Smartsheet. Data &#8212; renamed from Dashboards (beta since October; connects to Amazon Redshift, BigQuery, ClickHouse and others) &#8212; adds data stories and narrated videos, certified-metric badges, design systems, per-dashboard caching and refresh, and tracked changes with rollback. Certified queries and live sharing remain in beta. Partners: Amplitude, Mixpanel, Omni, PostHog, Sigma and ThoughtSpot. The same day, interactive connectors &#8220;can open as full apps beside your conversation or in full screen&#8221; (Adobe, Atlassian, Box, Notion). Admin defaults: Team &#8212; all three on by default. Enterprise &#8212; Whiteboards and Sheets off by default; Claude Data &#8220;turns on by default on November 20, 2026&#8221;.</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your ops lead which team&#x27;s spreadsheet Claude should build first &#8212; and to check the Enterprise defaults before November 20.</p>
+    <a class="source-link" href="https://claude.com/resources/articles/sheets-whiteboards-data" target="_blank" rel="noopener">Read full story &#8594; Anthropic</a>
+  </div>
+      <div class="card">
+    <div class="card-title">Google brings Gemini Intelligence to Pixel 10</div>
+    <p class="card-angle"><strong>Why you care:</strong> The November Pixel Drop puts Gemini Intelligence on Pixel 10 &#8212; Rambler cleans up your voice typing, Gemini takes on multi-step tasks, and Call Screen gets more conversational. One catch for this audience: the multi-step tasks aren&#x27;t in the UAE yet.</p>
+    <p class="card-body">The November Pixel Drop began November 10; &#8220;Updates start rolling out today and will continue over the next several weeks.&#8221; Gemini Intelligence is now available on Pixel 10 devices, bringing Rambler, personalised suggestions and multi-step tasks. Rambler is a voice typing upgrade that &#8220;can automatically remove filler words like &#x27;um,&#x27; and format your thoughts into clear, polished text.&#8221; Multi-step tasks with Gemini &#8212; groceries, booking a ride, ordering takeout, finding a restaurant reservation &#8212; are &#8220;Now available in Japan, UK, and India&#8221; (not in the UAE). Proactive suggestions (e.g. share your ETA with a tap), personalised widgets and summaries of longer conversations are now in German, French, Spanish, Italian, Hindi and Traditional Chinese. Call Screen upgrade on the Pixel 11 series: Gemini asks unknown callers why they are reaching out &#8220;in a much more conversational manner&#8221;, with a live transcript. Pixel Tag: &#8220;available November 11&#8221;, $29.99 for one or $99.99 for a four-pack, slim enough for a wallet, &#8220;battery that lasts over a year&#8221;, on the Find Hub network of &#8220;more than 1 billion Android devices&#8221;, with UWB for visual direction and distance nearby.</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your team to try Rambler on their next voice note &#8212; it turns &#x27;ums&#x27; into polished text.</p>
+    <a class="source-link" href="https://blog.google/products-and-platforms/devices/pixel/november-2026-pixel-drop/" target="_blank" rel="noopener">Read full story &#8594; Google</a>
+  </div>
+  <div class="section-header">
+    <span class="index">05 //</span>
+    <h2>Tip of the Week</h2>
+    <span class="rule"></span>
+  </div>
+      <div class="tip-block">
+    <div class="tip-title">Audit what Gemini remembers about you</div>
+    <div class="tip-what">Gemini keeps a memory of your preferences, interests and ongoing goals &#8212; and it shapes every answer. Take three minutes to read what it has saved about you, and fix what is wrong. Go to gemini.google.com → bottom left Settings → Personal Intelligence → Memory summary, and read the snapshot. To fix it, prompt it &#8212; Google&#x27;s own examples: &#8220;Add to my memory that I speak Japanese&#8221; and &#8220;Remove my old phone number from your memory.&#8221; Optionally, top right Memory history shows when each detail was added or changed. Requirements: a personal account, 18+, Keep Activity on, Memory on; web and mobile app only; not available in the EEA, Nigeria, Switzerland or the UK.</div>
+    <div class="tip-try"><strong>Try this:</strong> Open Gemini, go to Settings → Personal Intelligence → Memory summary, and delete one thing it has wrong about you. Three minutes, one cleaner assistant.</div>
+    <a class="tip-link" href="https://gemini.google.com" target="_blank" rel="noopener">Gemini &#8212; Audit your memory</a>
+  </div>
+
+  <div class="email-capture">
+      <p class="ec-headline">Get SIGNAL in your inbox every Monday</p>
+      <p class="ec-sub">Five minutes. The AI stories that matter. Free, forever.</p>
+      <a class="ec-button" href="https://signal-6.kit.com/70ccec5969" target="_blank" rel="noopener">Subscribe by email</a>
+    </div>
+  <div class="cta-section">
+    <p class="cta-text">Enjoyed this issue? Share SIGNAL with a colleague who wants to stay sharp on AI.</p>
+    <div class="share-bar">
+      <span class="share-label">Share this issue</span>
+      <a class="share-btn" href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fhjt-bit.github.io%2Fai-news-agent%2Fnewsletters%2Fnewsletter_2026_11_16.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        LinkedIn
+      </a>
+      <a class="share-btn" href="https://twitter.com/intent/tweet?url=https%3A%2F%2Fhjt-bit.github.io%2Fai-news-agent%2Fnewsletters%2Fnewsletter_2026_11_16.html&text=SIGNAL%20%23028%20%E2%80%94%20AI%20Intelligence%20Briefing" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        X
+      </a>
+      <a class="share-btn" href="https://wa.me/?text=SIGNAL%20%23028%20%E2%80%94%20AI%20Intelligence%20Briefing%20https%3A%2F%2Fhjt-bit.github.io%2Fai-news-agent%2Fnewsletters%2Fnewsletter_2026_11_16.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        WhatsApp
+      </a>
+      <a class="share-btn" href="#" onclick="navigator.clipboard.writeText('https://hjt-bit.github.io/ai-news-agent/newsletters/newsletter_2026_11_16.html');this.textContent='Copied!';return false;">
+        &#128279; Copy link
+      </a>
+    </div>
+  </div>
+  <div class="footer">
+    SIGNAL is curated each week by <strong>Hasan Jad</strong> (AI, decoded for MENA leaders).<br>I build production AI agents with the region&#x27;s biggest companies.<br>
+    <em>Represents my own views and not that of my employer.</em><br><br>
+  </div>
+</div>
+</body>
+</html>
