@@ -2,6 +2,7 @@
 
 Noted 2026-09-28 from Hasan. Rules 1–9 ENCODED IN CODE as v12.14 (2026-09-30).
 Rule 10 (Threads-native format, decided Sep 28 2026) ENCODED as v12.15 (2026-09-30).
+Rule 11 (seven-day window + a link for every named source, decided Nov 15 2026) ENCODED as v12.18 (2026-11-15).
 Packaging rule: every v12.x change updates BOTH agent.py and agent_v10.py.
 
 ## AUDIENCE
@@ -101,3 +102,10 @@ deterministically from the verified story analysis every run:
   URL leaks outside the final reply).
 - Posting itself stays manual: Hasan approves each post via threads-cli.
   The generated thread is copy for review in threads_post_YYYY_MM_DD.md.
+
+## 11. SEVEN-DAY WINDOW + A LINK FOR EVERY NAMED SOURCE (Nov 15 2026 — ENCODED as v12.18)
+- Every story's source must have been published inside the issue's seven-day window: the seven days ending the day before publication (for a Monday issue, the previous Monday through Sunday). Reject any story whose source publication date falls outside that window.
+- The publication date must be taken from the source page itself, or from an explicitly dated citation that states the year. Never infer the year from a bare month and day ("Nov 12" with no year is not a date). A story whose source page carries no date and has no explicitly dated corroboration is rejected.
+- A story whose publication date cannot be established is rejected — never stamp it with today's date to make it look fresh.
+- Every publication named in a story's text must have a working link to that publication's own article, recorded alongside the story. If the original article cannot be found and opened, remove the claim that named it.
+- The self-check enforces this: a story with no recorded publication date, a date outside the window, or a named publication with no working link FAILS and blocks publishing.

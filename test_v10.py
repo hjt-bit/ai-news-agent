@@ -126,8 +126,11 @@ def banner(title):
     print("=" * 60)
 
 def mk_article(title, link, source="TestSource", summary="A test summary."):
+    # v12.18 rule 11: a clean fixture carries a real publication date inside
+    # the issue's seven-day window (issue Monday minus 2 days).
     return {"title": title, "link": link, "source": source, "summary": summary,
-            "published": None, "_score": 70, "_ai_relevance": 8,
+            "published": datetime.combine(agent._issue_date() - timedelta(days=2), datetime.min.time()),
+            "_score": 70, "_ai_relevance": 8,
             "_magnitude_score": 7.5, "_key_figures": ["$1B"]}
 
 def passing_fixture(confidence="HIGH"):
@@ -1487,6 +1490,51 @@ _sc_ok = agent._editorial_self_check(
      "try_this": "Open it", "link_url": "https://support.microsoft.com/x"},
     {"gulf_watch": [_g1s, _g2s]}, check_links=False)
 check(all(s == "PASS" for s, _, _ in _sc_ok), "v12.14 self-check passes a clean issue")
+
+# rule 11 (v12.18): seven-day window + a link for every named source (GPT-5.1, #028)
+def _sc_label(arts, check_links=False):
+    _tip = {"title": "New Copilot feature", "what": "Try the fresh agents mode",
+            "try_this": "Open it", "link_url": "https://support.microsoft.com/x"}
+    res = agent._editorial_self_check(None, None, arts, [], [], _tip,
+                                      {"gulf_watch": []}, check_links=check_links)
+    return {label: (status, detail) for status, label, detail in res}
+
+_ANALYSIS = {"headline": "A headline", "why_you_care": "The Gulf angle nobody saw.",
+             "what_happened": "It happened.", "leader_action": "Watch the renewal pricing."}
+# 8) dateless story fails (fail-closed)
+_dateless = mk_article("Dateless story", "https://x.com/d1", source="Reuters")
+_dateless["published"] = None
+check(_sc_label([(_dateless, dict(_ANALYSIS))])
+      ["Every story's source was published inside the issue's 7-day window"][0] == "FAIL",
+      "v12.18 rule 11: a story with no publication date FAILS the window check")
+# 8) year-old story fails (GPT-5.1: Nov 12, 2025 in a Nov 2026 issue)
+_old = mk_article("Year-old story", "https://x.com/d2", source="OpenAI")
+_old["published"] = datetime(2025, 11, 12)
+check(_sc_label([(_old, dict(_ANALYSIS))])
+      ["Every story's source was published inside the issue's 7-day window"][0] == "FAIL",
+      "v12.18 rule 11: a story published a year ago FAILS the window check")
+# 8) in-window story passes
+_fresh = mk_article("Fresh story", "https://x.com/d3", source="Reuters")
+check(_sc_label([(_fresh, dict(_ANALYSIS))])
+      ["Every story's source was published inside the issue's 7-day window"][0] == "PASS",
+      "v12.18 rule 11: a story published inside the window PASSES")
+# 9) a publication named with no link fails
+_named = mk_article("Nvidia loses its founder", "https://x.com/d4", source="Nvidia")
+_named_analysis = dict(_ANALYSIS, why_you_care="Bloomberg reported the Beijing link.")
+check(_sc_label([(_named, _named_analysis)])
+      ["Every publication named in a story has a working link to its article"][0] == "FAIL",
+      "v12.18 rule 11: naming Bloomberg with no Bloomberg link FAILS")
+# 9) the same story with a recorded Bloomberg link passes
+_linked = mk_article("Nvidia loses its founder", "https://x.com/d5", source="Nvidia")
+_linked["source_links"] = [("Bloomberg", "https://www.bloomberg.com/news/articles/2026-11-12/x")]
+check(_sc_label([(_linked, _named_analysis)])
+      ["Every publication named in a story has a working link to its article"][0] == "PASS",
+      "v12.18 rule 11: a recorded Bloomberg link PASSES the named-source check")
+# the date parser never invents a year: a bare month/day is unparseable
+check(agent._parse_serper_news_date("Nov 12") is None,
+      "v12.18 rule 11: a bare month/day with no year is not a date")
+check(agent._parse_serper_news_date("Nov 12, 2026") is not None,
+      "v12.18 rule 11: a fully dated string still parses")
 
 # rule 9: review summary leads with DRAFT + the self-check
 import tempfile

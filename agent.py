@@ -24,7 +24,7 @@ import urllib.error
 import urllib.parse
 from html import escape as _h
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, date, timedelta, timezone
 from time import mktime
 from openai import OpenAI
 
@@ -806,8 +806,11 @@ def _parse_serper_news_date(text):
     """Best-effort parse of a Serper News date string -> datetime or None.
 
     Serper returns forms like 'Oct 1, 2026', '5 hours ago', '2 days ago'.
-    Unparseable values return None; callers keep the story (Serper already
-    time-filters) rather than dropping it.
+    Unparseable values return None; callers keep the story with
+    published=None (Serper already time-filters) rather than dropping it.
+    v12.18 rule 11: never substitute today's date for an unparseable one —
+    that made a year-old story look fresh (GPT-5.1, #028). The self-check
+    fails dateless stories.
     """
     t = (text or "").strip()
     if not t:
@@ -876,8 +879,12 @@ def fetch_serper_middle_east(days=LOOKBACK_DAYS):
                 continue
             if not is_valid_article_link(link):
                 continue
-            pub = _parse_serper_news_date(item.get("date")) or datetime.now()
-            if pub <= cutoff:
+            # v12.18 rule 11: an unparseable date is UNKNOWN, never today.
+            # Stamping datetime.now() made a year-old story look fresh
+            # (GPT-5.1, #028). Dateless stories stay in the pool with
+            # published=None; the self-check fails them.
+            pub = _parse_serper_news_date(item.get("date"))
+            if pub is not None and pub <= cutoff:
                 continue
             seen_links.add(link)
             found.append({
@@ -2986,7 +2993,7 @@ def analyze_article(article, audience="business"):
                  "company statements, 'launched' for available products, 'confirmed' for verified facts, 'rumored' "
                  "for weak sourcing. NEVER upgrade a status (e.g. do not write 'launched' for a story that is only "
                  "'in talks'). "
-                 "V12.14 EDITORIAL RULES (Hasan's standing rules — apply to every issue). "
+                 "V12.18 EDITORIAL RULES (Hasan's standing rules — apply to every issue). "
                  "DEAL DIRECTION (critical): get who-pays-whom right. A customer committing $11.6B of cloud "
                  "spend is a CUSTOMER, not an investor in the supplier; a supplier granting the customer a stock "
                  "warrant is not 'investing in' the customer. State buyer/seller/investor roles exactly as the "
@@ -3002,7 +3009,7 @@ def analyze_article(article, audience="business"):
                  "or watch for a specific signal. NEVER tell readers to negotiate with the companies in the story, "
                  "and NEVER tell them to 'implement' a model, API, or technical tool. If no realistic action "
                  "exists, write 'Watch:' followed by what to monitor. "
-                 "Use ONLY facts present in the source — if unsure about a fact, leave it out.")
+                 "Use ONLY facts present in the source — if unsure about a fact, leave it out. " "DATE (critical, v12.18 rule 11): the story's publication date must come from the source page itself, or from an explicitly dated citation that states the year. Never infer the year from a bare month and day. If the source page carries no date and no explicitly dated citation exists, the story is rejected — do not date it by today.")
     elif audience == "middle_east":
         schema_hint = """{
   "headline": "punchy 6-10 word headline (no period)",
@@ -5036,7 +5043,7 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
     _write_take_suggestions_md(take_suggestions, "take_suggestions.md",
                                issue_number_str, today)
 
-    # 13b) v12.14 rule 9: editorial self-check — failures listed at the top of the draft.
+    # 13b) v12.18 rule 11: editorial self-check — failures listed at the top of the draft.
     self_check = _editorial_self_check(viral, viral_data, biz_pairs, eve_pairs,
                                        me_items, tip, picks)
 
@@ -5074,9 +5081,9 @@ def generate_newsletter(publish=False, force_lead=None, force_issue=None):
 
 
 # =========================================================
-# v12.14 rule 9 — EDITORIAL SELF-CHECK
+# v12.18 rule 11 — EDITORIAL SELF-CHECK (extends v12.14 rule 9)
 # =========================================================
-# The 7-point self-check Hasan dictated. Failures are listed at the top of the
+# The self-check Hasan dictated. Failures are listed at the top of the
 # draft (REVIEW_SUMMARY.md); deal-direction items need his eyes by design.
 
 def _link_resolves(url, timeout=6):
@@ -5092,9 +5099,58 @@ def _link_resolves(url, timeout=6):
         return False
 
 
+
+def _story_pub_date(pub):
+    """v12.18 rule 11: normalize a story's recorded publication date to a
+    date, or None if it cannot be established. A bare month/day with no
+    year, or a missing value, is NOT a date — never infer the year."""
+    if pub is None:
+        return None
+    if isinstance(pub, datetime):
+        return pub.date()
+    if isinstance(pub, date):
+        return pub
+    if isinstance(pub, str):
+        for fmt in ("%Y-%m-%d", "%b %d, %Y", "%B %d, %Y"):
+            try:
+                return datetime.strptime(pub.strip(), fmt).date()
+            except ValueError:
+                continue
+    return None
+
+
+# v12.18 rule 11: publications and the domains their articles live on.
+# A story that names one of these must carry a working link to it.
+_PUB_DOMAINS = {
+    "new york times": ["nytimes.com"],
+    "nyt": ["nytimes.com"],
+    "the times": ["thetimes.com", "thetimes.co.uk"],
+    "bloomberg": ["bloomberg.com", "bloomberglaw.com"],
+    "reuters": ["reuters.com"],
+    "financial times": ["ft.com"],
+    "wall street journal": ["wsj.com"],
+    "the guardian": ["theguardian.com"],
+    "cnbc": ["cnbc.com"],
+    "techcrunch": ["techcrunch.com"],
+    "the verge": ["theverge.com"],
+    "wired": ["wired.com"],
+    "axios": ["axios.com"],
+    "the information": ["theinformation.com"],
+    "associated press": ["apnews.com"],
+    "washington post": ["washingtonpost.com"],
+    "bbc": ["bbc.com", "bbc.co.uk"],
+    "cnn": ["cnn.com"],
+    "forbes": ["forbes.com"],
+    "the atlantic": ["theatlantic.com"],
+    "the economist": ["economist.com"],
+    "arab news": ["arabnews.com"],
+    "wam": ["wam.ae"],
+}
+
+
 def _editorial_self_check(viral, viral_data, biz_pairs, eve_pairs, me_items,
                           tip, picks, check_links=True):
-    """v12.14 rule 9: run Hasan's 7-point editorial self-check.
+    """v12.18 rule 11: run Hasan's editorial self-check (7-point rule 9 + date/link checks).
 
     Returns a list of (status, label, detail); status is PASS / FAIL / REVIEW
     (REVIEW = needs Hasan's judgment by design).
@@ -5209,6 +5265,62 @@ def _editorial_self_check(viral, viral_data, biz_pairs, eve_pairs, me_items,
     # 7) Draft marked DRAFT — pending Hasan's review (always recorded).
     results.append(("PASS", "Draft marked DRAFT — pending Hasan's review",
                     "review bundle carries the DRAFT banner"))
+
+    # 8) v12.18 rule 11: every story's source was published inside the
+    #    issue's seven-day window (the seven days ending the day before
+    #    publication — for a Monday issue, the previous Monday-Sunday).
+    #    Fail-closed: a story with no recorded publication date fails.
+    window_end = _issue_date() - timedelta(days=1)
+    window_start = window_end - timedelta(days=6)
+    bad_dates = []
+    for art, _ in pairs:
+        if not art:
+            continue
+        pub = _story_pub_date(art.get("published"))
+        title = (art.get("title", "") or "")[:45]
+        if pub is None:
+            bad_dates.append(f"{title}: no publication date recorded")
+        elif not (window_start <= pub <= window_end):
+            bad_dates.append(f"{title}: published {pub} (window {window_start}..{window_end})")
+    if bad_dates:
+        results.append(("FAIL", "Every story's source was published inside the issue's 7-day window",
+                        f"{len(bad_dates)} story(ies) outside window or dateless: " + "; ".join(bad_dates[:3])))
+    else:
+        results.append(("PASS", "Every story's source was published inside the issue's 7-day window",
+                        f"{len(pairs)} stories in window {window_start}..{window_end}"))
+
+    # 9) v12.18 rule 11: every publication named in a story's text has a
+    #    working link to that publication's own article, recorded alongside
+    #    the story (art["source_links"] = [(publication, url), ...]).
+    #    Fail-closed: a named publication with no recorded link fails.
+    unlinked = []
+    dead_source_links = []
+    for art, data in pairs:
+        if not art or not isinstance(data, dict):
+            continue
+        text = " ".join(str(v) for k, v in data.items()
+                        if isinstance(v, str) and not k.startswith("_"))
+        links = [art.get("link") or ""]
+        links += [u for _, u in (art.get("source_links") or [])]
+        for pub_name, domains in _PUB_DOMAINS.items():
+            if not re.search(r"\b" + re.escape(pub_name) + r"\b", text, re.I):
+                continue
+            hits = [u for u in links if u and any(d in u for d in domains)]
+            if not hits:
+                unlinked.append(f"{(art.get('title', '') or '')[:40]}: names {pub_name} with no link")
+            elif check_links and not any(u == art.get("link") for u in hits):
+                if not any(_link_resolves(u) for u in hits):
+                    dead_source_links.append(f"{(art.get('title', '') or '')[:40]}: {pub_name} link dead")
+    if unlinked:
+        results.append(("FAIL", "Every publication named in a story has a working link to its article",
+                        f"{len(unlinked)} unlinked: " + "; ".join(unlinked[:3])))
+    elif dead_source_links:
+        results.append(("FAIL", "Every publication named in a story has a working link to its article",
+                        f"{len(dead_source_links)} dead: " + "; ".join(dead_source_links[:3])))
+    else:
+        results.append(("PASS", "Every publication named in a story has a working link to its article",
+                        "all named publications linked"))
+
     return results
 
 
@@ -5246,7 +5358,7 @@ def _write_review_summary(out_dir, publish, qa_passed, qa_checks, issue_number_s
         "",
         "> **DRAFT — pending Hasan's review**",
         "",
-        "## v12.14 Editorial self-check (rule 9 — failures listed at the top)",
+        "## v12.18 Editorial self-check (rule 11 — failures listed at the top)",
     ]
     if self_check:
         _icons = {"PASS": "\u2705", "FAIL": "\u274c", "REVIEW": "\U0001f440\ufe0f"}

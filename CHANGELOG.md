@@ -1,5 +1,27 @@
 # SIGNAL Agent — Changelog
 
+## v12.18 (2026-11-15) — Seven-day window + a link for every named source
+
+- SIGNAL #028 shipped a year-old story: GPT-5.1 launched November 12, 2025,
+  but the issue dated it November 12, 2026. Root cause: a Serper News date
+  of "Nov 12" (no year) was unparseable, and the fetcher silently stamped
+  the story with today's date (`_parse_serper_news_date(...) or datetime.now()`).
+- Fix, three parts. (1) The fetcher no longer substitutes today for an
+  unparseable date — the story keeps `published=None` and the self-check
+  fails it as dateless. (2) The editorial self-check gains two fail-closed
+  checks: every story's source must have been published inside the issue's
+  seven-day window, and every publication named in a story's text must have
+  a working link to that publication's own article (recorded as
+  `source_links`). (3) The analysis prompt now requires the publication
+  date to come from the source page itself, or from an explicitly dated
+  citation that states the year — never infer the year from a bare month/day.
+- New rule 11 in EDITORIAL_RULES.md. Both agent.py and agent_v10.py updated;
+  test_v10.py gains 7 rule-11 tests and the fixture now carries an in-window
+  publication date. Suite: 350 passed, 1 failed (the single failure is
+  TEST 14, build_index.py, which fails identically on v12.17 when run
+  outside the repo root — environmental, not a regression).
+- Live with the #028 fix run (Sun Nov 15, 2026).
+
 ## v12.17 (2026-10-02) — Top-source queries in Middle East discovery
 
 - A live check of who actually carries KSA/UAE AI news showed the v12.14
