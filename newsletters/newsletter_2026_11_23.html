@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIGNAL // AI Intelligence Briefing - Issue #029 - November 23, 2026</title>
+<meta name="description" content="SIGNAL Issue #029 — The AI stories that matter, in five minutes flat.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="SIGNAL #029 — AI Intelligence Briefing">
+<meta property="og:description" content="The AI stories that matter this week, in five minutes flat. Curated for leaders and curious minds.">
+<meta property="og:url" content="https://hjt-bit.github.io/ai-news-agent/newsletters/newsletter_2026_11_23.html">
+<meta property="og:image" content="https://hjt-bit.github.io/ai-news-agent/assets/signal_og_card.png">
+<meta property="og:site_name" content="SIGNAL Weekly">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SIGNAL #029 — AI Intelligence Briefing">
+<meta name="twitter:description" content="The AI stories that matter this week, in five minutes flat.">
+<meta name="twitter:image" content="https://hjt-bit.github.io/ai-news-agent/assets/signal_og_card.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f7;
+    --paper: #ffffff;
+    --panel: #f3f6fb;
+    --line: #d9dfe9;
+    --line-bright: #b6bfd0;
+    --ink: #050d1f;
+    --ink-2: #1a2438;
+    --muted: #4a5468;
+    --muted-2: #7b859a;
+    --cyan: #0e7490;
+    --cyan-bright: #0891b2;
+    --violet: #6d28d9;
+    --highlight: #fff3a3;
+    --brand-navy: #0E1A2B;
+    --brand-navy-2: #16243a;
+    --title-band: #E8EEF7;
+    --tip-bg: #FDF6E3;
+    --tip-rule: #C49A2C;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    background-image:
+      radial-gradient(800px 400px at 50% -180px, rgba(14,116,144,0.10), transparent 60%),
+      radial-gradient(600px 350px at 95% 5%, rgba(109,40,217,0.06), transparent 65%);
+    color: var(--ink);
+    padding: 40px 16px;
+    line-height: 1.6;
+    font-size: 15px;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 700px;
+    margin: 0 auto;
+    background: var(--paper);
+    border: 1px solid var(--line-bright);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(5,13,31,0.05), 0 16px 50px rgba(5,13,31,0.10);
+  }
+  .masthead {
+    padding: 38px 44px 30px;
+    border-bottom: 3px solid #00D4FF;
+    background: linear-gradient(180deg, var(--brand-navy) 0%, var(--brand-navy-2) 100%);
+    color: #ffffff;
+    position: relative;
+  }
+  .masthead::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(600px 220px at 80% -40px, rgba(0,212,255,0.18), transparent 60%),
+      radial-gradient(420px 180px at 0% 100%, rgba(109,40,217,0.14), transparent 70%);
+    pointer-events: none;
+  }
+  .masthead > * { position: relative; z-index: 1; }
+  .masthead-top {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 2.4px;
+    color: rgba(255,255,255,0.62);
+    text-transform: uppercase; margin-bottom: 26px;
+  }
+  .masthead-top .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #00D4FF; margin-right: 8px; vertical-align: middle;
+    box-shadow: 0 0 10px rgba(0,212,255,0.8);
+  }
+  .masthead h1 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700; font-size: 54px; line-height: 1; letter-spacing: -1.8px;
+    margin: 0 0 14px; color: #ffffff;
+  }
+  .masthead h1 .accent { color: #00D4FF; }
+  .masthead .tagline {
+    font-size: 15.5px; color: rgba(255,255,255,0.92); font-weight: 500;
+    line-height: 1.45;
+  }
+  .masthead .promise {
+    margin-top: 10px;
+    font-size: 12.5px; color: rgba(255,255,255,0.62);
+    letter-spacing: 0.2px;
+  }
+  .hasan-take {
+    margin: 18px 44px 0; padding: 14px 18px;
+    border: 1px dashed var(--line); border-radius: 8px;
+    background: rgba(0,212,255,0.04);
+  }
+  .hasan-take-label {
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    letter-spacing: 2.4px; text-transform: uppercase; color: var(--cyan);
+    margin: 0 0 6px 0;
+  }
+  .hasan-take-text { margin: 0; font-size: 14px; color: var(--ink-2); font-style: italic; }
+  .section-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 28px 44px 10px; border-top: 1px solid var(--line);
+  }
+  .section-header .index {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 2.4px; color: var(--cyan);
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .section-header h2 {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 20px; font-weight: 700; margin: 0; color: var(--ink);
+    letter-spacing: -0.3px;
+  }
+  .section-header .rule {
+    flex: 1; height: 1px; background: var(--line);
+  }
+  .card {
+    margin: 0 44px 22px; padding: 22px 26px;
+    border: 1px solid var(--line); border-radius: 5px;
+    background: var(--paper);
+  }
+  .card .card-title {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 17px; font-weight: 700; color: var(--ink);
+    margin: 0 0 10px; line-height: 1.3; letter-spacing: -0.2px;
+    padding: 4px 8px; margin-left: -8px;
+    background: var(--title-band); border-radius: 3px;
+    display: inline-block;
+  }
+  .card .card-angle {
+    font-size: 14.5px; color: var(--ink); margin: 0 0 10px;
+    line-height: 1.5; font-weight: 400;
+  }
+  .card .card-body {
+    font-size: 13.5px; color: var(--ink-2); margin: 0 0 10px; line-height: 1.6;
+  }
+  .card .card-action {
+    font-size: 13px; line-height: 1.6; margin: 0 0 12px; color: var(--ink);
+  }
+  .card .source-link {
+    display: inline-block; margin-top: 12px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--cyan); text-decoration: none;
+    border-bottom: 1px dashed var(--cyan);
+    padding-bottom: 1px;
+  }
+  .card .source-link:hover { color: var(--violet); border-color: var(--violet); }
+  .card.viral {
+    border: 2px solid var(--brand-navy);
+    background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+    box-shadow: 0 4px 20px rgba(14,26,43,0.10);
+  }
+  .card.viral .card-title {
+    font-size: 20px;
+    background: var(--brand-navy); color: #ffffff;
+    padding: 6px 12px; border-radius: 3px;
+  }
+  .me-block {
+    margin: 0 44px 22px; padding: 18px 24px;
+    border: 1px solid var(--line); border-radius: 5px;
+    background: var(--panel);
+  }
+  .me-block .me-item {
+    margin-bottom: 14px; padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .me-block .me-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .me-block .me-headline {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 15px; font-weight: 600; color: var(--ink); margin: 0 0 4px;
+  }
+  .me-block .me-tldr {
+    font-size: 13.5px; color: var(--ink-2); line-height: 1.5; margin: 0 0 6px;
+  }
+  .me-block .me-action {
+    font-size: 13px; color: var(--ink); line-height: 1.5; margin: 0 0 4px;
+  }
+  .me-block .me-link {
+    display: inline-block; margin-top: 6px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--cyan); text-decoration: none;
+  }
+  .gulf-watch {
+    margin: 0 0 18px; padding: 14px 16px;
+    border: 1px solid var(--line); border-radius: 5px;
+    background: rgba(0, 212, 255, 0.04);
+  }
+  .gulf-watch-title {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
+    color: var(--ink); margin: 0 0 10px;
+  }
+  .gulf-watch-title span { color: var(--muted); font-weight: 400; }
+  .gulf-cols { display: flex; gap: 18px; }
+  .gulf-col { flex: 1; min-width: 0; }
+  .gulf-country { font-size: 12px; font-weight: 700; color: var(--ink); margin: 0 0 6px; }
+  .gulf-item { display: block; margin-bottom: 9px; text-decoration: none; }
+  .gulf-item:last-child { margin-bottom: 0; }
+  .gulf-headline { display: block; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+  .gulf-item:hover .gulf-headline { color: var(--cyan); }
+  .gulf-source {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
+  }
+  .tip-block {
+    margin: 0 44px 22px; padding: 22px 26px;
+    border: 1px solid var(--tip-rule); border-radius: 5px;
+    background: var(--tip-bg);
+    border-left: 4px solid var(--tip-rule);
+  }
+  .tip-block .tip-title {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 8px;
+  }
+  .tip-block .tip-what {
+    font-size: 14px; color: var(--ink-2); margin-bottom: 10px; line-height: 1.5;
+  }
+  .tip-block .tip-try {
+    font-size: 13px; color: var(--muted); margin-bottom: 10px;
+    padding: 8px 12px; background: rgba(255,255,255,0.7); border-radius: 3px;
+  }
+  .tip-block .tip-try strong { color: var(--ink-2); }
+  .tip-block .tip-link {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--tip-rule); text-decoration: none;
+    border-bottom: 1px dashed var(--tip-rule);
+  }
+  .cta-section {
+    text-align: center; padding: 36px 44px;
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .cta-section .cta-text {
+    font-size: 14px; color: var(--muted); margin-bottom: 16px;
+  }
+  .share-bar {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;
+    padding: 4px 0 0;
+  }
+  .share-bar .share-label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted-2); margin-right: 8px;
+  }
+  .share-bar a.share-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 500; color: var(--ink-2);
+    text-decoration: none; padding: 7px 14px;
+    border: 1px solid var(--line); border-radius: 4px;
+    background: var(--paper);
+  }
+  .share-bar a.share-btn:hover {
+    border-color: var(--cyan); background: rgba(14,116,144,0.04);
+  }
+  .share-bar a.share-btn svg { width: 14px; height: 14px; fill: currentColor; }
+  .email-capture {
+    margin: 28px 44px; padding: 28px 30px;
+    border: 2px solid var(--cyan); border-radius: 6px;
+    background: linear-gradient(135deg, #f0fafb 0%, #ffffff 100%);
+    text-align: center;
+  }
+  .email-capture .ec-headline {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 18px; font-weight: 700; color: var(--ink);
+    margin: 0 0 8px;
+  }
+  .email-capture .ec-sub {
+    font-size: 14px; color: var(--muted); margin: 0 0 18px; line-height: 1.5;
+  }
+  .email-capture a.ec-button {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: #ffffff; background: var(--cyan);
+    padding: 14px 32px; border-radius: 4px; text-decoration: none;
+  }
+  .email-capture a.ec-button:hover { background: var(--violet); }
+  @media (max-width: 600px) {
+    body { padding: 16px 4px; }
+    .masthead, .section-header, .card, .me-block, .tip-block, .cta-section, .footer, .share-bar {
+      padding-left: 20px; padding-right: 20px;
+    }
+    .email-capture { margin-left: 12px; margin-right: 12px; }
+    .hasan-take { margin-left: 12px; margin-right: 12px; }
+    .card { margin-left: 12px; margin-right: 12px; }
+    .me-block { margin-left: 12px; margin-right: 12px; }
+    .gulf-cols { flex-direction: column; }
+    .tip-block { margin-left: 12px; margin-right: 12px; }
+    .masthead h1 { font-size: 38px; }
+  }
+  .footer {
+    padding: 24px 44px; text-align: center;
+    font-size: 11px; color: var(--muted-2);
+    border-top: 1px solid var(--line);
+  }
+  .footer a { color: var(--cyan); text-decoration: none; }
+  .byline { text-align: center; color: rgba(255,255,255,0.85); font-size: 14px; margin: 8px 0 0; }
+  .byline-photo { width: 44px; height: 44px; object-fit: cover; border-radius: 50%; vertical-align: middle; margin-right: 8px; }
+  .byline-name { white-space: nowrap; }
+  .byline-brand { display: block; font-weight: 600; color: #ffffff; font-size: 15px; margin-top: 4px; white-space: nowrap; }
+  .byline-tag { display: block; font-size: 12.5px; margin-top: 2px; color: rgba(255,255,255,0.65); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <div class="masthead-top">
+      <span><span class="dot"></span>Issue #029</span>
+      <span>November 23, 2026</span>
+    </div>
+    <h1>SIGN<span class="accent">A</span>L</h1>
+    <p class="tagline">The AI stories that matter, in five minutes flat.</p>
+    <p class="promise">Curated for leaders &amp; curious minds · Every Monday · Dubai 08:00 GST</p>
+    <p class="byline"><img class="byline-photo" src="https://hjt-bit.github.io/ai-news-agent/assets/hasan-headshot.jpg" alt="Hasan Jad"><span class="byline-name">By <strong>Hasan Jad</strong></span><span class="byline-brand">AI, decoded for MENA leaders</span><span class="byline-tag">I build production AI agents with the region&#x27;s biggest companies.</span></p>
+  </div>
+  <div class="email-capture">
+      <p class="ec-headline">Get SIGNAL in your inbox every Monday</p>
+      <p class="ec-sub">Five minutes. The AI stories that matter. Free, forever.</p>
+      <a class="ec-button" href="https://signal-6.kit.com/70ccec5969" target="_blank" rel="noopener">Subscribe by email</a>
+    </div>
+  <div class="hasan-take">
+    <p class="hasan-take-label">Hasan Jad&#x27;s take</p>
+    <p class="hasan-take-text"><strong>The big picture:</strong> Nvidia lost its founder-CEO and doubled its revenue in the same week. Anthropic went public in a $119.5B IPO. Washington rewrote the export rules. The Gulf shipped real products &#8212; HUMAIN Voice, Dubai&#x27;s 93 government agents, sovereign AI from both telcos.<br><br><strong>Why it matters:</strong> AI has outgrown its founders. The companies, governments and rules around the models now matter more than any single person or model.<br><br><strong>The bottom line:</strong> Which of your AI suppliers is still a founder-led bet, and what changes for you if that founder, that vendor, or that export rule changes tomorrow?</p>
+  </div>
+
+  <div class="section-header">
+    <span class="index">01 //</span>
+    <h2>The Lead</h2>
+    <span class="rule"></span>
+  </div>
+        <div class="card viral">
+    <div class="card-title">Nvidia doubles revenue, board rules out Huang return</div>
+    <p class="card-angle"><strong>Why you care:</strong> Nvidia lost its founder-CEO and doubled its revenue in the same week. Q3 revenue hit $115.8B, up 103%, as the Vera Rubin chip shipped at record pace. On the same earnings call, the board said it does not intend to reinstate Jensen Huang as CEO.</p>
+    <p class="card-body">Nvidia reported Q3 FY2027 revenue of $115.8B for the quarter ended October 25, 2026. That is up 103% year over year and 20% sequentially. GAAP net income was $65.3B, up 105%. Data Center revenue was $107.6B, up 110% year over year. Edge Computing revenue was $8.2B, up 42%. GAAP diluted earnings per share were $2.70; non-GAAP were $2.68. Gross margins were 74.8% GAAP and 74.9% non-GAAP. The Q4 FY2027 outlook is revenue of $130.0B, plus or minus 3%, with no Data Center compute revenue from China assumed. Margins are guided at 71.0% to 72.0%. The Vera Rubin NVL72 has shipped. Nvidia calls it &#8220;the fastest product ramp in the company&#x27;s history.&#8221; Interim CEO Colette Kress said: &#8220;Vera Rubin is off to an explosive start, our roadmap is on track and our ambition has never been greater.&#8221; On the earnings call, Kress raised FY2028 revenue-growth guidance to about 75% year over year, from 70%. She said Vera Rubin generated nearly $20B in its first quarter of production shipments. Nvidia returned $28.1B to shareholders in Q3. About $227.3B of buyback authorisation remains. The governance news came on the same call. Board chair Harvey Jones said: &#8220;after disclosure of personal behavior inconsistent with the company&#x27;s code of conduct, standards, and cultural norms, Jensen Huang voluntarily resigned his positions as President, CEO and Board member. The NVIDIA Board unanimously accepted his resignation and does not intend to reinstate Jensen as CEO.&#8221; The board retained executive search firm Heidrick & Struggles to lead the search for a permanent CEO. Kress continues as interim CEO while remaining CFO. The board established a National Security and Export Control Oversight Committee of independent directors, senior external advisers and legal counsel. Earlier the same day, Huang posted his first public statement since resigning: &#8220;If the Board of Directors decides that my return is in the best interest of our shareholders, our employees, the company, and America, I would be honored to answer these calls and return as CEO.&#8221; He also wrote: &#8220;I own my mistakes completely, and I am committed to cooperating with the Board&#x27;s independent investigation.&#8221; Kress closed the call: &#8220;Our momentum is real. Our demand is accelerating. Our supply is growing.&#8221;</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your team which of your AI suppliers is still a founder-led bet &#8212; and what your plan is if that founder, that vendor, or that export rule changes.</p>
+    <a class="source-link" href="https://www.sec.gov/Archives/edgar/data/1045810/000104581026000088/q3fy27pr.htm" target="_blank" rel="noopener">Read full story &#8594; Nvidia (SEC filing)</a>
+    <p style="margin:12px 0 0;font-size:11px;color:#4a5468;">Sources: <a href="https://www.nasdaq.com/articles/nvidia-nvda-q3-2027-earnings-call-transcript" target="_blank" rel="noopener" style="color:#0e7490;">Nasdaq earnings-call transcript</a> · <a href="https://techcrunch.com/2026/11/17/jensen-huang-says-he-would-be-honored-if-allowed-to-return-as-nvidia-ceo/" target="_blank" rel="noopener" style="color:#0e7490;">TechCrunch</a></p>
+  </div>
+
+  <div class="section-header">
+    <span class="index">02 //</span>
+    <h2>Strategic Briefing</h2>
+    <span class="rule"></span>
+  </div>
+        <div class="card">
+    <div class="card-title">Anthropic closes record $119.5B IPO</div>
+    <p class="card-angle"><strong>Why you care:</strong> The first frontier AI lab is now a public company. Anthropic closed a $119.5B IPO &#8212; and the chip stack (AMD, Broadcom, Google, Micron, Microsoft, NVIDIA and TSMC) bought in through a private placement.</p>
+    <p class="card-body">Anthropic closed its IPO on November 20, 2026. It sold 1,127,000,000 Class A shares at $83.00 per share. That includes the full exercise of the underwriters&#x27; option for 147,000,000 additional shares. Gross proceeds were about $93.5B. About $91.6B went to Anthropic. A concurrent private placement also closed. It sold 313,253,007 Class N shares to AMD, Broadcom, Google, Micron, Microsoft, NVIDIA and TSMC Partners at $83.00 per share. That raised about $26.0B. Aggregate gross proceeds from the IPO and the private placement were about $119.5B. Shares began trading on the Nasdaq Global Select Market on November 19, 2026, under the symbol &#8220;ANT&#8221;. The SEC registration was declared effective November 18, 2026. Goldman Sachs and Morgan Stanley were the lead book-running managers.</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your procurement lead what listed-lab disclosure means for your AI vendor contracts &#8212; and whether your suppliers should meet the same transparency bar.</p>
+    <a class="source-link" href="https://www.anthropic.com/news/ipo-close" target="_blank" rel="noopener">Read full story &#8594; Anthropic</a>
+  </div>
+        <div class="card">
+    <div class="card-title">Washington rescinds AI Diffusion Rule, curbs remote chip access</div>
+    <p class="card-angle"><strong>Why you care:</strong> The US just redrew the export-control map for AI chips. The Biden-era Diffusion Rule is gone, replaced by licence requirements on remote access to advanced semiconductors &#8212; and on shipments to Singapore, Malaysia and other regional hubs.</p>
+    <p class="card-body">The Commerce Department&#x27;s Bureau of Industry and Security issued an interim final rule on November 19, 2026. It is published in the Federal Register, Vol. 91, No. 222, 91 FR 74970. Comments are due January 19, 2027. It creates a new licence requirement for exports, reexports and transfers of advanced &#8220;Super Intelligence&#8221; semiconductors to overseas data centres that remotely supply significant compute to companies headquartered in Country Group D:5, which includes China, or Macau. Commercial recommender systems are exempt. It creates a new licence requirement for advanced semiconductors to Indonesia, Malaysia, Singapore, Thailand and Brazil, which it calls high diversion risk. There is an exclusion for US-headquartered recipients that meet reporting requirements. The rule formally rescinds the Biden-era AI Diffusion Rule of January 15, 2025, which the rule states &#8220;has never been enforced&#8221;. It also narrows the pathways for front-end chip fabricators and packagers to overcome advanced-node logic-chip presumptions.</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your legal and infrastructure leads to re-check your export-control exposure &#8212; especially any capacity hosted in Singapore or Malaysia, and any remote-access arrangements.</p>
+    <a class="source-link" href="https://thefederalregister.org/documents/2026-23529/addressing-remote-access-to-advanced-semiconductors" target="_blank" rel="noopener">Read full story &#8594; Federal Register</a>
+  </div>
+        <div class="card">
+    <div class="card-title">OpenAI&#x27;s GPT-6.2 gets better and 20% cheaper</div>
+    <p class="card-angle"><strong>Why you care:</strong> OpenAI&#x27;s new frontier model is better at the work leaders actually buy it for &#8212; and 20% cheaper. Astra is for hard professional work; Sol is the efficient everyday model. Both live in Work and Codex, not the Chat most people open.</p>
+    <p class="card-body">OpenAI launched GPT-6.2 Astra and Sol on November 17. Astra is the new frontier model for complex professional work. Sol is the efficient everyday model. Both deliver better results with fewer output tokens. Astra&#x27;s API pricing is $8 per million input tokens, $0.40 cached input and $40 output. That is 20% below GPT-6 Astra, with a 60% cached-input discount. Sol keeps GPT-6.1 Sol&#x27;s rates: $2, $0.10 and $10. OpenAI&#x27;s own benchmarks, not independently verified: Astra scores 5.2 points above GPT-6 Astra on Agents&#x27; Last Exam at under a third of the cost, and 5.5 points above Claude Fable 5.2 at about 5% of the cost. It sets a new high on Terminal-Bench-Science, up 9 points on GPT-6 Astra. It more than doubles Claude Fable 5.2&#x27;s pass rate on the Harvey legal benchmark (LAB-AA) at about one-sixth the cost. Astra is OpenAI&#x27;s first externally released model to meet the &#8220;High&#8221; threshold for AI self-improvement. Both models meet the &#8220;Critical&#8221; cybersecurity threshold, with tighter safeguards on higher-risk cyber assistance. Availability: ChatGPT Work and Codex for Plus, Pro, Enterprise and Edu users from launch. API IDs are gpt-6.2-astra and gpt-6.2-sol.</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your team to re-price your heaviest agent workloads on Astra &#8212; and to update acceptable-use policies before staff use it for vulnerability work.</p>
+    <a class="source-link" href="https://openai.com/index/introducing-gpt-6-2-astra-sol/" target="_blank" rel="noopener">Read full story &#8594; OpenAI</a>
+  </div>
+  <div class="section-header">
+    <span class="index">03 //</span>
+    <h2>From the Region</h2>
+    <span class="rule"></span>
+  </div>
+        <div class="me-block">
+    <div class="gulf-watch">
+      <p class="gulf-watch-title">Gulf Watch <span>&mdash; the Gulf at a glance</span></p>
+      <div class="gulf-cols">
+        <div class="gulf-col">
+          <p class="gulf-country">🇸🇦 Saudi Arabia</p>
+          <a class="gulf-item" href="https://www.arabnews.pk/saudi-arabia/sdaia-launches-year-of-artificial-intelligence-initiative-in-universities-3007500" target="_blank" rel="noopener"><span class="gulf-headline">SDAIA launches Year of AI across Saudi universities</span><span class="gulf-source">Arab News</span></a>
+        </div>
+        <div class="gulf-col">
+          <p class="gulf-country">🇦🇪 UAE</p>
+          <a class="gulf-item" href="https://www.du.ae/about/media-centre/newsdetail/du-launches-National-HyperAI-to-Power-Sovereign-AI" target="_blank" rel="noopener"><span class="gulf-headline">UAE&#x27;s two telcos both go sovereign on AI</span><span class="gulf-source">du</span></a>
+          <a class="gulf-item" href="https://arxiv.org/abs/2611.21003" target="_blank" rel="noopener"><span class="gulf-headline">MBZUAI&#x27;s IFM publishes full K2-Horizon open-models paper</span><span class="gulf-source">arXiv</span></a>
+          <a class="gulf-item" href="https://www.wam.ae/en/article/c3cn53d-uae-office-undp-women-launch-initiative-empower" target="_blank" rel="noopener"><span class="gulf-headline">UAE and UNDP launch 100,000 Arab Women in AI</span><span class="gulf-source">WAM</span></a>
+        </div>
+      </div>
+    </div>
+    <div class="me-item">
+      <p class="me-headline">HUMAIN launches Arabic-first voice AI platform</p>
+      <p class="me-tldr"><strong>Why you care:</strong> Saudi Arabia&#x27;s national AI company shipped a real commercial product: an Arabic-first voice platform that understands Saudi dialects and answers in the caller&#x27;s own dialect. The API is live.</p>
+      <p class="me-tldr">HUMAIN Voice launched on November 19. It combines automatic speech recognition, text-to-speech and full-duplex voice agents behind a single API, built for customer service and enterprise operations. It is Arabic-first by design: it supports the Saudi dialects Najdi and Hijazi, plus Khaleeji and more than 15 Arabic dialects, English, and natural Arabic–English code-switching mid-sentence. Voice agents reply in the caller&#x27;s own dialect. Data stays in Saudi Arabia. The models are named Bayan (speech recognition), Nida (8 kHz phone speech recognition) and Nebula (text-to-speech). The hosted voice agent is labelled beta. Pricing is public: a free tier of 5,000 credits, then plans from 49 to 649 SAR a month, about $13 to $173. HUMAIN also announced HUMAIN-Voice-Lite-80M, an 80-million-parameter open-weight speech-recognition model under Apache 2.0, optimised for CPU, GPU and edge use &#8212; but it was not yet downloadable on launch day, so treat it as announced, not delivered. No public accuracy figures yet.</p>
+      <p class="me-action"><strong>Leader action:</strong> Ask your customer-service lead to test HUMAIN Voice on your hardest Arabic calls &#8212; the dialect handling is the part to verify before you commit.</p>
+      <a class="me-link" href="https://www.middleeastainews.com/p/humain-launches-arabic-first-voice" target="_blank" rel="noopener">Read full story &#8594; Middle East AI News</a>
+    </div>
+    <div class="me-item">
+      <p class="me-headline">Dubai approves City AI Agent, switches on 93 government agents</p>
+      <p class="me-tldr"><strong>Why you care:</strong> Dubai just moved from AI pilots to AI-native government. Crown Prince Hamdan approved a City AI Agent and switched on 93 specialised agents across 85 government entities &#8212; with quantified savings attached.</p>
+      <p class="me-tldr">The approvals came on November 18 at the AI Retreat, on the opening day of Dubai Future Week. The City AI Agent will understand residents&#x27; needs, execute tasks and coordinate procedures across Dubai government entities through a single seamless experience. No first services, public launch date or build cost were disclosed. Hamdan also launched the Government Resources AI Agents ecosystem: 93 specialised agents covering HR, finance and procurement, running inside the shared Government Resource Planning system across 85 government entities. Dubai Media Office puts numbers on it: the 93 agents are expected to execute more than 34 million tasks a year, save over 812,000 working hours and cut costs by more than AED 151 million. An AI-powered decision-making platform, NxtBI, was also launched. Hamdan&#x27;s framing: the shift is &#8220;from a government that harnesses AI to enhance its services to one that fundamentally redesigns the way it operates around AI capabilities.&#8221;</p>
+      <p class="me-action"><strong>Leader action:</strong> Ask your government-affairs lead what Dubai&#x27;s agent template means for your dealings with government &#8212; and which of your own processes an agent could run.</p>
+      <a class="me-link" href="https://mediaoffice.ae/en/news/2026/novemebr/18-11/hamdan-bin-mohammed-approves-smart-city-agent-initiative-attends-ai-challenge" target="_blank" rel="noopener">Read full story &#8594; Dubai Media Office</a>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <span class="index">04 //</span>
+    <h2>Consumer Signals</h2>
+    <span class="rule"></span>
+  </div>
+        <div class="card">
+    <div class="card-title">Google launches Gemini 4 Neon for production work</div>
+    <p class="card-angle"><strong>Why you care:</strong> Google&#x27;s new model sits between its hardest and fastest: frontier-level intelligence built for software engineering, knowledge work and science &#8212; at a working price.</p>
+    <p class="card-body">Google launched Gemini 4 Neon on November 18. It sits between Carbon, for the hardest long-horizon work, and Hydrogen, for fast everyday work. It offers frontier-level intelligence with fast end-to-end task completion for software engineering, knowledge work and science. Pricing is $3 per million input tokens, $0.15 cached, a 95% discount, and $15 per million output tokens. It has a 1-million-token context window and four thinking levels. Google&#x27;s own benchmarks, not independently verified: number 3 overall on the Artificial Analysis Intelligence Index, 61 at xhigh; number 2 on the Vals Index at 70.9%; number 1 on the Legal Research Bench and Tax Agent Bench; number 1 on the Artificial Analysis Coding Agent Index at 58.6; number 1 on AutomationBench at 56.3% and Vending-Bench 2 at $16,843. It costs 32% less per task than Carbon at default high thinking, and roughly 50 to 80% less than top competing frontier models. Availability: rolling out now in the Gemini API and Google AI Studio, Gemini for business, Google Antigravity (Pro and Ultra) and the Gemini app (Pro and Ultra).</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your engineering lead to benchmark Neon against your current coding model on a real task &#8212; and to price the difference.</p>
+    <a class="source-link" href="https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-neon/" target="_blank" rel="noopener">Read full story &#8594; Google</a>
+  </div>
+        <div class="card">
+    <div class="card-title">Microsoft puts Word, Excel and PowerPoint inside Copilot</div>
+    <p class="card-angle"><strong>Why you care:</strong> Microsoft&#x27;s answer to the office AI race: Word, Excel and PowerPoint now open inside the Copilot app. Ask in chat, get a real editable file. It is generally available and included in the Copilot subscription.</p>
+    <p class="card-body">Microsoft announced at Ignite 2026 on November 17 that Office in Copilot is generally available. Word, Excel and PowerPoint now open inside the Copilot app. Ask in chat, get a real editable file, and co-author with teammates. Files inherit Microsoft 365 permissions, sensitivity labels and compliance controls. It is included in the Copilot subscription with no metered charge. Home is generally available: a new starting screen merging Copilot Chat and Cowork into one composer, with Auto routing that picks the model and effort. Copilot Managed Runtime, for hosting apps built in Copilot, is generally available. Copilot Code goes generally available &#8220;in the coming weeks&#8221;. Autopilot, an always-on agent with its own identity and memory, starts rolling out to Frontier customers. Workspaces, a shared people-and-agents space, is in Frontier. Agent 365 expands with Business Analytics, which measures work completed rather than tokens, and Cost Management, with spending limits and alerts. New plugins and skills cover sales, service, finance and legal, including Salesforce in Copilot with more than 38 prebuilt sales skills.</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your team to try Office in Copilot on one real document this week &#8212; it is the included, generally available piece, not the early-access ones.</p>
+    <a class="source-link" href="https://www.microsoft.com/en-us/copilot/blog/2026/11/17/copilot-at-microsoft-ignite-expanding-whats-possible-with-intelligence-built-for-work/" target="_blank" rel="noopener">Read full story &#8594; Microsoft</a>
+  </div>
+        <div class="card">
+    <div class="card-title">Gemini comes to Android Go budget phones</div>
+    <p class="card-angle"><strong>Why you care:</strong> The AI assistant race just reached the next billion users. Google rebuilt the Gemini app for low-memory Android phones &#8212; the devices most of the world actually owns.</p>
+    <p class="card-body">Google announced on November 18 that the Gemini app now runs on eligible Android (Go edition) devices, after re-architecting it for low memory. Google&#x27;s framing: hundreds of millions of people use a lower-memory Android phone as their everyday connection to the internet, education and business. On Go hardware you get Gemini Live in more than 45 languages, camera on notes and forms for learning and translation, and Nano Banana custom image creation. Install via Google Play, by pressing and holding the power button on supported phones, or preloaded on upcoming partner devices &#8212; Transsion named. Until now those phones only had basic voice commands. Gemini replaces them.</p>
+    <p class="card-action"><strong>Leader action:</strong> Ask your team what changes when staff, customers and field teams on budget Android carry the same Gemini as a Pixel owner &#8212; and update your mobile workflows accordingly.</p>
+    <a class="source-link" href="https://blog.google/innovation-and-ai/products/gemini-app/gemini-lower-memory-devices/" target="_blank" rel="noopener">Read full story &#8594; Google</a>
+  </div>
+  <div class="section-header">
+    <span class="index">05 //</span>
+    <h2>Tip of the Week</h2>
+    <span class="rule"></span>
+  </div>
+        <div class="tip-block">
+    <div class="tip-title">Turn your notes into a shareable site with Gemini Notebook</div>
+    <div class="tip-what">Gemini Notebook can now turn your sources into an interactive site. Drop in this week&#x27;s meeting notes, a report and a few links, then ask it to make you a site &#8212; a project tracker, a dashboard, a briefing page. It takes about five minutes with material you already have. Sharing works by link; viewers need a Google Account and access to the notebook.</div>
+    <div class="tip-try"><strong>Try this:</strong> Open notebook.google.com, start a notebook, add a few sources (meeting notes, a report, links), then type &#8220;make me a site&#8221; in the notebook chat and describe what you want. Hit &#8220;Open in a new tab&#8221; to use it, or share the link.</div>
+    <a class="tip-link" href="https://notebook.google.com" target="_blank" rel="noopener">Gemini Notebook &#8212; Make a site</a>
+  </div>
+
+  <div class="email-capture">
+      <p class="ec-headline">Get SIGNAL in your inbox every Monday</p>
+      <p class="ec-sub">Five minutes. The AI stories that matter. Free, forever.</p>
+      <a class="ec-button" href="https://signal-6.kit.com/70ccec5969" target="_blank" rel="noopener">Subscribe by email</a>
+    </div>
+  <div class="cta-section">
+    <p class="cta-text">Enjoyed this issue? Share SIGNAL with a colleague who wants to stay sharp on AI.</p>
+    <div class="share-bar">
+      <span class="share-label">Share this issue</span>
+      <a class="share-btn" href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fhjt-bit.github.io%2Fai-news-agent%2Fnewsletters%2Fnewsletter_2026_11_23.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        LinkedIn
+      </a>
+      <a class="share-btn" href="https://twitter.com/intent/tweet?url=https%3A%2F%2Fhjt-bit.github.io%2Fai-news-agent%2Fnewsletters%2Fnewsletter_2026_11_23.html&text=SIGNAL%20%23029%20%E2%80%94%20AI%20Intelligence%20Briefing" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        X
+      </a>
+      <a class="share-btn" href="https://wa.me/?text=SIGNAL%20%23029%20%E2%80%94%20AI%20Intelligence%20Briefing%20https%3A%2F%2Fhjt-bit.github.io%2Fai-news-agent%2Fnewsletters%2Fnewsletter_2026_11_23.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        WhatsApp
+      </a>
+      <a class="share-btn" href="#" onclick="navigator.clipboard.writeText('https://hjt-bit.github.io/ai-news-agent/newsletters/newsletter_2026_11_23.html');this.textContent='Copied!';return false;">
+        &#128279; Copy link
+      </a>
+    </div>
+  </div>
+  <div class="footer">
+    SIGNAL is curated each week by <strong>Hasan Jad</strong> (AI, decoded for MENA leaders).<br>I build production AI agents with the region&#x27;s biggest companies.<br>
+    <em>Represents my own views and not that of my employer.</em><br><br>
+  </div>
+</div>
+</body>
+</html>
